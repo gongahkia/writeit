@@ -12,7 +12,8 @@ final class CerberusAppModel: ObservableObject {
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
     private let speaker = Speaker()
-    private let assistant = Assistant()
+    private let toolRegistry = try! ToolRegistry(tools: DefaultToolCatalog.tools)
+    private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
 
     init() {
         refreshPermissions()
