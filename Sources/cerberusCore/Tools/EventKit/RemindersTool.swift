@@ -23,7 +23,7 @@ public struct RemindersTool: AssistantTool {
     public func run(arguments: Arguments) async throws -> ToolResult {
         try EventKitToolSupport.requireAccess(to: .reminder)
 
-        let limit = EventKitToolSupport.clampLimit(arguments.limit)
+        let limit = ToolArgumentSupport.clampLimit(arguments.limit)
         let eventStore = EKEventStore()
         let calendars = selectedCalendars(arguments.listName, eventStore: eventStore)
         let predicate = eventStore.predicateForReminders(in: calendars)

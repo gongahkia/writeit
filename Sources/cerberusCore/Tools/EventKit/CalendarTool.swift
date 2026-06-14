@@ -36,7 +36,7 @@ public struct CalendarTool: AssistantTool {
             arguments.endDateISO8601,
             default: Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? startDate
         )
-        let limit = EventKitToolSupport.clampLimit(arguments.limit)
+        let limit = ToolArgumentSupport.clampLimit(arguments.limit)
         let eventStore = EKEventStore()
         let calendars = selectedCalendars(arguments.calendarNames, eventStore: eventStore)
         let predicate = eventStore.predicateForEvents(

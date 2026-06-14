@@ -29,10 +29,4 @@ enum EventKitToolSupport {
         throw ToolExecutionError.invalidArguments("Invalid ISO8601 date: \(value)")
     }
 
-    static func clampLimit(_ limit: Int, default defaultLimit: Int = 10, maximum: Int = 25) -> Int {
-        guard limit > 0 else {
-            return defaultLimit
-        }
-        return min(limit, maximum)
-    }
 }
