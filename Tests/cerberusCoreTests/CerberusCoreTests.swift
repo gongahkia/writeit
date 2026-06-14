@@ -21,3 +21,13 @@ import Testing
     #expect(machine.handle(.silenceDetected) == nil)
     #expect(machine.state == .idle)
 }
+
+@Test func systemPromptDocumentsUntrustedToolOutput() {
+    let prompt = SystemPrompt.render(toolSummaries: [
+        ToolSummary(name: "calendar.read", capability: "Read upcoming events.", mutatesState: false)
+    ])
+
+    #expect(prompt.contains("untrusted data"))
+    #expect(prompt.contains("calendar.read"))
+    #expect(prompt.contains("read-only"))
+}

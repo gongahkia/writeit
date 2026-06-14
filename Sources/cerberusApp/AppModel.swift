@@ -12,6 +12,7 @@ final class CerberusAppModel: ObservableObject {
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
     private let speaker = Speaker()
+    private let assistant = Assistant()
 
     init() {
         refreshPermissions()
@@ -46,8 +47,14 @@ final class CerberusAppModel: ObservableObject {
     func finishListeningAndProcess() {
         Task {
             await transcriber.stop()
-            finishListeningWithDraft()
-            simulateResponse()
+            let request = transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !request.isEmpty else {
+                finishListeningWithDraft()
+                return
+            }
+
+            apply(.silenceDetected)
+            await runReasoning(for: request)
         }
     }
 
@@ -57,15 +64,6 @@ final class CerberusAppModel: ObservableObject {
             return
         }
         apply(.silenceDetected)
-    }
-
-    private func simulateResponse() {
-        let text = transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        let response = text.isEmpty ? "I did not hear a request." : "Heard: \(text)"
-        apply(.responseReady(response))
-        speaker.speak(response) { [weak self] in
-            self?.finishSpeaking()
-        }
     }
 
     func finishSpeaking() {
@@ -120,6 +118,33 @@ final class CerberusAppModel: ObservableObject {
                     self?.finishSpeaking()
                 }
             }
+        }
+    }
+
+    private func runReasoning(for request: String) async {
+        do {
+            let plan = try await assistant.plan(for: request)
+            handle(plan)
+        } catch {
+            speak(error.localizedDescription)
+        }
+    }
+
+    private func handle(_ plan: AssistantPlan) {
+        if plan.requiresConfirmation {
+            let summary = plan.toolArgumentsSummary.isEmpty ? plan.spokenResponse : plan.toolArgumentsSummary
+            apply(.confirmationRequired(summary))
+            speaker.speak(plan.spokenResponse)
+            return
+        }
+
+        speak(plan.spokenResponse)
+    }
+
+    private func speak(_ response: String) {
+        apply(.responseReady(response))
+        speaker.speak(response) { [weak self] in
+            self?.finishSpeaking()
         }
     }
 
