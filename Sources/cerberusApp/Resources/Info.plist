@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>cerberus</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.gongahkia.cerberus</string>
+    <key>CFBundleName</key>
+    <string>cerberus</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>26.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>cerberus needs permission to open and focus apps only when you ask it to.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>cerberus reads calendar events when you ask scheduling questions.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>cerberus listens only after you trigger a voice interaction.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>cerberus reads reminders and creates reminders only after confirmation.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>cerberus uses on-device speech recognition to transcribe your requests.</string>
+</dict>
+</plist>
