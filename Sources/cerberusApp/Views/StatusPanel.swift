@@ -9,6 +9,7 @@ struct StatusPanel: View {
             header
             controls
             transcript
+            permissions
             recentEvents
         }
     }
@@ -98,6 +99,70 @@ struct StatusPanel: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private var permissions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Permissions")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    model.refreshPermissions()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Refresh permission status")
+            }
+
+            ForEach(model.permissionSnapshots) { snapshot in
+                HStack(spacing: 8) {
+                    statusDot(for: snapshot.state)
+
+                    Text(snapshot.kind.displayName)
+                        .font(.caption)
+
+                    Spacer()
+
+                    Text(snapshot.state.displayName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        model.requestPermission(snapshot.kind)
+                    } label: {
+                        Image(systemName: "lock.open")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(snapshot.state == .granted)
+                    .help("Request \(snapshot.kind.displayName)")
+                }
+            }
+        }
+    }
+
+    private func statusDot(for state: PermissionState) -> some View {
+        Circle()
+            .fill(color(for: state))
+            .frame(width: 8, height: 8)
+            .accessibilityLabel(state.displayName)
+    }
+
+    private func color(for state: PermissionState) -> Color {
+        switch state {
+        case .granted:
+            .green
+        case .denied, .restricted:
+            .red
+        case .notDetermined:
+            .orange
+        case .unknown:
+            .gray
         }
     }
 }

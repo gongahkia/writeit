@@ -6,7 +6,14 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var stateMachine = AssistantStateMachine()
     @Published private(set) var statusLine = "Ready"
     @Published private(set) var recentEvents: [String] = []
+    @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
     @Published var transcriptDraft = ""
+
+    private let permissionCenter = PermissionCenter()
+
+    init() {
+        refreshPermissions()
+    }
 
     var state: AssistantState {
         stateMachine.state
@@ -62,6 +69,17 @@ final class CerberusAppModel: ObservableObject {
         apply(.reset)
     }
 
+    func refreshPermissions() {
+        permissionSnapshots = permissionCenter.currentSnapshots()
+    }
+
+    func requestPermission(_ kind: SystemPermission) {
+        Task {
+            let snapshot = await permissionCenter.request(kind)
+            replacePermissionSnapshot(snapshot)
+        }
+    }
+
     private func apply(_ event: AssistantEvent) {
         guard let transition = stateMachine.handle(event) else {
             return
@@ -70,5 +88,14 @@ final class CerberusAppModel: ObservableObject {
         statusLine = transition.message ?? transition.to.displayName
         recentEvents.insert("\(transition.from.rawValue) -> \(transition.to.rawValue)", at: 0)
         recentEvents = Array(recentEvents.prefix(5))
+    }
+
+    private func replacePermissionSnapshot(_ snapshot: PermissionSnapshot) {
+        guard let index = permissionSnapshots.firstIndex(where: { $0.kind == snapshot.kind }) else {
+            permissionSnapshots.append(snapshot)
+            return
+        }
+
+        permissionSnapshots[index] = snapshot
     }
 }
