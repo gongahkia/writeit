@@ -3,7 +3,9 @@ import Foundation
 public enum DefaultToolCatalog {
     public static var tools: [AnyAssistantTool] {
         [
-            AnyAssistantTool(AppControlTool())
+            AnyAssistantTool(AppControlTool()),
+            AnyAssistantTool(CalendarTool()),
+            AnyAssistantTool(RemindersTool())
         ]
     }
 
