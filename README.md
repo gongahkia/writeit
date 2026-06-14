@@ -24,3 +24,5 @@ This repository currently uses Swift Package Manager for source organization. Sh
 ## Development Notes
 
 The Linux workspace used by Codex does not include Swift or Apple's macOS SDK, so compile validation must happen on a Mac with Xcode 26. Local checks here are limited to repository structure, text validation, and git history.
+
+See `Docs/macos-validation.md` for the current validation checklist.
