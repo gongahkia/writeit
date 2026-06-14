@@ -9,6 +9,7 @@ public struct MusicNowPlayingTool: AssistantTool {
     public let name = "music.now_playing"
     public let capability = "Read the current track from the macOS Music app."
     public let mutatesState = false
+    public let argumentSchema = #"{}"#
 
     public init() {}
 

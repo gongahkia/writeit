@@ -36,6 +36,7 @@ public enum AssistantEvent: Equatable, Sendable {
     case cancelRequested
     case confirmationRequired(String)
     case responseReady(String)
+    case executionStarted(String)
     case confirmationAccepted
     case confirmationDenied
     case executionFinished(String)
@@ -98,6 +99,8 @@ public struct AssistantStateMachine: Sendable {
             .idle
         case (.reasoning, .confirmationRequired):
             .awaitingConfirm
+        case (.reasoning, .executionStarted):
+            .executing
         case (.reasoning, .responseReady):
             .speaking
         case (.awaitingConfirm, .confirmationAccepted):
@@ -127,6 +130,8 @@ public struct AssistantStateMachine: Sendable {
             summary
         case .responseReady(let response):
             response
+        case .executionStarted(let toolName):
+            "Executing \(toolName)"
         case .executionFinished(let summary):
             summary
         case .failed(let reason):

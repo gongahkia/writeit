@@ -16,6 +16,7 @@ public struct WebSearchTool: AssistantTool {
     public let name = "web.search"
     public let capability = "Search the web through an allowlisted HTTPS endpoint."
     public let mutatesState = false
+    public let argumentSchema = #"{"query":"search terms","site":"optional allowlisted domain","limit":5}"#
 
     private let allowedDomains: Set<String>
 

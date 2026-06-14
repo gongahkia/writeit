@@ -17,6 +17,7 @@ public struct RemindersTool: AssistantTool {
     public let name = "reminders.read"
     public let capability = "Read reminders from an optional reminders list."
     public let mutatesState = false
+    public let argumentSchema = #"{"listName":"optional list name","includeCompleted":false,"limit":10}"#
 
     public init() {}
 

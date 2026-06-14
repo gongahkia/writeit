@@ -14,6 +14,7 @@ public struct ShellTool: AssistantTool {
     public let name = "shell.run"
     public let capability = "Run allowlisted read-only shell commands. Defaults to dry-run."
     public let mutatesState = true
+    public let argumentSchema = #"{"command":{"executable":"git","arguments":["status"],"workingDirectory":"optional path in home"},"dryRun":true}"#
 
     private let allowExecution: Bool
     private let allowlist: CommandAllowlist

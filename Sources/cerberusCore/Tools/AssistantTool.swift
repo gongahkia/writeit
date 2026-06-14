@@ -6,6 +6,7 @@ public protocol AssistantTool: Sendable {
     var name: String { get }
     var capability: String { get }
     var mutatesState: Bool { get }
+    var argumentSchema: String { get }
 
     func validate(_ arguments: Arguments) throws
     func run(arguments: Arguments) async throws -> ToolResult
@@ -13,7 +14,11 @@ public protocol AssistantTool: Sendable {
 
 public extension AssistantTool {
     var summary: ToolSummary {
-        ToolSummary(name: name, capability: capability, mutatesState: mutatesState)
+        ToolSummary(name: name, capability: capability, mutatesState: mutatesState, argumentSchema: argumentSchema)
+    }
+
+    var argumentSchema: String {
+        "JSON matching \(Arguments.self)"
     }
 
     func validate(_ arguments: Arguments) throws {}
@@ -23,6 +28,7 @@ public struct AnyAssistantTool: Sendable {
     public let name: String
     public let capability: String
     public let mutatesState: Bool
+    public let argumentSchema: String
 
     private let runClosure: @Sendable (Data) async throws -> ToolResult
 
@@ -30,6 +36,7 @@ public struct AnyAssistantTool: Sendable {
         name = tool.name
         capability = tool.capability
         mutatesState = tool.mutatesState
+        argumentSchema = tool.argumentSchema
 
         runClosure = { data in
             do {
@@ -43,7 +50,7 @@ public struct AnyAssistantTool: Sendable {
     }
 
     public var summary: ToolSummary {
-        ToolSummary(name: name, capability: capability, mutatesState: mutatesState)
+        ToolSummary(name: name, capability: capability, mutatesState: mutatesState, argumentSchema: argumentSchema)
     }
 
     public func run(encodedArguments: Data) async throws -> ToolResult {

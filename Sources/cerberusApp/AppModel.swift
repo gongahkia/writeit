@@ -7,6 +7,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var statusLine = "Ready"
     @Published private(set) var recentEvents: [String] = []
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
+    @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -14,6 +15,9 @@ final class CerberusAppModel: ObservableObject {
     private let speaker = Speaker()
     private let toolRegistry = try! ToolRegistry(tools: DefaultToolCatalog.tools)
     private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
+    private let confirmationGate = ConfirmationGate()
+    private let auditLog = AuditLog()
+    private var pendingPlan: AssistantPlan?
 
     init() {
         refreshPermissions()
@@ -76,6 +80,7 @@ final class CerberusAppModel: ObservableObject {
         transcriptDraft = ""
         transcriber.cancel()
         speaker.stop()
+        clearPendingConfirmation()
         apply(.cancelRequested)
     }
 
@@ -83,6 +88,7 @@ final class CerberusAppModel: ObservableObject {
         transcriptDraft = ""
         transcriber.cancel()
         speaker.stop()
+        clearPendingConfirmation()
         apply(.reset)
     }
 
@@ -94,6 +100,35 @@ final class CerberusAppModel: ObservableObject {
         Task {
             let snapshot = await permissionCenter.request(kind)
             replacePermissionSnapshot(snapshot)
+        }
+    }
+
+    func approvePendingConfirmation() {
+        Task {
+            guard let pendingConfirmation,
+                  await confirmationGate.accept(id: pendingConfirmation.id),
+                  let plan = pendingPlan else {
+                return
+            }
+
+            self.pendingConfirmation = nil
+            pendingPlan = nil
+            apply(.confirmationAccepted)
+            await execute(plan, confirmed: true, transitionToExecuting: false)
+        }
+    }
+
+    func denyPendingConfirmation() {
+        Task {
+            guard let pendingConfirmation else {
+                return
+            }
+
+            _ = await confirmationGate.deny(id: pendingConfirmation.id)
+            self.pendingConfirmation = nil
+            pendingPlan = nil
+            apply(.confirmationDenied)
+            speaker.speak("Cancelled.")
         }
     }
 
@@ -125,21 +160,88 @@ final class CerberusAppModel: ObservableObject {
     private func runReasoning(for request: String) async {
         do {
             let plan = try await assistant.plan(for: request)
-            handle(plan)
+            await handle(plan)
         } catch {
             speak(error.localizedDescription)
         }
     }
 
-    private func handle(_ plan: AssistantPlan) {
-        if plan.requiresConfirmation {
-            let summary = plan.toolArgumentsSummary.isEmpty ? plan.spokenResponse : plan.toolArgumentsSummary
-            apply(.confirmationRequired(summary))
-            speaker.speak(plan.spokenResponse)
+    private func handle(_ plan: AssistantPlan) async {
+        if plan.intent == .callTool {
+            guard !plan.toolName.isEmpty else {
+                speak("I selected a tool, but no tool name was provided.")
+                return
+            }
+
+            if plan.requiresConfirmation {
+                await requestConfirmation(for: plan)
+            } else {
+                await execute(plan, confirmed: false, transitionToExecuting: true)
+            }
             return
         }
 
         speak(plan.spokenResponse)
+    }
+
+    private func requestConfirmation(for plan: AssistantPlan) async {
+        let summary = plan.toolArgumentsSummary.isEmpty ? plan.spokenResponse : plan.toolArgumentsSummary
+        pendingPlan = plan
+        pendingConfirmation = await confirmationGate.request(summary: summary)
+        apply(.confirmationRequired(summary))
+        speaker.speak(plan.spokenResponse)
+    }
+
+    private func execute(_ plan: AssistantPlan, confirmed: Bool, transitionToExecuting: Bool) async {
+        if transitionToExecuting {
+            apply(.executionStarted(plan.toolName))
+        }
+
+        do {
+            let invocation = try makeInvocation(from: plan)
+            let result = try await toolRegistry.run(invocation, confirmed: confirmed)
+            try? await auditLog.append(
+                toolName: plan.toolName,
+                argumentsSummary: plan.toolArgumentsSummary,
+                resultSummary: result.spokenSummary
+            )
+            speakToolResult(result.spokenSummary)
+        } catch {
+            try? await auditLog.append(
+                toolName: plan.toolName,
+                argumentsSummary: plan.toolArgumentsSummary,
+                resultSummary: "error: \(error.localizedDescription)"
+            )
+            apply(.failed(error.localizedDescription))
+            speaker.speak(error.localizedDescription) { [weak self] in
+                self?.finishSpeaking()
+            }
+        }
+    }
+
+    private func makeInvocation(from plan: AssistantPlan) throws -> ToolInvocation {
+        let json = plan.toolArgumentsJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        let encodedArguments = Data((json.isEmpty ? "{}" : json).utf8)
+        return ToolInvocation(
+            toolName: plan.toolName,
+            encodedArguments: encodedArguments,
+            requiresConfirmation: plan.requiresConfirmation
+        )
+    }
+
+    private func speakToolResult(_ response: String) {
+        apply(.executionFinished(response))
+        speaker.speak(response) { [weak self] in
+            self?.finishSpeaking()
+        }
+    }
+
+    private func clearPendingConfirmation() {
+        pendingConfirmation = nil
+        pendingPlan = nil
+        Task {
+            await confirmationGate.clear()
+        }
     }
 
     private func speak(_ response: String) {

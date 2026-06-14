@@ -37,6 +37,12 @@ public struct ToolInvocation: Equatable, Sendable {
         encodedArguments = try encoder.encode(arguments)
         self.requiresConfirmation = requiresConfirmation
     }
+
+    public init(toolName: String, encodedArguments: Data, requiresConfirmation: Bool = false) {
+        self.toolName = toolName
+        self.encodedArguments = encodedArguments
+        self.requiresConfirmation = requiresConfirmation
+    }
 }
 
 public enum ToolExecutionError: Error, LocalizedError, Equatable {

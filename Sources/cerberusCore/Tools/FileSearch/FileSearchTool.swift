@@ -16,6 +16,7 @@ public struct FileSearchTool: AssistantTool {
     public let name = "files.search"
     public let capability = "Search indexed user files by filename using Spotlight metadata."
     public let mutatesState = false
+    public let argumentSchema = #"{"query":"filename terms","scopePath":"optional folder path","limit":10}"#
 
     public init() {}
 

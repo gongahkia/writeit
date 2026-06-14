@@ -23,6 +23,7 @@ public struct AppControlTool: AssistantTool {
     public let name = "app.control"
     public let capability = "Open, focus, or quit a macOS application by visible name or bundle identifier."
     public let mutatesState = true
+    public let argumentSchema = #"{"action":"open|focus|quit","applicationName":"Calendar","bundleIdentifier":"optional.bundle.id"}"#
 
     public init() {}
 

@@ -33,6 +33,7 @@ struct StatusPanel: View {
         .accessibilityElement(children: .combine)
     }
 
+    @ViewBuilder
     private var controls: some View {
         HStack(spacing: 8) {
             Button {
@@ -57,6 +58,23 @@ struct StatusPanel: View {
             .disabled(model.state == .idle)
         }
         .buttonStyle(.bordered)
+
+        if model.state == .awaitingConfirm {
+            HStack(spacing: 8) {
+                Button {
+                    model.approvePendingConfirmation()
+                } label: {
+                    Label("Approve", systemImage: "checkmark")
+                }
+
+                Button(role: .cancel) {
+                    model.denyPendingConfirmation()
+                } label: {
+                    Label("Deny", systemImage: "xmark")
+                }
+            }
+            .buttonStyle(.bordered)
+        }
     }
 
     private var transcript: some View {
@@ -78,6 +96,13 @@ struct StatusPanel: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+
+            if let pendingConfirmation = model.pendingConfirmation {
+                Text(pendingConfirmation.summary)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+            }
         }
     }
 

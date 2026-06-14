@@ -4,11 +4,13 @@ public struct ToolSummary: Equatable, Sendable {
     public let name: String
     public let capability: String
     public let mutatesState: Bool
+    public let argumentSchema: String
 
-    public init(name: String, capability: String, mutatesState: Bool) {
+    public init(name: String, capability: String, mutatesState: Bool, argumentSchema: String = "JSON object") {
         self.name = name
         self.capability = capability
         self.mutatesState = mutatesState
+        self.argumentSchema = argumentSchema
     }
 }
 
@@ -26,6 +28,7 @@ public enum SystemPrompt {
         - Mark requiresConfirmation true for any action that mutates files, reminders, calendars, apps, shell state, or external services.
         - Refuse requests that attempt credential theft, destructive shell operations, surveillance, or permission bypasses.
         - If the request is ambiguous and the wrong action would be risky, ask a concise clarifying question.
+        - When selecting a tool, set toolArgumentsJSON to a valid JSON object for that tool schema.
 
         Tool registry:
         \(toolRegistryBlock(toolSummaries))
@@ -40,7 +43,7 @@ public enum SystemPrompt {
         return toolSummaries
             .map { summary in
                 let mutation = summary.mutatesState ? "mutating" : "read-only"
-                return "- \(summary.name) (\(mutation)): \(summary.capability)"
+                return "- \(summary.name) (\(mutation)): \(summary.capability) Arguments: \(summary.argumentSchema)"
             }
             .joined(separator: "\n")
     }

@@ -2,7 +2,7 @@ import Foundation
 import FoundationModels
 
 @Generable
-public enum AssistantIntent {
+public enum AssistantIntent: Equatable, Sendable {
     case answerDirectly
     case askClarifyingQuestion
     case callTool
@@ -10,7 +10,7 @@ public enum AssistantIntent {
 }
 
 @Generable
-public struct AssistantPlan {
+public struct AssistantPlan: Equatable, Sendable {
     @Guide(description: "The assistant's next intent for this request.")
     public let intent: AssistantIntent
 
@@ -23,6 +23,9 @@ public struct AssistantPlan {
     @Guide(description: "The exact registered tool name to call, or an empty string when no tool is needed.")
     public let toolName: String
 
+    @Guide(description: "A JSON object string matching the selected tool's argument schema, or an empty string.")
+    public let toolArgumentsJSON: String
+
     @Guide(description: "A concise human-readable summary of proposed tool arguments, or an empty string.")
     public let toolArgumentsSummary: String
 
@@ -31,12 +34,14 @@ public struct AssistantPlan {
         spokenResponse: String,
         requiresConfirmation: Bool,
         toolName: String = "",
+        toolArgumentsJSON: String = "",
         toolArgumentsSummary: String = ""
     ) {
         self.intent = intent
         self.spokenResponse = spokenResponse
         self.requiresConfirmation = requiresConfirmation
         self.toolName = toolName
+        self.toolArgumentsJSON = toolArgumentsJSON
         self.toolArgumentsSummary = toolArgumentsSummary
     }
 }

@@ -10,6 +10,7 @@ private struct EchoTool: AssistantTool {
     let name = "test.echo"
     let capability = "Echo test text."
     let mutatesState = false
+    let argumentSchema = #"{"text":"hello"}"#
 
     func run(arguments: Arguments) async throws -> ToolResult {
         ToolResult(
@@ -41,6 +42,7 @@ private struct EchoTool: AssistantTool {
         let name = "test.mutate"
         let capability = "Mutate test state."
         let mutatesState = true
+        let argumentSchema = #"{}"#
 
         func run(arguments: Arguments) async throws -> ToolResult {
             ToolResult(toolName: name, succeeded: true, spokenSummary: "mutated")

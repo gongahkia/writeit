@@ -24,6 +24,7 @@ public struct CalendarTool: AssistantTool {
     public let name = "calendar.read"
     public let capability = "Read upcoming calendar events in a bounded date range."
     public let mutatesState = false
+    public let argumentSchema = #"{"startDateISO8601":"optional ISO8601","endDateISO8601":"optional ISO8601","calendarNames":[],"limit":10}"#
 
     public init() {}
 
