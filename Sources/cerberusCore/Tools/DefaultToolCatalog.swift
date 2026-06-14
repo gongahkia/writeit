@@ -6,7 +6,8 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(FileSearchTool()),
-            AnyAssistantTool(RemindersTool())
+            AnyAssistantTool(RemindersTool()),
+            AnyAssistantTool(WebSearchTool())
         ]
     }
 
