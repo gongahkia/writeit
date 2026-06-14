@@ -16,13 +16,14 @@ final class CerberusAppModel: ObservableObject {
     private let earconPlayer = EarconPlayer()
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
-    private let toolRegistry = try! ToolRegistry(tools: DefaultToolCatalog.tools)
+    private let toolRegistry: ToolRegistry
     private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
     private var pendingPlan: AssistantPlan?
 
     init() {
+        toolRegistry = (try? ToolRegistry(tools: DefaultToolCatalog.tools)) ?? ToolRegistry()
         refreshPermissions()
         startTriggers()
     }

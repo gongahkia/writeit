@@ -3,6 +3,8 @@ import Foundation
 public actor ToolRegistry {
     private var tools: [String: AnyAssistantTool] = [:]
 
+    public init() {}
+
     public init(tools initialTools: [AnyAssistantTool] = []) throws {
         for tool in initialTools {
             if tools[tool.name] != nil {
