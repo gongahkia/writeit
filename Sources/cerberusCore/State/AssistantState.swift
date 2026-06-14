@@ -97,6 +97,8 @@ public struct AssistantStateMachine: Sendable {
             .reasoning
         case (.listening, .cancelRequested):
             .idle
+        case (.reasoning, .cancelRequested):
+            .idle
         case (.reasoning, .confirmationRequired):
             .awaitingConfirm
         case (.reasoning, .executionStarted):
@@ -112,6 +114,8 @@ public struct AssistantStateMachine: Sendable {
         case (.executing, .executionFinished):
             .speaking
         case (.speaking, .speechFinished):
+            .idle
+        case (.speaking, .cancelRequested):
             .idle
         case (_, .failed):
             .speaking

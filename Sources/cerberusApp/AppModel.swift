@@ -13,6 +13,8 @@ final class CerberusAppModel: ObservableObject {
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
     private let speaker = Speaker()
+    private let headGestureDetector = HeadGestureDetector()
+    private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry = try! ToolRegistry(tools: DefaultToolCatalog.tools)
     private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
     private let confirmationGate = ConfirmationGate()
@@ -21,6 +23,7 @@ final class CerberusAppModel: ObservableObject {
 
     init() {
         refreshPermissions()
+        startTriggers()
     }
 
     var state: AssistantState {
@@ -45,8 +48,9 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func startListening(trigger: WakeTrigger = .manual) {
-        apply(.wakeDetected(trigger))
-        startVoiceCapture()
+        if apply(.wakeDetected(trigger)) {
+            startVoiceCapture()
+        }
     }
 
     func finishListeningAndProcess() {
@@ -132,14 +136,52 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
-    private func apply(_ event: AssistantEvent) {
+    @discardableResult
+    private func apply(_ event: AssistantEvent) -> Bool {
         guard let transition = stateMachine.handle(event) else {
-            return
+            return false
         }
 
         statusLine = transition.message ?? transition.to.displayName
         recentEvents.insert("\(transition.from.rawValue) -> \(transition.to.rawValue)", at: 0)
         recentEvents = Array(recentEvents.prefix(5))
+        return true
+    }
+
+    private func startTriggers() {
+        headGestureDetector.start { [weak self] gesture in
+            guard let self else {
+                return
+            }
+
+            switch gesture {
+            case .nod:
+                if state == .awaitingConfirm {
+                    approvePendingConfirmation()
+                } else {
+                    startListening(trigger: .headNod)
+                }
+            case .shake:
+                if state == .awaitingConfirm {
+                    denyPendingConfirmation()
+                }
+            }
+        }
+
+        _ = mediaKeyInterceptor.start { [weak self] trigger in
+            guard let self else {
+                return
+            }
+
+            switch trigger {
+            case .singlePress:
+                if state == .listening || state == .speaking {
+                    cancel()
+                }
+            case .triplePress:
+                startListening(trigger: .stemTriplePress)
+            }
+        }
     }
 
     private func startVoiceCapture() {
