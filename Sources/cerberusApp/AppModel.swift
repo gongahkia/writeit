@@ -10,6 +10,8 @@ final class CerberusAppModel: ObservableObject {
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
+    private let transcriber = Transcriber()
+    private let speaker = Speaker()
 
     init() {
         refreshPermissions()
@@ -38,9 +40,18 @@ final class CerberusAppModel: ObservableObject {
 
     func startListening(trigger: WakeTrigger = .manual) {
         apply(.wakeDetected(trigger))
+        startVoiceCapture()
     }
 
-    func finishListeningWithDraft() {
+    func finishListeningAndProcess() {
+        Task {
+            await transcriber.stop()
+            finishListeningWithDraft()
+            simulateResponse()
+        }
+    }
+
+    private func finishListeningWithDraft() {
         guard !transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             apply(.cancelRequested)
             return
@@ -48,10 +59,13 @@ final class CerberusAppModel: ObservableObject {
         apply(.silenceDetected)
     }
 
-    func simulateResponse() {
+    private func simulateResponse() {
         let text = transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         let response = text.isEmpty ? "I did not hear a request." : "Heard: \(text)"
         apply(.responseReady(response))
+        speaker.speak(response) { [weak self] in
+            self?.finishSpeaking()
+        }
     }
 
     func finishSpeaking() {
@@ -61,11 +75,15 @@ final class CerberusAppModel: ObservableObject {
 
     func cancel() {
         transcriptDraft = ""
+        transcriber.cancel()
+        speaker.stop()
         apply(.cancelRequested)
     }
 
     func reset() {
         transcriptDraft = ""
+        transcriber.cancel()
+        speaker.stop()
         apply(.reset)
     }
 
@@ -88,6 +106,21 @@ final class CerberusAppModel: ObservableObject {
         statusLine = transition.message ?? transition.to.displayName
         recentEvents.insert("\(transition.from.rawValue) -> \(transition.to.rawValue)", at: 0)
         recentEvents = Array(recentEvents.prefix(5))
+    }
+
+    private func startVoiceCapture() {
+        Task {
+            do {
+                try await transcriber.start { [weak self] update in
+                    self?.transcriptDraft = update.text
+                }
+            } catch {
+                apply(.failed(error.localizedDescription))
+                speaker.speak(error.localizedDescription) { [weak self] in
+                    self?.finishSpeaking()
+                }
+            }
+        }
     }
 
     private func replacePermissionSnapshot(_ snapshot: PermissionSnapshot) {

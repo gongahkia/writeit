@@ -43,8 +43,7 @@ struct StatusPanel: View {
             .disabled(model.state != .idle)
 
             Button {
-                model.finishListeningWithDraft()
-                model.simulateResponse()
+                model.finishListeningAndProcess()
             } label: {
                 Label("Run", systemImage: "play.fill")
             }
