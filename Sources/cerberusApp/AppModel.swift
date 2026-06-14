@@ -13,6 +13,7 @@ final class CerberusAppModel: ObservableObject {
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
     private let speaker = Speaker()
+    private let earconPlayer = EarconPlayer()
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry = try! ToolRegistry(tools: DefaultToolCatalog.tools)
@@ -145,6 +146,7 @@ final class CerberusAppModel: ObservableObject {
         statusLine = transition.message ?? transition.to.displayName
         recentEvents.insert("\(transition.from.rawValue) -> \(transition.to.rawValue)", at: 0)
         recentEvents = Array(recentEvents.prefix(5))
+        earconPlayer.play(for: transition)
         return true
     }
 
