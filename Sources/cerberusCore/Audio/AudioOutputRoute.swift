@@ -35,11 +35,7 @@ public enum AudioOutputRouteError: Error, Equatable, LocalizedError, Sendable {
 
 public enum AudioOutputRouteInspector {
     public static func defaultOutputDevice() throws -> AudioOutputDevice {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
+        var address = defaultOutputDeviceAddress()
         var deviceID = AudioDeviceID(kAudioObjectUnknown)
         var dataSize = UInt32(MemoryLayout<AudioDeviceID>.size)
         let status = AudioObjectGetPropertyData(
@@ -55,6 +51,14 @@ public enum AudioOutputRouteInspector {
             throw AudioOutputRouteError.missingDefaultDevice
         }
         return AudioOutputDevice(id: UInt32(deviceID), name: try deviceName(for: deviceID))
+    }
+
+    static func defaultOutputDeviceAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
     }
 
     private static func deviceName(for deviceID: AudioDeviceID) throws -> String {
@@ -73,9 +77,69 @@ public enum AudioOutputRouteInspector {
         return unmanagedName.takeRetainedValue() as String
     }
 
-    private static func throwIfNeeded(_ status: OSStatus, operation: String) throws {
+    fileprivate static func throwIfNeeded(_ status: OSStatus, operation: String) throws {
         guard status == noErr else {
             throw AudioOutputRouteError.coreAudioStatus(status, operation: operation)
         }
+    }
+}
+
+public final class AudioOutputRouteMonitor: @unchecked Sendable {
+    private let queue = DispatchQueue(label: "dev.gongahkia.cerberus.audio-output-route")
+    private let listenerBlock: AudioObjectPropertyListenerBlock
+    private let lock = NSLock()
+    private var isStarted = false
+
+    public init(onChange: @escaping @Sendable () -> Void) {
+        listenerBlock = { count, addresses in
+            for index in 0..<Int(count) {
+                guard addresses[index].mSelector == kAudioHardwarePropertyDefaultOutputDevice else {
+                    continue
+                }
+                onChange()
+                return
+            }
+        }
+    }
+
+    deinit {
+        stop()
+    }
+
+    public func start() throws {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+        guard !isStarted else {
+            return
+        }
+        var address = AudioOutputRouteInspector.defaultOutputDeviceAddress()
+        let status = AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            queue,
+            listenerBlock
+        )
+        try AudioOutputRouteInspector.throwIfNeeded(status, operation: "default output listener registration")
+        isStarted = true
+    }
+
+    public func stop() {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+        guard isStarted else {
+            return
+        }
+        var address = AudioOutputRouteInspector.defaultOutputDeviceAddress()
+        _ = AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            queue,
+            listenerBlock
+        )
+        isStarted = false
     }
 }

@@ -21,7 +21,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
 - `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
-- Spoken replies use `AVSpeechSynthesizer` and the current macOS output device; Settings reports the current route through CoreAudio.
+- Spoken replies use `AVSpeechSynthesizer` and the current macOS output device; Settings reports the current route through CoreAudio and refreshes when the default output device changes.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
 - Explicit file search scopes must be existing directories inside the user's home directory.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.

@@ -173,6 +173,7 @@ final class CerberusAppModel: ObservableObject {
     private let mcpServerRegistry: MCPServerRegistry
     private let mcpClientRequestBroker: MCPClientRequestBroker
     private let mcpNativeToolLoader: MCPNativeToolLoader
+    private var audioOutputRouteMonitor: AudioOutputRouteMonitor?
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
@@ -226,9 +227,14 @@ final class CerberusAppModel: ObservableObject {
         mcpClientRequestBroker.model = self
         refreshPermissions()
         refreshAudioOutputRoute()
+        startAudioOutputRouteMonitor()
         refreshAuditEntries()
         startTriggers()
         loadConfiguredAdapterIfPresent()
+    }
+
+    deinit {
+        audioOutputRouteMonitor?.stop()
     }
 
     var state: AssistantState {
@@ -360,6 +366,20 @@ final class CerberusAppModel: ObservableObject {
         } catch {
             audioOutputRouteLine = error.localizedDescription
             isAudioOutputLikelyAirPods = false
+        }
+    }
+
+    private func startAudioOutputRouteMonitor() {
+        let monitor = AudioOutputRouteMonitor { [weak self] in
+            Task { @MainActor in
+                self?.refreshAudioOutputRoute()
+            }
+        }
+        do {
+            try monitor.start()
+            audioOutputRouteMonitor = monitor
+        } catch {
+            statusLine = error.localizedDescription
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import CoreAudio
 import Testing
 @testable import cerberusCore
 
@@ -83,6 +84,13 @@ import Testing
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
+}
+
+@Test func audioOutputRouteMonitorUsesDefaultOutputSelector() {
+    let address = AudioOutputRouteInspector.defaultOutputDeviceAddress()
+
+    #expect(address.mSelector == kAudioHardwarePropertyDefaultOutputDevice)
+    #expect(address.mScope == kAudioObjectPropertyScopeGlobal)
 }
 
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {

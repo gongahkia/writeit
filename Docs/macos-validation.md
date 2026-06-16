@@ -25,7 +25,7 @@ Validate the implementation on a Mac that matches the project requirements.
 4. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
 5. Set a custom `Wake phrase`, enable it, say that phrase, and confirm the app starts active listening; then disable it and confirm the mic indicator clears.
 6. Confirm Control-Option-Space starts listening while the app is not focused.
-7. Connect AirPods, set them as the macOS output device, and confirm Settings shows the AirPods route before testing spoken replies.
+7. Connect AirPods, set them as the macOS output device, and confirm Settings updates to the AirPods route before testing spoken replies; switch back to another output device and confirm the route updates again.
 8. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
 9. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", "search my mail for Apple", or "what text is on my screen?".
 10. Confirm tool payloads are summarized into a useful spoken response.
