@@ -308,6 +308,7 @@ private final class MCPStdioSession: @unchecked Sendable {
         while true {
             let response = try await readMessage()
             guard response["id"] as? Int == requestID else {
+                try handleServerRequestIfNeeded(response)
                 continue
             }
 
@@ -318,6 +319,45 @@ private final class MCPStdioSession: @unchecked Sendable {
 
             return response["result"] as? [String: Any] ?? [:]
         }
+    }
+
+    private func handleServerRequestIfNeeded(_ message: [String: Any]) throws {
+        guard let id = message["id"],
+              let method = message["method"] as? String else {
+            return
+        }
+
+        switch method {
+        case "sampling/createMessage":
+            try sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP sampling is not supported by cerberus."
+            )
+        case "elicitation/create":
+            try sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP elicitation is not supported by cerberus."
+            )
+        default:
+            try sendErrorResponse(
+                id: id,
+                code: -32601,
+                message: "MCP client method is not supported by cerberus: \(method)"
+            )
+        }
+    }
+
+    private func sendErrorResponse(id: Any, code: Int, message: String) throws {
+        try send([
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": [
+                "code": code,
+                "message": message
+            ]
+        ])
     }
 
     private func sendNotification(method: String, params: [String: Any]?) throws {

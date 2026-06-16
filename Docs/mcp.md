@@ -39,6 +39,7 @@ Current scope:
 - `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`
 - OAuth discovery, dynamic client registration, PKCE authorization URL generation, authorization-code token exchange, one-shot localhost callback capture, and refresh-token rotation for Streamable HTTP servers
 - OAuth access tokens are stored in Keychain and attached as `Authorization: Bearer ...`; explicit config headers override Keychain tokens
+- unsupported stdio server requests for `sampling/createMessage` and `elicitation/create` receive JSON-RPC errors
 - each `mcp.call` is confirmation-gated
 - tool/resource/prompt output is treated as untrusted payload
 
