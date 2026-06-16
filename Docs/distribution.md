@@ -54,6 +54,24 @@ NOTARY_PROFILE=cerberus-notary Scripts/notarize_app.sh
 
 Notarization requires a Developer ID signature. Ad-hoc signed bundles are only for local bundle validation.
 
+## Release Package
+
+Build, notarize, zip, and checksum:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/package_release.sh
+```
+
+The script writes `.dist/release/cerberus.zip` and `.dist/release/cerberus.zip.sha256`.
+
+For local package smoke tests without Developer ID or notarization:
+
+```sh
+ALLOW_ADHOC=1 SKIP_NOTARIZE=1 Scripts/package_release.sh
+```
+
 ## Release Readiness
 
 Run the full pre-release gate:
