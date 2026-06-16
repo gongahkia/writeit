@@ -73,18 +73,16 @@ public final class MediaKeyInterceptor {
         }
 
         let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
+        let isMediaKeyDown = MediaKeyInterceptor.isMediaKeyDown(event)
         Task { @MainActor in
-            interceptor.handle(event: event)
+            interceptor.handlePress(isMediaKeyDown: isMediaKeyDown)
         }
 
         return Unmanaged.passUnretained(event)
     }
 
-    private func handle(event: CGEvent) {
-        guard let nsEvent = NSEvent(cgEvent: event),
-              nsEvent.type == .systemDefined,
-              nsEvent.subtype.rawValue == 8,
-              isKeyDown(nsEvent) else {
+    private func handlePress(isMediaKeyDown: Bool) {
+        guard isMediaKeyDown else {
             return
         }
 
@@ -100,8 +98,14 @@ public final class MediaKeyInterceptor {
         }
     }
 
-    private func isKeyDown(_ event: NSEvent) -> Bool {
-        let keyFlags = event.data1 & 0x0000ffff
+    nonisolated private static func isMediaKeyDown(_ event: CGEvent) -> Bool {
+        guard let nsEvent = NSEvent(cgEvent: event),
+              nsEvent.type == .systemDefined,
+              nsEvent.subtype.rawValue == 8 else {
+            return false
+        }
+
+        let keyFlags = nsEvent.data1 & 0x0000ffff
         let keyState = (keyFlags & 0xff00) >> 8
         return keyState == 0x0a
     }

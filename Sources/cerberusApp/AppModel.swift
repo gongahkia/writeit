@@ -84,7 +84,9 @@ final class CerberusAppModel: ObservableObject {
 
     func cancel() {
         transcriptDraft = ""
-        transcriber.cancel()
+        Task {
+            await transcriber.cancel()
+        }
         speaker.stop()
         clearPendingConfirmation()
         apply(.cancelRequested)
@@ -92,7 +94,9 @@ final class CerberusAppModel: ObservableObject {
 
     func reset() {
         transcriptDraft = ""
-        transcriber.cancel()
+        Task {
+            await transcriber.cancel()
+        }
         speaker.stop()
         clearPendingConfirmation()
         apply(.reset)
@@ -245,14 +249,14 @@ final class CerberusAppModel: ObservableObject {
         do {
             let invocation = try makeInvocation(from: plan)
             let result = try await toolRegistry.run(invocation, confirmed: confirmed)
-            try? await auditLog.append(
+            _ = try? await auditLog.append(
                 toolName: plan.toolName,
                 argumentsSummary: plan.toolArgumentsSummary,
                 resultSummary: result.spokenSummary
             )
             speakToolResult(result.spokenSummary)
         } catch {
-            try? await auditLog.append(
+            _ = try? await auditLog.append(
                 toolName: plan.toolName,
                 argumentsSummary: plan.toolArgumentsSummary,
                 resultSummary: "error: \(error.localizedDescription)"

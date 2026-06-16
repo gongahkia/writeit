@@ -15,6 +15,7 @@ public struct TranscriptionUpdate: Equatable, Sendable {
 public enum TranscriptionError: Error, LocalizedError {
     case localeNotSupported(Locale)
     case analyzerNotStarted
+    case noCompatibleAudioFormat
 
     public var errorDescription: String? {
         switch self {
@@ -22,6 +23,8 @@ public enum TranscriptionError: Error, LocalizedError {
             "Speech transcription does not support locale \(locale.identifier)."
         case .analyzerNotStarted:
             "Speech analyzer is not running."
+        case .noCompatibleAudioFormat:
+            "Speech analyzer could not find a compatible microphone format."
         }
     }
 }
@@ -64,7 +67,9 @@ public final class Transcriber {
         try await installAssetsIfNeeded(for: transcriber)
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
-        let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+            throw TranscriptionError.noCompatibleAudioFormat
+        }
         let (inputSequence, inputContinuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
 
         self.analyzer = analyzer
@@ -105,7 +110,7 @@ public final class Transcriber {
         do {
             try await analyzer?.finalizeAndFinishThroughEndOfInput()
         } catch {
-            try? analyzer?.cancelAndFinishNow()
+            await analyzer?.cancelAndFinishNow()
         }
 
         resultTask?.cancel()
@@ -116,11 +121,11 @@ public final class Transcriber {
         isRunning = false
     }
 
-    public func cancel() {
+    public func cancel() async {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         inputContinuation?.finish()
-        try? analyzer?.cancelAndFinishNow()
+        await analyzer?.cancelAndFinishNow()
         resultTask?.cancel()
         resultTask = nil
         inputContinuation = nil

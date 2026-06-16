@@ -59,7 +59,7 @@ private final class MetadataQueryRunner {
     private let scopePath: String?
     private let limit: Int
     private var metadataQuery: NSMetadataQuery?
-    private var observer: NSObjectProtocol?
+    private var observer: (any NSObjectProtocol)?
 
     init(queryText: String, scopePath: String?, limit: Int) {
         self.queryText = queryText
@@ -89,7 +89,7 @@ private final class MetadataQueryRunner {
                         return
                     }
 
-                    let results = self.collectResults(from: query)
+                    let results = self.collectResults()
                     self.stop()
                     continuation.resume(returning: results)
                 }
@@ -110,7 +110,11 @@ private final class MetadataQueryRunner {
         return [URL(fileURLWithPath: scopePath)]
     }
 
-    private func collectResults(from query: NSMetadataQuery) -> [FileSearchResult] {
+    private func collectResults() -> [FileSearchResult] {
+        guard let query = metadataQuery else {
+            return []
+        }
+
         query.disableUpdates()
 
         return query.results

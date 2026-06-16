@@ -57,16 +57,24 @@ public struct RemindersTool: AssistantTool {
         }
     }
 
-    private func fetchReminders(eventStore: EKEventStore, predicate: NSPredicate) async -> [EKReminder] {
+    private func fetchReminders(eventStore: EKEventStore, predicate: NSPredicate) async -> [ReminderSnapshot] {
         await withCheckedContinuation { continuation in
             eventStore.fetchReminders(matching: predicate) { reminders in
-                continuation.resume(returning: reminders ?? [])
+                let snapshots = (reminders ?? []).map { reminder in
+                    ReminderSnapshot(
+                        title: reminder.title ?? "Untitled reminder",
+                        listName: reminder.calendar?.title ?? "Unknown list",
+                        dueDate: reminder.dueDateComponents?.date,
+                        isCompleted: reminder.isCompleted
+                    )
+                }
+                continuation.resume(returning: snapshots)
             }
         }
     }
 
-    private func compareReminders(_ lhs: EKReminder, _ rhs: EKReminder) -> Bool {
-        switch (lhs.dueDateComponents?.date, rhs.dueDateComponents?.date) {
+    private func compareReminders(_ lhs: ReminderSnapshot, _ rhs: ReminderSnapshot) -> Bool {
+        switch (lhs.dueDate, rhs.dueDate) {
         case (.some(let lhsDate), .some(let rhsDate)):
             lhsDate < rhsDate
         case (.some, .none):
@@ -78,10 +86,16 @@ public struct RemindersTool: AssistantTool {
         }
     }
 
-    private func formatReminder(_ reminder: EKReminder) -> String {
-        let dueDate = reminder.dueDateComponents?.date.map { ISO8601DateFormatter().string(from: $0) } ?? "no due date"
-        let listName = reminder.calendar?.title ?? "Unknown list"
+    private func formatReminder(_ reminder: ReminderSnapshot) -> String {
+        let dueDate = reminder.dueDate.map { ISO8601DateFormatter().string(from: $0) } ?? "no due date"
         let status = reminder.isCompleted ? "completed" : "open"
-        return "- \(dueDate) [\(listName)] \(status): \(reminder.title ?? "Untitled reminder")"
+        return "- \(dueDate) [\(reminder.listName)] \(status): \(reminder.title)"
     }
+}
+
+private struct ReminderSnapshot: Sendable {
+    let title: String
+    let listName: String
+    let dueDate: Date?
+    let isCompleted: Bool
 }

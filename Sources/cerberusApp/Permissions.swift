@@ -1,4 +1,4 @@
-import ApplicationServices
+@preconcurrency import ApplicationServices
 import AVFoundation
 import CoreGraphics
 import EventKit
