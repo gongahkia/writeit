@@ -121,10 +121,26 @@ import Testing
     let allowlist = CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]])
     let tool = ShellTool(allowExecution: true, allowlist: allowlist, executor: StubExecutor())
 
-    let result = try await tool.run(arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls"), dryRun: false))
+    let result = try await tool.run(arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls")))
 
     #expect(result.metadata["dryRun"] == "false")
     #expect(result.untrustedPayload == "stubbed ls")
+}
+
+@Test func shellToolStillSupportsDryRun() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            "should not execute"
+        }
+    }
+
+    let allowlist = CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]])
+    let tool = ShellTool(allowExecution: true, allowlist: allowlist, executor: StubExecutor())
+
+    let result = try await tool.run(arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls"), dryRun: true))
+
+    #expect(result.metadata["dryRun"] == "true")
+    #expect(result.untrustedPayload == "/bin/ls")
 }
 
 @Test func mcpToolUsesConfiguredRunner() async throws {
