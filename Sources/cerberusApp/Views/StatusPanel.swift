@@ -97,6 +97,63 @@ struct StatusPanel: View {
             }
             .buttonStyle(.bordered)
         }
+
+        if let pendingMCPClientRequest = model.pendingMCPClientRequest {
+            mcpClientRequestControls(pendingMCPClientRequest)
+        }
+    }
+
+    private func mcpClientRequestControls(_ request: PendingMCPClientRequest) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(request.title, systemImage: "server.rack")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(request.summary)
+                .font(.caption)
+                .lineLimit(3)
+
+            Text(request.detail)
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+                .lineLimit(4)
+
+            Text(request.draftLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextEditor(text: $model.mcpClientDraft)
+                .font(.caption.monospaced())
+                .frame(minHeight: 82)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(.quaternary)
+                }
+
+            HStack(spacing: 8) {
+                Button {
+                    model.approveMCPClientRequest()
+                } label: {
+                    Label(request.approveTitle, systemImage: "checkmark")
+                }
+
+                if request.allowsDecline {
+                    Button {
+                        model.declineMCPClientRequest()
+                    } label: {
+                        Label("Decline", systemImage: "minus.circle")
+                    }
+                }
+
+                Button(role: .cancel) {
+                    model.cancelMCPClientRequest()
+                } label: {
+                    Label("Cancel", systemImage: "xmark")
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(.top, 4)
     }
 
     private var transcript: some View {

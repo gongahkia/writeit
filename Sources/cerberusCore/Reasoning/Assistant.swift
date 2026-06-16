@@ -81,6 +81,28 @@ public actor Assistant {
         return response.content
     }
 
+    public func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
+        let serverSystemPrompt = systemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let prompt = """
+        An MCP server requested a nested model completion. The user approved sending this prompt.
+
+        Server-provided system prompt:
+        <server-system>
+        \(serverSystemPrompt)
+        </server-system>
+
+        Messages:
+        <messages>
+        \(messagesText)
+        </messages>
+
+        Produce only the assistant message content. Do not call tools.
+        """
+
+        let response = try await session.respond(to: prompt)
+        return response.content
+    }
+
     public func summarize(toolResult: ToolResult, for request: String) async throws -> String {
         let payload = toolResult.untrustedPayload.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !payload.isEmpty else {

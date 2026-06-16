@@ -8,16 +8,24 @@ public protocol MCPPromptRunning: Sendable {
 
 public struct MCPConfiguredPromptRunner: MCPPromptRunning {
     private let registry: MCPServerRegistry
+    private let clientRequestHandlers: MCPClientRequestHandlers
 
-    public init(registry: MCPServerRegistry = MCPServerRegistry()) {
+    public init(
+        registry: MCPServerRegistry = MCPServerRegistry(),
+        clientRequestHandlers: MCPClientRequestHandlers = .none
+    ) {
         self.registry = registry
+        self.clientRequestHandlers = clientRequestHandlers
     }
 
     public func list(serverName: String) async throws -> [MCPPromptDescriptor] {
         let configuration = try await registry.configuration(named: serverName)
         switch configuration.transport {
         case .stdio:
-            return try await MCPStdioClient(configuration: configuration).listPrompts()
+            return try await MCPStdioClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).listPrompts()
         case .streamableHTTP:
             return try await MCPStreamableHTTPClient(configuration: configuration).listPrompts()
         }
@@ -27,7 +35,10 @@ public struct MCPConfiguredPromptRunner: MCPPromptRunning {
         let configuration = try await registry.configuration(named: serverName)
         switch configuration.transport {
         case .stdio:
-            return try await MCPStdioClient(configuration: configuration).getPrompt(
+            return try await MCPStdioClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).getPrompt(
                 name: promptName,
                 argumentsJSON: argumentsJSON
             )

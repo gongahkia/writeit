@@ -7,16 +7,24 @@ public protocol MCPToolRunning: Sendable {
 
 public struct MCPConfiguredToolRunner: MCPToolRunning {
     private let registry: MCPServerRegistry
+    private let clientRequestHandlers: MCPClientRequestHandlers
 
-    public init(registry: MCPServerRegistry = MCPServerRegistry()) {
+    public init(
+        registry: MCPServerRegistry = MCPServerRegistry(),
+        clientRequestHandlers: MCPClientRequestHandlers = .none
+    ) {
         self.registry = registry
+        self.clientRequestHandlers = clientRequestHandlers
     }
 
     public func call(serverName: String, toolName: String, argumentsJSON: String) async throws -> MCPToolCallResult {
         let configuration = try await registry.configuration(named: serverName)
         switch configuration.transport {
         case .stdio:
-            return try await MCPStdioClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
+            return try await MCPStdioClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).callTool(name: toolName, argumentsJSON: argumentsJSON)
         case .streamableHTTP:
             return try await MCPStreamableHTTPClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
         }

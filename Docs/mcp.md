@@ -39,14 +39,15 @@ Current scope:
 - `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`
 - OAuth discovery, dynamic client registration, PKCE authorization URL generation, authorization-code token exchange, one-shot localhost callback capture, and refresh-token rotation for Streamable HTTP servers
 - OAuth access tokens are stored in Keychain and attached as `Authorization: Bearer ...`; explicit config headers override Keychain tokens
-- stdio server requests for `sampling/createMessage` and `elicitation/create` are supported when explicit client handlers are injected; default app MCP tools do not inject handlers and fail closed with JSON-RPC errors
+- stdio server requests for `sampling/createMessage` and `elicitation/create` are routed through the app's review UI when MCP tools are enabled
+- sampling requests require prompt approval and response approval before returning content to the MCP server
+- elicitation requests use an editable JSON response with accept, decline, and cancel actions
 - accepted elicitation content is validated against the MCP flat primitive schema subset before returning to the server
 - each `mcp.call` is confirmation-gated
 - tool/resource/prompt output is treated as untrusted payload
 
 Not implemented:
 
-- in-app sampling review UI
-- in-app elicitation form UI
 - Streamable HTTP server-initiated sampling/elicitation handling
+- generated field controls for elicitation schemas
 - dynamic FoundationModels native tool schemas

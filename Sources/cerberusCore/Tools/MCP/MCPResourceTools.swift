@@ -8,16 +8,24 @@ public protocol MCPResourceRunning: Sendable {
 
 public struct MCPConfiguredResourceRunner: MCPResourceRunning {
     private let registry: MCPServerRegistry
+    private let clientRequestHandlers: MCPClientRequestHandlers
 
-    public init(registry: MCPServerRegistry = MCPServerRegistry()) {
+    public init(
+        registry: MCPServerRegistry = MCPServerRegistry(),
+        clientRequestHandlers: MCPClientRequestHandlers = .none
+    ) {
         self.registry = registry
+        self.clientRequestHandlers = clientRequestHandlers
     }
 
     public func list(serverName: String) async throws -> [MCPResourceDescriptor] {
         let configuration = try await registry.configuration(named: serverName)
         switch configuration.transport {
         case .stdio:
-            return try await MCPStdioClient(configuration: configuration).listResources()
+            return try await MCPStdioClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).listResources()
         case .streamableHTTP:
             return try await MCPStreamableHTTPClient(configuration: configuration).listResources()
         }
@@ -27,7 +35,10 @@ public struct MCPConfiguredResourceRunner: MCPResourceRunning {
         let configuration = try await registry.configuration(named: serverName)
         switch configuration.transport {
         case .stdio:
-            return try await MCPStdioClient(configuration: configuration).readResource(uri: uri)
+            return try await MCPStdioClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).readResource(uri: uri)
         case .streamableHTTP:
             return try await MCPStreamableHTTPClient(configuration: configuration).readResource(uri: uri)
         }

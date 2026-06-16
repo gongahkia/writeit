@@ -1,6 +1,90 @@
 import Foundation
 import cerberusCore
 
+struct PendingMCPClientRequest: Identifiable {
+    enum Kind {
+        case samplingPrompt
+        case samplingResponse
+        case elicitation
+    }
+
+    let id = UUID()
+    let kind: Kind
+    let serverName: String
+    let summary: String
+    let detail: String
+
+    var title: String {
+        switch kind {
+        case .samplingPrompt:
+            "MCP sampling request"
+        case .samplingResponse:
+            "MCP sampling response"
+        case .elicitation:
+            "MCP elicitation request"
+        }
+    }
+
+    var draftLabel: String {
+        switch kind {
+        case .samplingPrompt:
+            "Prompt"
+        case .samplingResponse:
+            "Response"
+        case .elicitation:
+            "Content JSON"
+        }
+    }
+
+    var approveTitle: String {
+        switch kind {
+        case .samplingPrompt:
+            "Send"
+        case .samplingResponse:
+            "Return"
+        case .elicitation:
+            "Accept"
+        }
+    }
+
+    var allowsDecline: Bool {
+        kind == .elicitation
+    }
+}
+
+private enum MCPClientRequestDecision: Sendable {
+    case approve(String)
+    case decline
+    case cancel
+}
+
+final class MCPClientRequestBroker: @unchecked Sendable {
+    @MainActor weak var model: CerberusAppModel?
+
+    var handlers: MCPClientRequestHandlers {
+        MCPClientRequestHandlers(
+            sampling: { [weak self] request in
+                guard let self else {
+                    throw ToolExecutionError.denied("MCP sampling broker is unavailable.")
+                }
+                guard let model = await MainActor.run(body: { self.model }) else {
+                    throw ToolExecutionError.denied("MCP sampling UI is unavailable.")
+                }
+                return try await model.handleMCPSamplingRequest(request)
+            },
+            elicitation: { [weak self] request in
+                guard let self else {
+                    throw ToolExecutionError.denied("MCP elicitation broker is unavailable.")
+                }
+                guard let model = await MainActor.run(body: { self.model }) else {
+                    throw ToolExecutionError.denied("MCP elicitation UI is unavailable.")
+                }
+                return try await model.handleMCPElicitationRequest(request)
+            }
+        )
+    }
+}
+
 @MainActor
 final class CerberusAppModel: ObservableObject {
     @Published private(set) var stateMachine = AssistantStateMachine()
@@ -14,6 +98,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var isAudioOutputLikelyAirPods = false
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
+    @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusAppModel.wakePhraseDefaultsKey) ?? "hey cerberus" {
@@ -51,6 +136,7 @@ final class CerberusAppModel: ObservableObject {
         }
     }
     @Published var transcriptDraft = ""
+    @Published var mcpClientDraft = ""
 
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
@@ -66,37 +152,46 @@ final class CerberusAppModel: ObservableObject {
     private let assistant: Assistant
     private let transcriptStore = EncryptedTranscriptStore()
     private let adapterLoader = FoundationModelAdapterLoader()
+    private let mcpClientRequestBroker: MCPClientRequestBroker
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
+    private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
-    private static let mcpTools = [
-        AnyAssistantTool(MCPTool()),
-        AnyAssistantTool(MCPResourceListTool()),
-        AnyAssistantTool(MCPResourceReadTool()),
-        AnyAssistantTool(MCPPromptListTool()),
-        AnyAssistantTool(MCPPromptGetTool()),
-        AnyAssistantTool(MCPOAuthDiscoverTool()),
-        AnyAssistantTool(MCPOAuthStartTool()),
-        AnyAssistantTool(MCPOAuthExchangeTool()),
-        AnyAssistantTool(MCPOAuthRefreshTool()),
-        AnyAssistantTool(MCPOAuthAuthorizeLocalTool())
-    ]
-    private static let mcpToolSummaries = mcpTools.map(\.summary)
+    private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
     private static let shellToolSummary = ShellTool().summary
     private static let wakePhraseDefaultsKey = "wakePhrase"
 
+    private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
+        [
+            AnyAssistantTool(MCPTool(runner: MCPConfiguredToolRunner(clientRequestHandlers: clientRequestHandlers))),
+            AnyAssistantTool(MCPResourceListTool(runner: MCPConfiguredResourceRunner(clientRequestHandlers: clientRequestHandlers))),
+            AnyAssistantTool(MCPResourceReadTool(runner: MCPConfiguredResourceRunner(clientRequestHandlers: clientRequestHandlers))),
+            AnyAssistantTool(MCPPromptListTool(runner: MCPConfiguredPromptRunner(clientRequestHandlers: clientRequestHandlers))),
+            AnyAssistantTool(MCPPromptGetTool(runner: MCPConfiguredPromptRunner(clientRequestHandlers: clientRequestHandlers))),
+            AnyAssistantTool(MCPOAuthDiscoverTool()),
+            AnyAssistantTool(MCPOAuthStartTool()),
+            AnyAssistantTool(MCPOAuthExchangeTool()),
+            AnyAssistantTool(MCPOAuthRefreshTool()),
+            AnyAssistantTool(MCPOAuthAuthorizeLocalTool())
+        ]
+    }
+
     init() {
+        let mcpClientRequestBroker = MCPClientRequestBroker()
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
-        let tools = DefaultToolCatalog.tools + Self.mcpTools + [AnyAssistantTool(shellTool)]
+        let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
+        let tools = DefaultToolCatalog.tools + mcpTools + [AnyAssistantTool(shellTool)]
+        self.mcpClientRequestBroker = mcpClientRequestBroker
         toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
         assistant = Assistant(
             toolSummaries: Self.ambientToolSummaries,
             readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
         )
+        mcpClientRequestBroker.model = self
         refreshPermissions()
         refreshAudioOutputRoute()
         refreshAuditEntries()
@@ -200,6 +295,7 @@ final class CerberusAppModel: ObservableObject {
         }
         speaker.stop()
         clearPendingConfirmation()
+        finishMCPClientRequest(.cancel)
         apply(.cancelRequested)
         startWakeWordMonitoringIfNeeded()
     }
@@ -215,6 +311,7 @@ final class CerberusAppModel: ObservableObject {
         }
         speaker.stop()
         clearPendingConfirmation()
+        finishMCPClientRequest(.cancel)
         apply(.reset)
         startWakeWordMonitoringIfNeeded()
     }
@@ -320,6 +417,75 @@ final class CerberusAppModel: ObservableObject {
             activeRequest = nil
             apply(.confirmationDenied)
             speaker.speak("Cancelled.")
+        }
+    }
+
+    func approveMCPClientRequest() {
+        finishMCPClientRequest(.approve(mcpClientDraft))
+    }
+
+    func declineMCPClientRequest() {
+        finishMCPClientRequest(.decline)
+    }
+
+    func cancelMCPClientRequest() {
+        finishMCPClientRequest(.cancel)
+    }
+
+    func handleMCPSamplingRequest(_ request: MCPSamplingRequest) async throws -> MCPSamplingResponse {
+        let promptDraft = request.messagesText.isEmpty ? request.rawParamsJSON : request.messagesText
+        let promptDecision = await requestMCPClientDecision(
+            PendingMCPClientRequest(
+                kind: .samplingPrompt,
+                serverName: request.serverName,
+                summary: "Server \(request.serverName) requested a nested model completion.",
+                detail: request.systemPrompt ?? "No server system prompt."
+            ),
+            draft: promptDraft
+        )
+        guard case let .approve(approvedPrompt) = promptDecision else {
+            throw ToolExecutionError.denied("MCP sampling request was not approved.")
+        }
+
+        statusLine = "MCP sampling running."
+        let generated = try await assistant.sampleForMCP(
+            messagesText: approvedPrompt,
+            systemPrompt: request.systemPrompt
+        )
+        let responseDecision = await requestMCPClientDecision(
+            PendingMCPClientRequest(
+                kind: .samplingResponse,
+                serverName: request.serverName,
+                summary: "Review the response before returning it to \(request.serverName).",
+                detail: "Model: cerberus"
+            ),
+            draft: generated
+        )
+        guard case let .approve(approvedResponse) = responseDecision else {
+            throw ToolExecutionError.denied("MCP sampling response was not approved.")
+        }
+
+        return MCPSamplingResponse(text: approvedResponse)
+    }
+
+    func handleMCPElicitationRequest(_ request: MCPElicitationRequest) async throws -> MCPElicitationResponse {
+        let decision = await requestMCPClientDecision(
+            PendingMCPClientRequest(
+                kind: .elicitation,
+                serverName: request.serverName,
+                summary: request.message,
+                detail: request.schemaJSON
+            ),
+            draft: Self.defaultElicitationDraft(for: request)
+        )
+
+        switch decision {
+        case let .approve(contentJSON):
+            return MCPElicitationResponse(action: .accept, contentJSON: contentJSON)
+        case .decline:
+            return MCPElicitationResponse(action: .decline)
+        case .cancel:
+            return MCPElicitationResponse(action: .cancel)
         }
     }
 
@@ -696,6 +862,29 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
+    private func requestMCPClientDecision(
+        _ request: PendingMCPClientRequest,
+        draft: String
+    ) async -> MCPClientRequestDecision {
+        finishMCPClientRequest(.cancel)
+        pendingMCPClientRequest = request
+        mcpClientDraft = draft
+        statusLine = request.summary
+        return await withCheckedContinuation { continuation in
+            pendingMCPDecisionContinuation = continuation
+        }
+    }
+
+    private func finishMCPClientRequest(_ decision: MCPClientRequestDecision) {
+        pendingMCPClientRequest = nil
+        mcpClientDraft = ""
+        guard let continuation = pendingMCPDecisionContinuation else {
+            return
+        }
+        pendingMCPDecisionContinuation = nil
+        continuation.resume(returning: decision)
+    }
+
     private func speak(_ response: String) {
         recordTranscript(response: response)
         apply(.responseReady(response))
@@ -753,6 +942,41 @@ final class CerberusAppModel: ObservableObject {
         Task {
             await assistant.updateTools(summaries)
         }
+    }
+
+    private static func defaultElicitationDraft(for request: MCPElicitationRequest) -> String {
+        guard let data = request.schemaJSON.data(using: .utf8),
+              let schema = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let properties = schema["properties"] as? [String: [String: Any]] else {
+            return "{}"
+        }
+
+        let required = schema["required"] as? [String] ?? []
+        var content: [String: Any] = [:]
+        for key in required {
+            guard let property = properties[key] else {
+                continue
+            }
+            if let defaultValue = property["default"] {
+                content[key] = defaultValue
+                continue
+            }
+            switch property["type"] as? String {
+            case "boolean":
+                content[key] = false
+            case "number", "integer":
+                content[key] = 0
+            default:
+                content[key] = ""
+            }
+        }
+
+        guard JSONSerialization.isValidJSONObject(content),
+              let encoded = try? JSONSerialization.data(withJSONObject: content, options: [.prettyPrinted, .sortedKeys]),
+              let string = String(data: encoded, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
     }
 
     private func loadConfiguredAdapterIfPresent() {
