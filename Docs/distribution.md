@@ -38,6 +38,12 @@ For a timed full-display capture:
 DEMO_CAPTURE_MODE=display DEMO_SECONDS=30 Scripts/record_demo.sh
 ```
 
+If `screencapture` video mode is unavailable, render a deterministic local demo:
+
+```sh
+DEMO_CAPTURE_MODE=rendered DEMO_SECONDS=36 Scripts/record_demo.sh
+```
+
 ## Notarization
 
 Create a notarytool profile once:
@@ -86,7 +92,7 @@ The script fails fast unless all release requirements are true:
 
 - `.dist/cerberus.app` is signed with an installed Developer ID Application identity and passes Gatekeeper assessment
 - `NOTARY_PROFILE` points to a usable `notarytool` keychain profile and the bundle has a stapled ticket
-- `.dist/demo/cerberus-demo.mov` exists and is a video file
+- `.dist/demo/cerberus-demo.mov` exists and is a video file, either recorded or rendered
 - the repository passes `Scripts/open_source_check.sh`, including license, visibility, worktree, artifact, and local secret checks
 
 Target one gate while preparing release:

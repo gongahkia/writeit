@@ -15,7 +15,7 @@ usage() {
   print ""
   print "env:"
   print "  DEMO_SECONDS=45"
-  print "  DEMO_CAPTURE_MODE=interactive|display"
+  print "  DEMO_CAPTURE_MODE=interactive|display|rendered"
   print "  DEMO_OPEN_APP=1|0"
   print "  APP_BUNDLE=.dist/cerberus.app"
 }
@@ -30,35 +30,45 @@ case "${1:-}" in
     ;;
 esac
 
-if ! command -v screencapture >/dev/null 2>&1; then
-  print -u2 "screencapture is not installed or not on PATH."
-  exit 69
-fi
-
-if ! screencapture -h 2>&1 | grep -q -- "-v"; then
-  print -u2 "screencapture video mode is unavailable on this macOS install."
-  exit 69
-fi
-
 if [[ ! "$DURATION" == <-> || "$DURATION" -lt 1 ]]; then
   print -u2 "DEMO_SECONDS must be a positive integer."
   exit 64
 fi
 
 case "$MODE" in
-  interactive|display)
+  interactive|display|rendered)
     ;;
   *)
-    print -u2 "DEMO_CAPTURE_MODE must be interactive or display."
+    print -u2 "DEMO_CAPTURE_MODE must be interactive, display, or rendered."
     exit 64
     ;;
 esac
+
+if [[ "$MODE" != "rendered" ]]; then
+  if ! command -v screencapture >/dev/null 2>&1; then
+    print -u2 "screencapture is not installed or not on PATH."
+    exit 69
+  fi
+
+  if ! screencapture -h 2>&1 | grep -q -- "-v"; then
+    print -u2 "screencapture video mode is unavailable on this macOS install. Use DEMO_CAPTURE_MODE=rendered for a generated local demo."
+    exit 69
+  fi
+fi
 
 if [[ "$OUT_FILE" != /* ]]; then
   OUT_FILE="$PWD/$OUT_FILE"
 fi
 
 if [[ "$CHECK_ONLY" == "1" ]]; then
+  if [[ "$MODE" == "rendered" ]]; then
+    [[ -x "$ROOT_DIR/Scripts/render_demo_video.swift" ]] || {
+      print -u2 "render_demo_video.swift is not executable."
+      exit 69
+    }
+    print "rendered demo ok"
+    exit 0
+  fi
   if [[ -d "$APP_BUNDLE" ]]; then
     print "app bundle ok: $APP_BUNDLE"
   else
@@ -73,6 +83,11 @@ if [[ ! -d "$APP_BUNDLE" ]]; then
 fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
+
+if [[ "$MODE" == "rendered" ]]; then
+  DEMO_SECONDS="$DURATION" "$ROOT_DIR/Scripts/render_demo_video.swift" "$OUT_FILE"
+  exit 0
+fi
 
 if [[ "$OPEN_APP" == "1" ]]; then
   open "$APP_BUNDLE"
