@@ -13,6 +13,7 @@ The project is intentionally scoped as a native macOS utility:
 - encrypted local transcripts and memory records
 - local screen text OCR for "what text is on my screen?" requests
 - default-off MCP stdio bridge for configured local MCP servers
+- optional prebuilt FoundationModels adapter loading
 - shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
 
 ## Requirements
@@ -31,3 +32,4 @@ Primary validation is `swift test` on macOS with Xcode 26.
 
 See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/mcp.md` for the MCP stdio config format.
+See `Docs/adapters.md` for optional FoundationModels adapter loading.

@@ -28,16 +28,17 @@ Validate the implementation on a Mac that matches the project requirements.
 7. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
 8. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
 9. Confirm tool payloads are summarized into a useful spoken response.
-10. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
-11. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-12. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-13. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
-14. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-15. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-16. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-17. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
-18. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-19. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+10. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
+11. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
+12. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
+13. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
+14. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
+15. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+16. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+17. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
+18. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
+19. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+20. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 
@@ -47,3 +48,4 @@ Validate the implementation on a Mac that matches the project requirements.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
 - Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.
 - MCP support is limited to local stdio tools.
+- Adapter training is not implemented; only prebuilt adapter loading is supported.

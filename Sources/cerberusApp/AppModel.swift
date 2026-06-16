@@ -48,6 +48,7 @@ final class CerberusAppModel: ObservableObject {
     private let auditLog = AuditLog()
     private let assistant: Assistant
     private let transcriptStore = EncryptedTranscriptStore()
+    private let adapterLoader = FoundationModelAdapterLoader()
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var silenceTask: Task<Void, Never>?
@@ -68,6 +69,7 @@ final class CerberusAppModel: ObservableObject {
         )
         refreshPermissions()
         startTriggers()
+        loadConfiguredAdapterIfPresent()
     }
 
     var state: AssistantState {
@@ -668,6 +670,21 @@ final class CerberusAppModel: ObservableObject {
         let summaries = enabledToolSummaries
         Task {
             await assistant.updateTools(summaries)
+        }
+    }
+
+    private func loadConfiguredAdapterIfPresent() {
+        Task {
+            do {
+                guard let model = try await adapterLoader.configuredModelIfPresent() else {
+                    return
+                }
+
+                await assistant.updateModel(model)
+                statusLine = "FoundationModels adapter loaded."
+            } catch {
+                statusLine = error.localizedDescription
+            }
         }
     }
 }

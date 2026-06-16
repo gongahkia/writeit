@@ -29,6 +29,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR. FoundationModels is text-only in this SDK, so this covers screen text, not full visual reasoning.
 - `mcp.call` is default-off, confirmation-gated, and supports configured local MCP stdio servers via `initialize`, `tools/list`, and `tools/call`.
+- A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
 - `shell.run` is default-off in the app, requires confirmation when enabled, and routes live commands through `ShellExecService.xpc`.
 
 ## Current Platform Assumptions
@@ -41,3 +42,4 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
 - MCP support is a minimal stdio bridge; Streamable HTTP, resources, prompts, sampling, and dynamic native tool schemas are not implemented.
+- I cannot verify a local FoundationModels adapter training API in this SDK; only adapter loading/compilation is wired.

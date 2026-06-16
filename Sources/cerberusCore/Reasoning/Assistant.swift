@@ -2,17 +2,27 @@ import Foundation
 import FoundationModels
 
 public actor Assistant {
+    private var model: SystemLanguageModel
     private var session: LanguageModelSession
     private var readOnlyToolSession: LanguageModelSession?
+    private var readOnlyNativeTools: [any FoundationModels.Tool]
     private var toolSummaries: [ToolSummary]
 
-    public init(toolSummaries: [ToolSummary] = [], readOnlyNativeTools: [any FoundationModels.Tool] = []) {
+    public init(
+        model: SystemLanguageModel = .default,
+        toolSummaries: [ToolSummary] = [],
+        readOnlyNativeTools: [any FoundationModels.Tool] = []
+    ) {
+        self.model = model
         self.toolSummaries = toolSummaries
+        self.readOnlyNativeTools = readOnlyNativeTools
         session = LanguageModelSession(
+            model: model,
             instructions: SystemPrompt.render(toolSummaries: toolSummaries)
         )
         if !readOnlyNativeTools.isEmpty {
             readOnlyToolSession = LanguageModelSession(
+                model: model,
                 tools: readOnlyNativeTools,
                 instructions: SystemPrompt.renderReadOnlyToolInstructions(toolSummaries: toolSummaries)
             )
@@ -21,9 +31,12 @@ public actor Assistant {
 
     public func updateTools(_ toolSummaries: [ToolSummary]) {
         self.toolSummaries = toolSummaries
-        session = LanguageModelSession(
-            instructions: SystemPrompt.render(toolSummaries: toolSummaries)
-        )
+        rebuildSessions()
+    }
+
+    public func updateModel(_ model: SystemLanguageModel) {
+        self.model = model
+        rebuildSessions()
     }
 
     public func prewarm() {
@@ -96,5 +109,19 @@ public actor Assistant {
             generating: AssistantToolResponse.self
         )
         return response.content.spokenResponse
+    }
+
+    private func rebuildSessions() {
+        session = LanguageModelSession(
+            model: model,
+            instructions: SystemPrompt.render(toolSummaries: toolSummaries)
+        )
+        readOnlyToolSession = readOnlyNativeTools.isEmpty
+            ? nil
+            : LanguageModelSession(
+                model: model,
+                tools: readOnlyNativeTools,
+                instructions: SystemPrompt.renderReadOnlyToolInstructions(toolSummaries: toolSummaries)
+            )
     }
 }

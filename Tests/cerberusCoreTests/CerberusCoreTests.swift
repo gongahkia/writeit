@@ -59,3 +59,15 @@ import Testing
     #expect(detector.detectsWakeWord(in: "Hey, Cerberus."))
     #expect(!detector.detectsWakeWord(in: "hello service"))
 }
+
+@Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
+    try FoundationModelAdapterConfiguration(name: "demo").validate()
+    try FoundationModelAdapterConfiguration(filePath: "/tmp/demo.adapter").validate()
+
+    #expect(throws: ToolExecutionError.self) {
+        try FoundationModelAdapterConfiguration().validate()
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try FoundationModelAdapterConfiguration(name: "demo", filePath: "/tmp/demo.adapter").validate()
+    }
+}
