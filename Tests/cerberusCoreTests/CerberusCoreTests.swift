@@ -106,6 +106,7 @@ import Testing
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
+    #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").displayName == "AirPods Pro (AirPods)")
 }
 
 @Test func audioOutputRouteMonitorUsesDefaultOutputSelector() {
@@ -113,6 +114,16 @@ import Testing
 
     #expect(address.mSelector == kAudioHardwarePropertyDefaultOutputDevice)
     #expect(address.mScope == kAudioObjectPropertyScopeGlobal)
+}
+
+@Test func audioOutputRouteInspectorUsesDeviceAndOutputStreamSelectors() {
+    let devicesAddress = AudioOutputRouteInspector.allDevicesAddress()
+    let streamsAddress = AudioOutputRouteInspector.outputStreamsAddress()
+
+    #expect(devicesAddress.mSelector == kAudioHardwarePropertyDevices)
+    #expect(devicesAddress.mScope == kAudioObjectPropertyScopeGlobal)
+    #expect(streamsAddress.mSelector == kAudioDevicePropertyStreams)
+    #expect(streamsAddress.mScope == kAudioDevicePropertyScopeOutput)
 }
 
 @Test func screenOCRPayloadIncludesNormalizedAndPixelBoxes() {

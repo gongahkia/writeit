@@ -506,6 +506,14 @@ struct StatusPanel: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+
+                Toggle("Route speech directly to AirPods", isOn: $model.routesSpeechDirectlyToAirPods)
+                    .font(.caption)
+
+                Text(model.speechOutputRoutingLine)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
 
             Button {

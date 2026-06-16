@@ -22,7 +22,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv` for threshold tuning.
 - `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
-- Spoken replies use `AVSpeechSynthesizer` and the current macOS output device; Settings reports the current route through CoreAudio and refreshes when the default output device changes.
+- Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
 - Explicit file search scopes must be existing directories inside the user's home directory.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
@@ -48,4 +48,4 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
 - MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, POST-SSE server requests, background Streamable HTTP GET listening, GET SSE resume through `Last-Event-ID`, and opt-in dynamic native read-only tool schemas for flat primitive inputs. Sampling/elicitation requests are routed through in-app review when MCP tools are enabled and otherwise fail closed with JSON-RPC errors.
 - I cannot verify a local FoundationModels adapter training API in this SDK; adapter loading/compilation, transcript-to-JSONL dataset export, exact-match eval, and Apple toolkit orchestration are wired.
-- `AVSpeechSynthesizer` on macOS does not expose a verified per-device route selector in the checked SDK headers.
+- `AVSpeechSynthesizer` on macOS does not expose a direct per-device route selector in the checked SDK headers; direct AirPods mode works around that by using synthesized buffers and `kAudioOutputUnitProperty_CurrentDevice`.

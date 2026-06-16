@@ -53,12 +53,75 @@ public enum AudioOutputRouteInspector {
         return AudioOutputDevice(id: UInt32(deviceID), name: try deviceName(for: deviceID))
     }
 
+    public static func outputDevices() throws -> [AudioOutputDevice] {
+        var address = allDevicesAddress()
+        var dataSize: UInt32 = 0
+        let sizeStatus = AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &dataSize
+        )
+        try throwIfNeeded(sizeStatus, operation: "audio device list size lookup")
+        guard dataSize > 0 else {
+            return []
+        }
+
+        let count = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs = Array(repeating: AudioDeviceID(kAudioObjectUnknown), count: count)
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &dataSize,
+            &deviceIDs
+        )
+        try throwIfNeeded(status, operation: "audio device list lookup")
+
+        return try deviceIDs.compactMap { deviceID in
+            guard try hasOutputStreams(deviceID) else {
+                return nil
+            }
+            return AudioOutputDevice(id: UInt32(deviceID), name: try deviceName(for: deviceID))
+        }
+    }
+
+    public static func preferredAirPodsOutputDevice() throws -> AudioOutputDevice? {
+        try outputDevices().first { $0.isLikelyAirPods }
+    }
+
     static func defaultOutputDeviceAddress() -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
+    }
+
+    static func allDevicesAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+    }
+
+    static func outputStreamsAddress() -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreams,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+    }
+
+    private static func hasOutputStreams(_ deviceID: AudioDeviceID) throws -> Bool {
+        var address = outputStreamsAddress()
+        var dataSize: UInt32 = 0
+        let status = AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &dataSize)
+        try throwIfNeeded(status, operation: "output stream list size lookup")
+        return dataSize > 0
     }
 
     private static func deviceName(for deviceID: AudioDeviceID) throws -> String {
@@ -93,7 +156,8 @@ public final class AudioOutputRouteMonitor: @unchecked Sendable {
     public init(onChange: @escaping @Sendable () -> Void) {
         listenerBlock = { count, addresses in
             for index in 0..<Int(count) {
-                guard addresses[index].mSelector == kAudioHardwarePropertyDefaultOutputDevice else {
+                let selector = addresses[index].mSelector
+                guard selector == kAudioHardwarePropertyDefaultOutputDevice || selector == kAudioHardwarePropertyDevices else {
                     continue
                 }
                 onChange()
@@ -114,14 +178,33 @@ public final class AudioOutputRouteMonitor: @unchecked Sendable {
         guard !isStarted else {
             return
         }
-        var address = AudioOutputRouteInspector.defaultOutputDeviceAddress()
-        let status = AudioObjectAddPropertyListenerBlock(
+        var defaultAddress = AudioOutputRouteInspector.defaultOutputDeviceAddress()
+        let defaultStatus = AudioObjectAddPropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject),
-            &address,
+            &defaultAddress,
             queue,
             listenerBlock
         )
-        try AudioOutputRouteInspector.throwIfNeeded(status, operation: "default output listener registration")
+        try AudioOutputRouteInspector.throwIfNeeded(defaultStatus, operation: "default output listener registration")
+
+        var devicesAddress = AudioOutputRouteInspector.allDevicesAddress()
+        let devicesStatus = AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &devicesAddress,
+            queue,
+            listenerBlock
+        )
+        do {
+            try AudioOutputRouteInspector.throwIfNeeded(devicesStatus, operation: "audio devices listener registration")
+        } catch {
+            _ = AudioObjectRemovePropertyListenerBlock(
+                AudioObjectID(kAudioObjectSystemObject),
+                &defaultAddress,
+                queue,
+                listenerBlock
+            )
+            throw error
+        }
         isStarted = true
     }
 
@@ -137,6 +220,13 @@ public final class AudioOutputRouteMonitor: @unchecked Sendable {
         _ = AudioObjectRemovePropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject),
             &address,
+            queue,
+            listenerBlock
+        )
+        var devicesAddress = AudioOutputRouteInspector.allDevicesAddress()
+        _ = AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &devicesAddress,
             queue,
             listenerBlock
         )

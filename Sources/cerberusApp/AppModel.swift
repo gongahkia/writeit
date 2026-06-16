@@ -105,6 +105,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
     @Published private(set) var audioOutputRouteLine = "Output route unknown"
+    @Published private(set) var speechOutputRoutingLine = "Speech follows system output"
     @Published private(set) var isAudioOutputLikelyAirPods = false
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
@@ -112,6 +113,12 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var routesSpeechDirectlyToAirPods = UserDefaults.standard.bool(forKey: CerberusAppModel.directAirPodsSpeechDefaultsKey) {
+        didSet {
+            UserDefaults.standard.set(routesSpeechDirectlyToAirPods, forKey: Self.directAirPodsSpeechDefaultsKey)
+            refreshPreferredSpeechOutputDevice()
+        }
+    }
     @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusAppModel.wakePhraseDefaultsKey) ?? "hey cerberus" {
         didSet {
             UserDefaults.standard.set(wakePhrase, forKey: Self.wakePhraseDefaultsKey)
@@ -190,6 +197,7 @@ final class CerberusAppModel: ObservableObject {
     private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
     private static let shellToolSummary = ShellTool().summary
     private static let wakePhraseDefaultsKey = "wakePhrase"
+    private static let directAirPodsSpeechDefaultsKey = "routesSpeechDirectlyToAirPods"
 
     private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
         [
@@ -368,6 +376,28 @@ final class CerberusAppModel: ObservableObject {
         } catch {
             audioOutputRouteLine = error.localizedDescription
             isAudioOutputLikelyAirPods = false
+        }
+        refreshPreferredSpeechOutputDevice()
+    }
+
+    private func refreshPreferredSpeechOutputDevice() {
+        guard routesSpeechDirectlyToAirPods else {
+            speaker.setPreferredOutputDevice(nil)
+            speechOutputRoutingLine = "Speech follows system output"
+            return
+        }
+
+        do {
+            guard let device = try AudioOutputRouteInspector.preferredAirPodsOutputDevice() else {
+                speaker.setPreferredOutputDevice(nil)
+                speechOutputRoutingLine = "Direct AirPods route unavailable"
+                return
+            }
+            speaker.setPreferredOutputDevice(device)
+            speechOutputRoutingLine = "Direct target: \(device.displayName)"
+        } catch {
+            speaker.setPreferredOutputDevice(nil)
+            speechOutputRoutingLine = error.localizedDescription
         }
     }
 
