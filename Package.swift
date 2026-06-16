@@ -21,6 +21,10 @@ let package = Package(
             name: "cerberus-adapter-dataset",
             targets: ["AdapterDatasetExport"]
         ),
+        .executable(
+            name: "cerberus-adapter-eval",
+            targets: ["AdapterEval"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -88,6 +92,17 @@ let package = Package(
             path: "Sources/AdapterDatasetExport",
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny")
+            ]
+        ),
+        .executableTarget(
+            name: "AdapterEval",
+            dependencies: ["cerberusCore"],
+            path: "Sources/AdapterEval",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("FoundationModels")
             ]
         ),
         .testTarget(

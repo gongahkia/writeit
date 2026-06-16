@@ -50,10 +50,23 @@ Optional arguments:
 Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data --eval-fraction 0.2 --limit 1000
 ```
 
+Evaluate an eval split with the default model:
+
+```sh
+Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 20
+```
+
+Evaluate with a configured prebuilt adapter:
+
+```sh
+Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --adapter-config ~/Library/Application\ Support/cerberus/foundation-model-adapter.json
+```
+
+The evaluator runs each prompt through Foundation Models and reports exact normalized response-match accuracy. Use it as a smoke metric; adapter quality still needs task-specific human or automated review.
+
 Not implemented:
 
 - adapter training
 - trainer orchestration
-- adapter evaluation
 
 Apple's adapter training toolkit is a separate Python workflow. It requires prompt/response JSONL data, train/eval splits, Python 3.11+, toolkit downloads tied to a specific system-model version, and separate adapters for model-version updates. I cannot verify a local FoundationModels Swift training API in the installed SDK; the exposed Swift API supports adapter loading, compilation, compatibility lookup, and cleanup.

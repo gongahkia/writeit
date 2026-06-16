@@ -145,3 +145,27 @@ import Testing
     #expect(trainText.contains(#""content":"open calendar""#))
     #expect(evalText.contains(#""content":"Standup at 9.""#))
 }
+
+@Test func adapterEvaluationParsesJSONLAndScoresNormalizedMatches() throws {
+    let data = Data("""
+    [{"role":"user","content":"open calendar"},{"role":"assistant","content":"Opened Calendar."}]
+    [{"role":"user","content":"next event"},{"role":"assistant","content":"Standup at 9."}]
+    """.utf8)
+
+    let cases = try AdapterEvaluation.cases(fromJSONL: data)
+    let first = try #require(cases.first)
+    let second = try #require(cases.dropFirst().first)
+    let results = [
+        AdapterEvaluation.result(for: first, actualResponse: " Opened   Calendar. "),
+        AdapterEvaluation.result(for: second, actualResponse: "No event.")
+    ]
+    let summary = AdapterEvaluation.score(results)
+
+    #expect(cases.count == 2)
+    #expect(first.prompt == "open calendar")
+    #expect(results[0].matchesExpected)
+    #expect(!results[1].matchesExpected)
+    #expect(summary.total == 2)
+    #expect(summary.matches == 1)
+    #expect(summary.accuracy == 0.5)
+}
