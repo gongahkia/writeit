@@ -45,6 +45,6 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
-- MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, and refresh-token rotation; stdio sampling/elicitation requests are routed through in-app review when MCP tools are enabled and otherwise fail closed with JSON-RPC errors. Streamable HTTP server-initiated request handling, generated elicitation form controls, and dynamic native tool schemas are not implemented.
+- MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, and refresh-token rotation; stdio sampling/elicitation requests are routed through in-app review when MCP tools are enabled and otherwise fail closed with JSON-RPC errors. Streamable HTTP server-initiated request handling and dynamic native tool schemas are not implemented.
 - I cannot verify a local FoundationModels adapter training API in this SDK; only adapter loading/compilation is wired.
 - `AVSpeechSynthesizer` on macOS does not expose a verified per-device route selector in the checked SDK headers.

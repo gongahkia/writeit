@@ -116,6 +116,94 @@ public struct MCPElicitationRequest: Equatable, Sendable {
     }
 }
 
+public enum MCPElicitationFieldType: String, Sendable {
+    case string
+    case number
+    case integer
+    case boolean
+}
+
+public struct MCPElicitationField: Equatable, Identifiable, Sendable {
+    public let name: String
+    public let type: MCPElicitationFieldType
+    public let title: String?
+    public let description: String?
+    public let required: Bool
+    public let defaultValue: String?
+    public let enumValues: [String]
+    public let enumNames: [String]
+
+    public var id: String {
+        name
+    }
+
+    public var displayName: String {
+        title ?? name
+    }
+
+    public init(
+        name: String,
+        type: MCPElicitationFieldType,
+        title: String?,
+        description: String?,
+        required: Bool,
+        defaultValue: String?,
+        enumValues: [String],
+        enumNames: [String]
+    ) {
+        self.name = name
+        self.type = type
+        self.title = title
+        self.description = description
+        self.required = required
+        self.defaultValue = defaultValue
+        self.enumValues = enumValues
+        self.enumNames = enumNames
+    }
+}
+
+public extension MCPElicitationRequest {
+    var fields: [MCPElicitationField] {
+        guard let data = schemaJSON.data(using: .utf8),
+              let schema = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              schema["type"] as? String == "object",
+              let properties = schema["properties"] as? [String: [String: Any]] else {
+            return []
+        }
+
+        let required = Set(schema["required"] as? [String] ?? [])
+        return properties.keys.sorted().compactMap { name in
+            guard let property = properties[name],
+                  let type = MCPElicitationFieldType(rawValue: property["type"] as? String ?? "string") else {
+                return nil
+            }
+            return MCPElicitationField(
+                name: name,
+                type: type,
+                title: property["title"] as? String,
+                description: property["description"] as? String,
+                required: required.contains(name),
+                defaultValue: Self.defaultValue(from: property["default"]),
+                enumValues: property["enum"] as? [String] ?? [],
+                enumNames: property["enumNames"] as? [String] ?? []
+            )
+        }
+    }
+
+    private static func defaultValue(from value: Any?) -> String? {
+        switch value {
+        case let string as String:
+            string
+        case let bool as Bool:
+            bool ? "true" : "false"
+        case let number as NSNumber:
+            number.stringValue
+        default:
+            nil
+        }
+    }
+}
+
 public enum MCPElicitationAction: String, Sendable {
     case accept
     case decline

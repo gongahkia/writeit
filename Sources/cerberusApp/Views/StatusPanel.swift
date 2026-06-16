@@ -122,13 +122,19 @@ struct StatusPanel: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            TextEditor(text: $model.mcpClientDraft)
-                .font(.caption.monospaced())
-                .frame(minHeight: 82)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(.quaternary)
+            if request.kind == .elicitation, !model.mcpElicitationFieldDrafts.isEmpty {
+                ForEach($model.mcpElicitationFieldDrafts) { $draft in
+                    elicitationField($draft)
                 }
+            } else {
+                TextEditor(text: $model.mcpClientDraft)
+                    .font(.caption.monospaced())
+                    .frame(minHeight: 82)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(.quaternary)
+                    }
+            }
 
             HStack(spacing: 8) {
                 Button {
@@ -154,6 +160,39 @@ struct StatusPanel: View {
             .buttonStyle(.bordered)
         }
         .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func elicitationField(_ draft: Binding<MCPClientElicitationFieldDraft>) -> some View {
+        let field = draft.wrappedValue.field
+        VStack(alignment: .leading, spacing: 4) {
+            if field.type == .boolean {
+                Toggle(field.displayName, isOn: Binding(
+                    get: { draft.wrappedValue.value == "true" },
+                    set: { draft.wrappedValue.value = $0 ? "true" : "false" }
+                ))
+                .font(.caption)
+            } else if !field.enumValues.isEmpty {
+                Picker(field.displayName, selection: draft.value) {
+                    ForEach(Array(field.enumValues.enumerated()), id: \.element) { index, value in
+                        Text(index < field.enumNames.count ? field.enumNames[index] : value)
+                            .tag(value)
+                    }
+                }
+                .font(.caption)
+            } else {
+                TextField(field.displayName, text: draft.value)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+            }
+
+            if let description = field.description, !description.isEmpty {
+                Text(description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
     }
 
     private var transcript: some View {

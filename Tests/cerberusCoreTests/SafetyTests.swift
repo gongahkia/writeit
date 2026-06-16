@@ -473,6 +473,42 @@ import Testing
     }
 }
 
+@Test func mcpElicitationRequestExtractsFlatSchemaFields() throws {
+    let request = MCPElicitationRequest(serverName: "stub", params: [
+        "message": "profile",
+        "requestedSchema": [
+            "type": "object",
+            "properties": [
+                "age": [
+                    "type": "integer",
+                    "minimum": 18,
+                    "title": "Age"
+                ],
+                "notify": [
+                    "type": "boolean",
+                    "default": true
+                ],
+                "team": [
+                    "type": "string",
+                    "enum": ["eng", "design"],
+                    "enumNames": ["Engineering", "Design"]
+                ]
+            ],
+            "required": ["age", "team"]
+        ]
+    ])
+
+    let fields = request.fields
+
+    #expect(fields.map(\.name) == ["age", "notify", "team"])
+    #expect(fields[0].type == .integer)
+    #expect(fields[0].title == "Age")
+    #expect(fields[0].required)
+    #expect(fields[1].defaultValue == "true")
+    #expect(fields[2].enumValues == ["eng", "design"])
+    #expect(fields[2].enumNames == ["Engineering", "Design"])
+}
+
 @Test func mcpOAuthBuildsPKCEAuthorizationURL() throws {
     let challenge = MCPOAuthClient.codeChallenge(
         for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

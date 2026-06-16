@@ -52,6 +52,15 @@ struct PendingMCPClientRequest: Identifiable {
     }
 }
 
+struct MCPClientElicitationFieldDraft: Identifiable {
+    let field: MCPElicitationField
+    var value: String
+
+    var id: String {
+        field.id
+    }
+}
+
 private enum MCPClientRequestDecision: Sendable {
     case approve(String)
     case decline
@@ -137,6 +146,7 @@ final class CerberusAppModel: ObservableObject {
     }
     @Published var transcriptDraft = ""
     @Published var mcpClientDraft = ""
+    @Published var mcpElicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
 
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
@@ -421,6 +431,15 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func approveMCPClientRequest() {
+        if pendingMCPClientRequest?.kind == .elicitation, !mcpElicitationFieldDrafts.isEmpty {
+            do {
+                finishMCPClientRequest(.approve(try Self.elicitationContentJSON(from: mcpElicitationFieldDrafts)))
+            } catch {
+                statusLine = error.localizedDescription
+            }
+            return
+        }
+
         finishMCPClientRequest(.approve(mcpClientDraft))
     }
 
@@ -476,7 +495,8 @@ final class CerberusAppModel: ObservableObject {
                 summary: request.message,
                 detail: request.schemaJSON
             ),
-            draft: Self.defaultElicitationDraft(for: request)
+            draft: Self.defaultElicitationDraft(for: request),
+            elicitationFieldDrafts: Self.defaultElicitationFieldDrafts(for: request)
         )
 
         switch decision {
@@ -864,11 +884,13 @@ final class CerberusAppModel: ObservableObject {
 
     private func requestMCPClientDecision(
         _ request: PendingMCPClientRequest,
-        draft: String
+        draft: String,
+        elicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
     ) async -> MCPClientRequestDecision {
         finishMCPClientRequest(.cancel)
         pendingMCPClientRequest = request
         mcpClientDraft = draft
+        mcpElicitationFieldDrafts = elicitationFieldDrafts
         statusLine = request.summary
         return await withCheckedContinuation { continuation in
             pendingMCPDecisionContinuation = continuation
@@ -878,6 +900,7 @@ final class CerberusAppModel: ObservableObject {
     private func finishMCPClientRequest(_ decision: MCPClientRequestDecision) {
         pendingMCPClientRequest = nil
         mcpClientDraft = ""
+        mcpElicitationFieldDrafts = []
         guard let continuation = pendingMCPDecisionContinuation else {
             return
         }
@@ -977,6 +1000,53 @@ final class CerberusAppModel: ObservableObject {
             return "{}"
         }
         return string
+    }
+
+    private static func defaultElicitationFieldDrafts(for request: MCPElicitationRequest) -> [MCPClientElicitationFieldDraft] {
+        request.fields.map { field in
+            let value = field.defaultValue ?? {
+                if let firstEnumValue = field.enumValues.first {
+                    return firstEnumValue
+                }
+                switch field.type {
+                case .boolean:
+                    return "false"
+                default:
+                    return ""
+                }
+            }()
+            return MCPClientElicitationFieldDraft(field: field, value: value)
+        }
+    }
+
+    private static func elicitationContentJSON(from drafts: [MCPClientElicitationFieldDraft]) throws -> String {
+        var content: [String: Any] = [:]
+        for draft in drafts {
+            let trimmed = draft.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty, !draft.field.required, draft.field.type != .boolean {
+                continue
+            }
+
+            switch draft.field.type {
+            case .string:
+                content[draft.field.name] = trimmed
+            case .boolean:
+                content[draft.field.name] = trimmed == "true"
+            case .integer:
+                guard let value = Int(trimmed) else {
+                    throw ToolExecutionError.invalidArguments("MCP elicitation field must be an integer: \(draft.field.name)")
+                }
+                content[draft.field.name] = value
+            case .number:
+                guard let value = Double(trimmed) else {
+                    throw ToolExecutionError.invalidArguments("MCP elicitation field must be a number: \(draft.field.name)")
+                }
+                content[draft.field.name] = value
+            }
+        }
+
+        let encoded = try JSONSerialization.data(withJSONObject: content, options: [.prettyPrinted, .sortedKeys])
+        return String(decoding: encoded, as: UTF8.self)
     }
 
     private func loadConfiguredAdapterIfPresent() {

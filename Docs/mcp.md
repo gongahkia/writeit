@@ -41,7 +41,7 @@ Current scope:
 - OAuth access tokens are stored in Keychain and attached as `Authorization: Bearer ...`; explicit config headers override Keychain tokens
 - stdio server requests for `sampling/createMessage` and `elicitation/create` are routed through the app's review UI when MCP tools are enabled
 - sampling requests require prompt approval and response approval before returning content to the MCP server
-- elicitation requests use an editable JSON response with accept, decline, and cancel actions
+- elicitation requests use generated controls for flat primitive schemas, with JSON fallback plus accept, decline, and cancel actions
 - accepted elicitation content is validated against the MCP flat primitive schema subset before returning to the server
 - each `mcp.call` is confirmation-gated
 - tool/resource/prompt output is treated as untrusted payload
@@ -49,5 +49,4 @@ Current scope:
 Not implemented:
 
 - Streamable HTTP server-initiated sampling/elicitation handling
-- generated field controls for elicitation schemas
 - dynamic FoundationModels native tool schemas
