@@ -18,7 +18,7 @@ struct StatusPanel: View {
         HStack(spacing: 10) {
             Image(systemName: model.menuBarSystemImage)
                 .font(.title2)
-                .foregroundStyle(model.state.isMicrophoneActive ? .red : .primary)
+                .foregroundStyle(model.isMicrophoneActive ? .red : .primary)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("cerberus")

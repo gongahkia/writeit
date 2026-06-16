@@ -8,6 +8,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var recentEvents: [String] = []
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
     @Published private(set) var pendingConfirmation: PendingConfirmation?
+    @Published private(set) var isConfirmationVoiceActive = false
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -24,7 +25,9 @@ final class CerberusAppModel: ObservableObject {
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var silenceTask: Task<Void, Never>?
+    private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
+    private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
 
     init() {
         toolRegistry = (try? ToolRegistry(tools: DefaultToolCatalog.tools)) ?? ToolRegistry()
@@ -34,6 +37,10 @@ final class CerberusAppModel: ObservableObject {
 
     var state: AssistantState {
         stateMachine.state
+    }
+
+    var isMicrophoneActive: Bool {
+        state.isMicrophoneActive || isConfirmationVoiceActive
     }
 
     var menuBarSystemImage: String {
@@ -95,6 +102,7 @@ final class CerberusAppModel: ObservableObject {
         activeRequest = nil
         silenceTask?.cancel()
         silenceTask = nil
+        stopConfirmationVoiceCapture()
         Task {
             await transcriber.cancel()
         }
@@ -108,6 +116,7 @@ final class CerberusAppModel: ObservableObject {
         activeRequest = nil
         silenceTask?.cancel()
         silenceTask = nil
+        stopConfirmationVoiceCapture()
         Task {
             await transcriber.cancel()
         }
@@ -128,6 +137,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func approvePendingConfirmation() {
+        stopConfirmationVoiceCapture()
         Task {
             guard let pendingConfirmation,
                   await confirmationGate.accept(id: pendingConfirmation.id),
@@ -143,6 +153,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func denyPendingConfirmation() {
+        stopConfirmationVoiceCapture()
         Task {
             guard let pendingConfirmation else {
                 return
@@ -249,6 +260,77 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
+    private func startConfirmationVoiceCapture() {
+        guard state == .awaitingConfirm,
+              pendingConfirmation != nil,
+              !isConfirmationVoiceActive else {
+            return
+        }
+
+        isConfirmationVoiceActive = true
+        statusLine = "Say yes to approve or no to cancel."
+        scheduleConfirmationVoiceTimeout()
+
+        Task {
+            do {
+                try await transcriber.start { [weak self] update in
+                    self?.handleConfirmationTranscription(update)
+                }
+            } catch {
+                isConfirmationVoiceActive = false
+                confirmationVoiceTimeoutTask?.cancel()
+                confirmationVoiceTimeoutTask = nil
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleConfirmationTranscription(_ update: TranscriptionUpdate) {
+        guard isConfirmationVoiceActive,
+              let decision = VoiceConfirmationParser.decision(in: update.text) else {
+            return
+        }
+
+        isConfirmationVoiceActive = false
+        confirmationVoiceTimeoutTask?.cancel()
+        confirmationVoiceTimeoutTask = nil
+
+        Task {
+            await transcriber.stop()
+            switch decision {
+            case .accept:
+                approvePendingConfirmation()
+            case .deny:
+                denyPendingConfirmation()
+            }
+        }
+    }
+
+    private func scheduleConfirmationVoiceTimeout() {
+        confirmationVoiceTimeoutTask?.cancel()
+        let timeout = confirmationVoiceTimeoutNanoseconds
+        confirmationVoiceTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: timeout)
+            guard !Task.isCancelled else {
+                return
+            }
+            self?.stopConfirmationVoiceCapture()
+        }
+    }
+
+    private func stopConfirmationVoiceCapture() {
+        confirmationVoiceTimeoutTask?.cancel()
+        confirmationVoiceTimeoutTask = nil
+        guard isConfirmationVoiceActive else {
+            return
+        }
+
+        isConfirmationVoiceActive = false
+        Task {
+            await transcriber.cancel()
+        }
+    }
+
     private func runReasoning(for request: String) async {
         do {
             activeRequest = request
@@ -282,7 +364,9 @@ final class CerberusAppModel: ObservableObject {
         pendingPlan = plan
         pendingConfirmation = await confirmationGate.request(summary: summary)
         apply(.confirmationRequired(summary))
-        speaker.speak(plan.spokenResponse)
+        speaker.speak(plan.spokenResponse) { [weak self] in
+            self?.startConfirmationVoiceCapture()
+        }
     }
 
     private func execute(_ plan: AssistantPlan, confirmed: Bool, transitionToExecuting: Bool) async {

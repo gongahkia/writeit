@@ -39,3 +39,10 @@ import Testing
     #expect(second.previousHash == first.hash)
     #expect(try await auditLog.entries().count == 2)
 }
+
+@Test func voiceConfirmationParserClassifiesShortApprovalsAndDenials() {
+    #expect(VoiceConfirmationParser.decision(in: "yes go ahead") == .accept)
+    #expect(VoiceConfirmationParser.decision(in: "do it") == .accept)
+    #expect(VoiceConfirmationParser.decision(in: "no cancel that") == .deny)
+    #expect(VoiceConfirmationParser.decision(in: "maybe later") == nil)
+}
