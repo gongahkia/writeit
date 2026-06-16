@@ -13,6 +13,10 @@ let package = Package(
             name: "cerberus",
             targets: ["cerberusApp"]
         ),
+        .executable(
+            name: "ShellExecService",
+            targets: ["ShellExecService"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -56,6 +60,14 @@ let package = Package(
                 .linkedFramework("MediaPlayer"),
                 .linkedFramework("Security"),
                 .linkedFramework("Speech")
+            ]
+        ),
+        .executableTarget(
+            name: "ShellExecService",
+            dependencies: ["cerberusCore"],
+            path: "Sources/ShellExecService",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
             ]
         ),
         .testTarget(

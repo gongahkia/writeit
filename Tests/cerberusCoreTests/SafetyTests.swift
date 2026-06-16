@@ -64,3 +64,16 @@ import Testing
     #expect(!rawText.contains("open calendar"))
     #expect(!rawText.contains("Opened Calendar."))
 }
+
+@Test func shellExecServiceRevalidatesDeniedRequests() async {
+    let service = ShellExecService()
+    let request = ShellExecRequest(executable: "rm", arguments: ["-rf", "/"], workingDirectory: nil)
+
+    await withCheckedContinuation { continuation in
+        service.run(request) { response in
+            #expect(!response.succeeded)
+            #expect(response.errorMessage?.contains("Executable is not allowlisted") == true)
+            continuation.resume()
+        }
+    }
+}

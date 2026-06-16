@@ -18,10 +18,16 @@ public struct ShellTool: AssistantTool {
 
     private let allowExecution: Bool
     private let allowlist: CommandAllowlist
+    private let executor: any ShellCommandExecutor
 
-    public init(allowExecution: Bool = false, allowlist: CommandAllowlist = CommandAllowlist()) {
+    public init(
+        allowExecution: Bool = false,
+        allowlist: CommandAllowlist = CommandAllowlist(),
+        executor: any ShellCommandExecutor = DirectShellCommandExecutor()
+    ) {
         self.allowExecution = allowExecution
         self.allowlist = allowlist
+        self.executor = executor
     }
 
     public func validate(_ arguments: Arguments) throws {
@@ -42,7 +48,7 @@ public struct ShellTool: AssistantTool {
             )
         }
 
-        let output = try runProcess(validated)
+        let output = try await executor.run(validated)
         return ToolResult(
             toolName: name,
             succeeded: true,
@@ -50,33 +56,5 @@ public struct ShellTool: AssistantTool {
             untrustedPayload: output,
             metadata: ["dryRun": "false"]
         )
-    }
-
-    private func runProcess(_ command: ValidatedCommand) throws -> String {
-        let process = Process()
-        let stdout = Pipe()
-        let stderr = Pipe()
-
-        process.executableURL = command.executableURL
-        process.arguments = command.arguments
-        process.currentDirectoryURL = command.workingDirectoryURL
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        try process.run()
-        process.waitUntilExit()
-
-        let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
-        let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
-        var combinedOutput = Data()
-        combinedOutput.append(outputData)
-        combinedOutput.append(errorData)
-        let output = String(decoding: combinedOutput, as: UTF8.self)
-
-        guard process.terminationStatus == 0 else {
-            throw ToolExecutionError.denied("Command exited with status \(process.terminationStatus): \(output)")
-        }
-
-        return output
     }
 }
