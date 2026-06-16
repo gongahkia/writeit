@@ -101,6 +101,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var statusLine = "Ready"
     @Published private(set) var recentEvents: [String] = []
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
+    @Published private(set) var hasSkippedOnboarding = UserDefaults.standard.bool(forKey: CerberusAppModel.onboardingSkippedDefaultsKey)
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
@@ -198,6 +199,7 @@ final class CerberusAppModel: ObservableObject {
     private static let shellToolSummary = ShellTool().summary
     private static let wakePhraseDefaultsKey = "wakePhrase"
     private static let directAirPodsSpeechDefaultsKey = "routesSpeechDirectlyToAirPods"
+    private static let onboardingSkippedDefaultsKey = "onboardingSkipped"
 
     private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
         [
@@ -257,6 +259,10 @@ final class CerberusAppModel: ObservableObject {
 
     var nextPermissionSnapshot: PermissionSnapshot? {
         permissionSnapshots.first { $0.state != .granted }
+    }
+
+    var shouldShowOnboarding: Bool {
+        !hasSkippedOnboarding && nextPermissionSnapshot != nil
     }
 
     var grantedPermissionCount: Int {
@@ -458,6 +464,17 @@ final class CerberusAppModel: ObservableObject {
             return
         }
         requestPermission(nextPermissionSnapshot.kind)
+    }
+
+    func skipOnboarding() {
+        hasSkippedOnboarding = true
+        UserDefaults.standard.set(true, forKey: Self.onboardingSkippedDefaultsKey)
+    }
+
+    func resetOnboarding() {
+        hasSkippedOnboarding = false
+        UserDefaults.standard.set(false, forKey: Self.onboardingSkippedDefaultsKey)
+        refreshPermissions()
     }
 
     func calibrateHeadGestures() {

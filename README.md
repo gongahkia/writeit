@@ -5,6 +5,7 @@ AirPods-driven, local-first personal assistant for macOS.
 The project is intentionally scoped as a native macOS utility:
 
 - menu bar first, no main window by default
+- first-run setup banner for required macOS permissions
 - microphone activates only after an explicit trigger unless `Wake phrase` is enabled
 - SpeechAnalyzer for on-device speech-to-text
 - default-off configurable STT wake phrase monitor

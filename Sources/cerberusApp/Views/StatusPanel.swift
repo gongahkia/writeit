@@ -8,6 +8,7 @@ struct StatusPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
+            setupBanner
             sectionPicker
 
             switch selectedSection {
@@ -24,6 +25,12 @@ struct StatusPanel: View {
             case .settings:
                 settings
             }
+        }
+        .onAppear {
+            showOnboardingIfNeeded()
+        }
+        .onChange(of: model.shouldShowOnboarding) {
+            showOnboardingIfNeeded()
         }
     }
 
@@ -53,6 +60,55 @@ struct StatusPanel: View {
             Spacer()
         }
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var setupBanner: some View {
+        if model.shouldShowOnboarding, let next = model.nextPermissionSnapshot {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    statusDot(for: next.state)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Setup \(model.grantedPermissionCount + 1) of \(model.permissionSnapshots.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(next.kind.displayName)
+                            .font(.body)
+                    }
+
+                    Spacer()
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        selectedSection = .permissions
+                        model.requestNextPermission()
+                    } label: {
+                        Label("Request", systemImage: "lock.open")
+                    }
+
+                    Button {
+                        selectedSection = .permissions
+                    } label: {
+                        Label("Access", systemImage: "slider.horizontal.3")
+                    }
+
+                    Spacer()
+
+                    Button {
+                        model.skipOnboarding()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Skip setup")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(10)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        }
     }
 
     @ViewBuilder
@@ -451,6 +507,12 @@ struct StatusPanel: View {
                     } label: {
                         Label("Request", systemImage: "lock.open")
                     }
+
+                    Button {
+                        model.skipOnboarding()
+                    } label: {
+                        Label("Skip", systemImage: "xmark")
+                    }
                 }
             }
         } else {
@@ -468,6 +530,13 @@ struct StatusPanel: View {
             TextField("Wake phrase", text: $model.wakePhrase)
                 .textFieldStyle(.roundedBorder)
                 .disabled(model.isWakeWordMonitoring)
+            Button {
+                selectedSection = .permissions
+                model.resetOnboarding()
+            } label: {
+                Label("Reset setup", systemImage: "arrow.counterclockwise")
+            }
+            .buttonStyle(.bordered)
             Toggle("MCP tool", isOn: $model.isMCPToolEnabled)
             Label(model.mcpListenerStatusLine, systemImage: "network")
                 .font(.caption)
@@ -593,6 +662,12 @@ struct StatusPanel: View {
             .orange
         case .unknown:
             .gray
+        }
+    }
+
+    private func showOnboardingIfNeeded() {
+        if model.shouldShowOnboarding {
+            selectedSection = .permissions
         }
     }
 }
