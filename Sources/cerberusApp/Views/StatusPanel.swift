@@ -695,6 +695,8 @@ struct StatusPanel: View {
         switch state {
         case .granted:
             .green
+        case .writeOnly:
+            .yellow
         case .denied, .restricted:
             .red
         case .notDetermined:

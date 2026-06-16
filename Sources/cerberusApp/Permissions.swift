@@ -39,6 +39,7 @@ enum SystemPermission: String, CaseIterable, Identifiable {
 enum PermissionState: String, Equatable {
     case notDetermined = "not_determined"
     case granted
+    case writeOnly = "write_only"
     case denied
     case restricted
     case unknown
@@ -49,6 +50,8 @@ enum PermissionState: String, Equatable {
             "Not requested"
         case .granted:
             "Granted"
+        case .writeOnly:
+            "Write only"
         case .denied:
             "Denied"
         case .restricted:
@@ -199,8 +202,10 @@ final class PermissionCenter {
 
     nonisolated private static func mapEventKitAuthorization(_ status: EKAuthorizationStatus) -> PermissionState {
         switch status {
-        case .fullAccess, .writeOnly:
+        case .fullAccess:
             .granted
+        case .writeOnly:
+            .writeOnly
         case .denied:
             .denied
         case .restricted:

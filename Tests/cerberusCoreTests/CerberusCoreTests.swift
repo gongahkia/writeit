@@ -9,6 +9,16 @@ import Testing
     #expect(CerberusCore.bundleIdentifier == "dev.gongahkia.cerberus")
 }
 
+@Test func appInfoPlistDeclaresEventKitFullAccessUsage() throws {
+    let fileURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Sources/cerberusApp/Resources/Info.plist")
+    let data = try Data(contentsOf: fileURL)
+    let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+
+    #expect(plist["NSCalendarsFullAccessUsageDescription"] as? String != nil)
+    #expect(plist["NSRemindersFullAccessUsageDescription"] as? String != nil)
+}
+
 @Test func stateMachineFollowsHappyPath() {
     var machine = AssistantStateMachine()
 
