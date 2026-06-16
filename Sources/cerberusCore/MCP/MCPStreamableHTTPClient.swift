@@ -4,11 +4,13 @@ public struct MCPStreamableHTTPListenResult: Equatable, Sendable {
     public let serverName: String
     public let endpointAvailable: Bool
     public let handledMessages: Int
+    public let lastEventID: String?
 
-    public init(serverName: String, endpointAvailable: Bool, handledMessages: Int) {
+    public init(serverName: String, endpointAvailable: Bool, handledMessages: Int, lastEventID: String? = nil) {
         self.serverName = serverName
         self.endpointAvailable = endpointAvailable
         self.handledMessages = handledMessages
+        self.lastEventID = lastEventID
     }
 }
 
@@ -102,7 +104,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         return try await session.getPrompt(name: name, argumentsJSON: argumentsJSON)
     }
 
-    public func listenForServerRequests(maxMessages: Int? = nil) async throws -> MCPStreamableHTTPListenResult {
+    public func listenForServerRequests(maxMessages: Int? = nil, lastEventID: String? = nil) async throws -> MCPStreamableHTTPListenResult {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
@@ -111,7 +113,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         )
         try await session.initialize()
         try await session.sendInitializedNotification()
-        return try await session.listenForServerRequests(maxMessages: maxMessages)
+        return try await session.listenForServerRequests(maxMessages: maxMessages, lastEventID: lastEventID)
     }
 }
 
@@ -230,7 +232,7 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         return MCPPromptGetResult(description: result["description"] as? String, contentText: text)
     }
 
-    func listenForServerRequests(maxMessages: Int?) async throws -> MCPStreamableHTTPListenResult {
+    func listenForServerRequests(maxMessages: Int?, lastEventID: String?) async throws -> MCPStreamableHTTPListenResult {
         guard let endpointURL = configuration.endpointURL else {
             throw ToolExecutionError.invalidArguments("MCP streamable HTTP server requires endpointURL.")
         }
@@ -241,6 +243,9 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         request.setValue(protocolVersion, forHTTPHeaderField: "MCP-Protocol-Version")
         if let sessionID {
             request.setValue(sessionID, forHTTPHeaderField: "Mcp-Session-Id")
+        }
+        if let lastEventID, !lastEventID.isEmpty {
+            request.setValue(lastEventID, forHTTPHeaderField: "Last-Event-ID")
         }
         try applyAuthorizationHeaders(to: &request)
 
@@ -253,7 +258,8 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             return MCPStreamableHTTPListenResult(
                 serverName: configuration.name,
                 endpointAvailable: false,
-                handledMessages: 0
+                handledMessages: 0,
+                lastEventID: lastEventID
             )
         }
 
@@ -266,11 +272,12 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             throw ToolExecutionError.invalidArguments("MCP HTTP listener did not return an SSE stream.")
         }
 
-        let handledMessages = try await handleServerEventsFromSSE(bytes, maxMessages: maxMessages)
+        let listenerState = try await handleServerEventsFromSSE(bytes, maxMessages: maxMessages)
         return MCPStreamableHTTPListenResult(
             serverName: configuration.name,
             endpointAvailable: true,
-            handledMessages: handledMessages
+            handledMessages: listenerState.handledMessages,
+            lastEventID: listenerState.lastEventID ?? lastEventID
         )
     }
 
@@ -372,19 +379,30 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         return message
     }
 
-    private func handleServerEventsFromSSE(_ bytes: URLSession.AsyncBytes, maxMessages: Int?) async throws -> Int {
+    private struct SSEListenerState: Equatable {
+        var handledMessages: Int
+        var lastEventID: String?
+    }
+
+    private func handleServerEventsFromSSE(_ bytes: URLSession.AsyncBytes, maxMessages: Int?) async throws -> SSEListenerState {
         var eventDataLines: [String] = []
         var lineBytes: [UInt8] = []
         var handledMessages = 0
+        var currentEventID: String?
+        var lastEventID: String?
 
         func processLine(_ line: String) async throws -> Bool {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmedLine.hasPrefix("data:") {
                 eventDataLines.append(String(trimmedLine.dropFirst(5)).trimmingCharacters(in: .whitespaces))
+            } else if trimmedLine.hasPrefix("id:") {
+                currentEventID = String(trimmedLine.dropFirst(3)).trimmingCharacters(in: .whitespaces)
             } else if trimmedLine.isEmpty, !eventDataLines.isEmpty {
                 if try await handleSSEServerEvent(eventDataLines.joined(separator: "\n")) {
                     handledMessages += 1
                 }
+                lastEventID = currentEventID ?? lastEventID
+                currentEventID = nil
                 eventDataLines = []
             }
             return maxMessages.map { handledMessages >= $0 } ?? false
@@ -394,7 +412,7 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             if byte == 0x0A {
                 let line = String(decoding: lineBytes, as: UTF8.self)
                 if try await processLine(line) {
-                    return handledMessages
+                    return SSEListenerState(handledMessages: handledMessages, lastEventID: lastEventID)
                 }
                 lineBytes.removeAll(keepingCapacity: true)
             } else {
@@ -405,16 +423,17 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         if !lineBytes.isEmpty {
             let line = String(decoding: lineBytes, as: UTF8.self)
             if try await processLine(line) {
-                return handledMessages
+                return SSEListenerState(handledMessages: handledMessages, lastEventID: lastEventID)
             }
         }
 
         if !eventDataLines.isEmpty,
            try await handleSSEServerEvent(eventDataLines.joined(separator: "\n")) {
             handledMessages += 1
+            lastEventID = currentEventID ?? lastEventID
         }
 
-        return handledMessages
+        return SSEListenerState(handledMessages: handledMessages, lastEventID: lastEventID)
     }
 
     private func jsonResponseFromSSE(_ bytes: URLSession.AsyncBytes, responseID: Int?) async throws -> [String: Any] {

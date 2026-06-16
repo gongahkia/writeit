@@ -175,6 +175,7 @@ final class CerberusAppModel: ObservableObject {
     private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
     private var mcpListenerSetupTask: Task<Void, Never>?
     private var mcpListenerTasks: [Task<Void, Never>] = []
+    private var mcpListenerLastEventIDs: [String: String] = [:]
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
@@ -1011,6 +1012,7 @@ final class CerberusAppModel: ObservableObject {
         mcpListenerSetupTask = nil
         mcpListenerTasks.forEach { $0.cancel() }
         mcpListenerTasks = []
+        mcpListenerLastEventIDs = [:]
         mcpListenerStatusLine = "MCP listener off"
         finishMCPClientRequest(.cancel)
     }
@@ -1021,12 +1023,15 @@ final class CerberusAppModel: ObservableObject {
                 let result = try await MCPStreamableHTTPClient(
                     configuration: configuration,
                     clientRequestHandlers: mcpClientRequestBroker.handlers
-                ).listenForServerRequests()
+                ).listenForServerRequests(lastEventID: mcpListenerLastEventIDs[configuration.name])
                 guard result.endpointAvailable else {
                     mcpListenerStatusLine = "\(configuration.name) does not expose MCP HTTP GET SSE."
                     return
                 }
 
+                if let lastEventID = result.lastEventID {
+                    mcpListenerLastEventIDs[configuration.name] = lastEventID
+                }
                 if result.handledMessages > 0 {
                     mcpListenerStatusLine = "\(configuration.name) handled \(result.handledMessages) background MCP request(s)."
                 }

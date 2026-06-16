@@ -803,9 +803,11 @@ import Testing
                 statusCode = 200
                 headers = ["Content-Type": "text/event-stream"]
                 responseBody = Data("""
+                id: event-201
                 event: message
                 data: {"jsonrpc":"2.0","id":201,"method":"sampling/createMessage","params":{"messages":[{"role":"user","content":{"type":"text","text":"background sample"}}],"maxTokens":8}}
 
+                id: event-202
                 event: message
                 data: {"jsonrpc":"2.0","id":202,"method":"elicitation/create","params":{"message":"team","requestedSchema":{"type":"object","properties":{"team":{"type":"string","enum":["eng"]}},"required":["team"]}}}
 
@@ -892,7 +894,112 @@ import Testing
 
     #expect(result.endpointAvailable)
     #expect(result.handledMessages == 2)
+    #expect(result.lastEventID == "event-202")
     #expect(StubURLProtocol.requestMethods == ["POST", "POST", "GET", "POST", "POST"])
+}
+
+@Test func mcpStreamableHTTPClientSendsLastEventIDForGETListener() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var lastEventIDs: [String?] = []
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            let body = Self.bodyString(from: request)
+            let method = request.httpMethod ?? ""
+            let statusCode: Int
+            let headers: [String: String]
+            let responseBody: Data
+
+            if body.contains(#""method":"initialize""#) {
+                statusCode = 200
+                headers = [
+                    "Content-Type": "application/json",
+                    "Mcp-Session-Id": "session-1"
+                ]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"stub","version":"1"}}}"#.utf8)
+            } else if method == "GET" {
+                Self.lastEventIDs.append(request.value(forHTTPHeaderField: "Last-Event-ID"))
+                statusCode = 405
+                headers = [:]
+                responseBody = Data()
+            } else {
+                statusCode = 202
+                headers = [:]
+                responseBody = Data()
+            }
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private static func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    StubURLProtocol.lastEventIDs = []
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let client = MCPStreamableHTTPClient(
+        configuration: MCPServerConfiguration(
+            name: "remote",
+            transport: .streamableHTTP,
+            endpointURL: URL(string: "https://example.com/mcp")
+        ),
+        urlSession: urlSession
+    )
+
+    let result = try await client.listenForServerRequests(lastEventID: "event-202")
+
+    #expect(!result.endpointAvailable)
+    #expect(result.lastEventID == "event-202")
+    #expect(StubURLProtocol.lastEventIDs == ["event-202"])
 }
 
 @Test func mcpStreamableHTTPClientGetsPrompts() async throws {

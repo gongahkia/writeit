@@ -42,6 +42,7 @@ Current scope:
 - stdio server requests for `sampling/createMessage` and `elicitation/create` are routed through the app's review UI when MCP tools are enabled
 - Streamable HTTP POST responses with SSE server requests are handled the same way, with JSON-RPC responses posted back to the server
 - Streamable HTTP GET listeners start for configured HTTP servers when MCP tools are enabled; servers that return 405 are treated as not exposing the listener
+- GET listeners track SSE event IDs and reconnect with `Last-Event-ID`
 - sampling requests require prompt approval and response approval before returning content to the MCP server
 - elicitation requests use generated controls for flat primitive schemas, with JSON fallback plus accept, decline, and cancel actions
 - accepted elicitation content is validated against the MCP flat primitive schema subset before returning to the server
@@ -50,5 +51,4 @@ Current scope:
 
 Not implemented:
 
-- SSE resumability and redelivery
 - dynamic FoundationModels native tool schemas
