@@ -307,6 +307,10 @@ import Testing
         func refresh(serverName: String) async throws -> MCPOAuthTokenResult {
             MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read", hasRefreshToken: true)
         }
+
+        func authorizeWithLoopback(serverName: String, scopesCSV: String) async throws -> MCPOAuthTokenResult {
+            MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read", hasRefreshToken: true)
+        }
     }
 
     let runner = StubRunner()
@@ -322,11 +326,15 @@ import Testing
     let refresh = try await MCPOAuthRefreshTool(runner: runner).run(
         arguments: MCPOAuthRefreshTool.Arguments(serverName: "remote")
     )
+    let local = try await MCPOAuthAuthorizeLocalTool(runner: runner).run(
+        arguments: MCPOAuthAuthorizeLocalTool.Arguments(serverName: "remote", scopesCSV: "read")
+    )
 
     #expect(discover.untrustedPayload.contains("authorizationEndpoint"))
     #expect(start.untrustedPayload.contains("authorizationURL"))
     #expect(exchange.spokenSummary == "MCP OAuth token stored.")
     #expect(refresh.spokenSummary == "MCP OAuth token refreshed.")
+    #expect(local.spokenSummary == "MCP OAuth browser authorization completed.")
 }
 
 @Test func mcpOAuthBuildsPKCEAuthorizationURL() throws {
@@ -832,6 +840,137 @@ import Testing
     #expect(storedAccessToken == "access-2")
 }
 
+@Test func mcpOAuthLoopbackReceiverCapturesCallback() async throws {
+    let receiver = MCPOAuthLoopbackReceiver(
+        preferredRedirectURI: "http://127.0.0.1:0/callback",
+        timeoutNanoseconds: 5_000_000_000
+    )
+    let session = try await receiver.start()
+
+    async let callback = session.waitForCallback()
+    let callbackURL = URL(string: "\(session.redirectURI)?code=code-1&state=state-1")!
+    let (data, response) = try await fetchLoopbackURL(callbackURL)
+    let httpResponse = try #require(response as? HTTPURLResponse)
+    let body = String(data: data, encoding: .utf8) ?? ""
+    let result = try await callback
+
+    #expect(httpResponse.statusCode == 200)
+    #expect(body.contains("captured"))
+    #expect(result.code == "code-1")
+    #expect(result.state == "state-1")
+}
+
+@Test func mcpOAuthClientAuthorizesWithLocalCallback() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var tokenRequestBody = ""
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            let url = request.url!
+            let responseBody: Data
+
+            if url.host == "example.com" {
+                responseBody = Data(#"{"resource":"https://example.com/mcp","authorization_servers":["https://auth.example.com"]}"#.utf8)
+            } else if url.path == "/.well-known/oauth-authorization-server" {
+                responseBody = Data(#"{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token","scopes_supported":["read"],"code_challenge_methods_supported":["S256"]}"#.utf8)
+            } else {
+                Self.tokenRequestBody = bodyString(from: request)
+                responseBody = Data(#"{"access_token":"access-1","refresh_token":"refresh-1","token_type":"Bearer","expires_in":3600,"scope":"read"}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    let service = "cerberus.tests.\(UUID().uuidString)"
+    let accessAccount = "mcp.oauth.access.\(UUID().uuidString)"
+    let accessStore = KeychainSecretStore(service: service, account: accessAccount)
+    defer {
+        try? accessStore.delete()
+        try? KeychainSecretStore(service: service, account: MCPOAuthKeychainAccount.tokenRecord(serverName: "remote")).delete()
+    }
+
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp"),
+        protectedResourceMetadataURL: URL(string: "https://example.com/.well-known/oauth-protected-resource"),
+        oauthClientID: "client-1",
+        oauthRedirectURI: "http://127.0.0.1:0/callback",
+        oauthScopes: ["read"],
+        accessTokenKeychainAccount: accessAccount
+    )
+
+    let result = try await MCPOAuthClient(urlSession: urlSession, keychainService: service)
+        .authorizeWithLoopback(configuration: configuration, scopes: []) { authorizationURL in
+            let components = try #require(URLComponents(url: authorizationURL, resolvingAgainstBaseURL: false))
+            let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+            let redirectURI = try #require(query["redirect_uri"])
+            let state = try #require(query["state"])
+            let callbackURL = URL(string: "\(redirectURI)?code=code-1&state=\(state)")!
+            _ = try await fetchLoopbackURL(callbackURL)
+        }
+    let storedAccessToken = String(data: try accessStore.data() ?? Data(), encoding: .utf8)
+
+    #expect(result.hasRefreshToken)
+    #expect(storedAccessToken == "access-1")
+    #expect(StubURLProtocol.tokenRequestBody.contains("code=code-1"))
+    #expect(StubURLProtocol.tokenRequestBody.contains("redirect_uri=http%3A%2F%2F127.0.0.1%3A"))
+}
+
 @Test func mcpConfigurationDefaultsToStdioTransport() throws {
     let data = Data(#"{"servers":[{"name":"local","executable":"node","arguments":["server.js"],"workingDirectory":null}]}"#.utf8)
     let file = try JSONDecoder().decode(MCPConfigurationFile.self, from: data)
@@ -840,6 +979,19 @@ import Testing
     #expect(file.servers.first?.executable == "node")
     #expect(file.servers.first?.oauthScopes == [])
     #expect(file.servers.first?.accessTokenKeychainAccount == nil)
+}
+
+private func fetchLoopbackURL(_ url: URL) async throws -> (Data, URLResponse) {
+    var lastError: (any Error)?
+    for _ in 0..<5 {
+        do {
+            return try await URLSession.shared.data(from: url)
+        } catch {
+            lastError = error
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+    throw lastError ?? ToolExecutionError.denied("Loopback request failed.")
 }
 
 @Test func shellExecServiceRevalidatesDeniedRequests() async {

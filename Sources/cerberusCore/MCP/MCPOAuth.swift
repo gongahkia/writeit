@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Network
 
 public enum MCPOAuthKeychainAccount {
     public static func accessToken(serverName: String) -> String {
@@ -125,6 +126,18 @@ public struct MCPOAuthStartResult: Equatable, Sendable {
         self.authorizationURL = authorizationURL
         self.state = state
         self.clientID = clientID
+    }
+}
+
+public struct MCPOAuthLoopbackCallback: Equatable, Sendable {
+    public let code: String
+    public let state: String
+    public let requestURL: URL
+
+    public init(code: String, state: String, requestURL: URL) {
+        self.code = code
+        self.state = state
+        self.requestURL = requestURL
     }
 }
 
@@ -269,6 +282,57 @@ public struct MCPOAuthClient: Sendable {
         return Self.tokenResult(from: record, expiresIn: tokenObject["expires_in"] as? Int)
     }
 
+    public func authorizeWithLoopback(
+        configuration: MCPServerConfiguration,
+        scopes: [String],
+        openAuthorizationURL: @Sendable (URL) async throws -> Void
+    ) async throws -> MCPOAuthTokenResult {
+        let discovery = try await discover(configuration: configuration)
+        let receiver = MCPOAuthLoopbackReceiver(
+            preferredRedirectURI: configuration.oauthRedirectURI,
+            timeoutNanoseconds: 120_000_000_000
+        )
+        let session = try await receiver.start()
+        let clientID = try await configuredOrRegisteredClientID(
+            configuration: configuration,
+            metadata: discovery.authorizationServer,
+            redirectURI: session.redirectURI
+        )
+        let resource = configuration.endpointURL?.absoluteString ?? discovery.protectedResource.resource ?? ""
+        guard !resource.isEmpty else {
+            throw ToolExecutionError.invalidArguments("MCP OAuth requires an endpointURL or resource identifier.")
+        }
+
+        let verifier = Self.codeVerifier()
+        let state = Self.state()
+        let authorizationURL = try Self.authorizationURL(
+            endpoint: discovery.authorizationServer.authorizationEndpoint,
+            clientID: clientID,
+            redirectURI: session.redirectURI,
+            resource: resource,
+            scopes: scopes.isEmpty ? configuration.oauthScopes : scopes,
+            codeChallenge: Self.codeChallenge(for: verifier),
+            state: state
+        )
+        let flow = MCPOAuthFlowRecord(
+            serverName: configuration.name,
+            state: state,
+            codeVerifier: verifier,
+            clientID: clientID,
+            redirectURI: session.redirectURI,
+            resource: resource,
+            tokenEndpoint: discovery.authorizationServer.tokenEndpoint
+        )
+        try saveJSON(flow, account: MCPOAuthKeychainAccount.flow(serverName: configuration.name, state: state))
+
+        try await openAuthorizationURL(authorizationURL)
+        let callback = try await session.waitForCallback()
+        guard callback.state == state else {
+            throw ToolExecutionError.denied("MCP OAuth callback state did not match.")
+        }
+        return try await exchangeCode(configuration: configuration, state: state, code: callback.code)
+    }
+
     public func refreshToken(configuration: MCPServerConfiguration) async throws -> MCPOAuthTokenResult {
         let record: MCPOAuthTokenRecord = try readJSON(
             account: MCPOAuthKeychainAccount.tokenRecord(serverName: configuration.name)
@@ -377,7 +441,8 @@ public struct MCPOAuthClient: Sendable {
 
     private func configuredOrRegisteredClientID(
         configuration: MCPServerConfiguration,
-        metadata: MCPOAuthAuthorizationServerMetadata
+        metadata: MCPOAuthAuthorizationServerMetadata,
+        redirectURI: String? = nil
     ) async throws -> String {
         if let clientID = configuration.oauthClientID, !clientID.isEmpty {
             return clientID
@@ -392,7 +457,7 @@ public struct MCPOAuthClient: Sendable {
             throw ToolExecutionError.invalidArguments("MCP OAuth requires oauthClientID when dynamic registration is unavailable.")
         }
 
-        let redirectURI = configuration.oauthRedirectURI ?? "http://127.0.0.1:8765/callback"
+        let redirectURI = redirectURI ?? configuration.oauthRedirectURI ?? "http://127.0.0.1:8765/callback"
         var request = URLRequest(url: registrationEndpoint)
         request.httpMethod = "POST"
         request.httpBody = try JSONSerialization.data(withJSONObject: [
@@ -582,8 +647,8 @@ public struct MCPOAuthClient: Sendable {
     }
 
     private static func formEscape(_ value: String) -> String {
-        var allowed = CharacterSet.urlQueryAllowed
-        allowed.remove(charactersIn: ":#[]@!$&'()*+,;=")
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
@@ -607,5 +672,222 @@ public struct MCPOAuthClient: Sendable {
             return ""
         }
         return string
+    }
+}
+
+public final class MCPOAuthLoopbackReceiver: @unchecked Sendable {
+    private let preferredRedirectURI: String?
+    private let timeoutNanoseconds: UInt64
+
+    public init(preferredRedirectURI: String?, timeoutNanoseconds: UInt64 = 120_000_000_000) {
+        self.preferredRedirectURI = preferredRedirectURI
+        self.timeoutNanoseconds = timeoutNanoseconds
+    }
+
+    public func start() async throws -> MCPOAuthLoopbackSession {
+        let template = Self.redirectTemplate(from: preferredRedirectURI)
+        let listener = try NWListener(using: .tcp, on: template.port ?? .any)
+        let session = MCPOAuthLoopbackSession(
+            listener: listener,
+            callbackPath: template.path,
+            timeoutNanoseconds: timeoutNanoseconds
+        )
+        try await session.start()
+        return session
+    }
+
+    private static func redirectTemplate(from redirectURI: String?) -> (path: String, port: NWEndpoint.Port?) {
+        guard let redirectURI,
+              let components = URLComponents(string: redirectURI),
+              components.scheme == "http",
+              components.host == "127.0.0.1" || components.host == "localhost" else {
+            return ("/callback", nil)
+        }
+
+        let path = components.path.isEmpty ? "/callback" : components.path
+        let port = components.port.flatMap { NWEndpoint.Port(rawValue: UInt16($0)) }
+        return (path, port)
+    }
+}
+
+public final class MCPOAuthLoopbackSession: @unchecked Sendable {
+    public private(set) var redirectURI: String
+
+    private let listener: NWListener
+    private let callbackPath: String
+    private let timeoutNanoseconds: UInt64
+    private let queue = DispatchQueue(label: "cerberus.mcp.oauth.loopback")
+    private let lock = NSLock()
+    private var callbackContinuation: CheckedContinuation<MCPOAuthLoopbackCallback, any Error>?
+    private var resolvedCallback: Result<MCPOAuthLoopbackCallback, any Error>?
+
+    init(listener: NWListener, callbackPath: String, timeoutNanoseconds: UInt64) {
+        self.listener = listener
+        self.callbackPath = callbackPath
+        self.timeoutNanoseconds = timeoutNanoseconds
+        redirectURI = "http://127.0.0.1:0\(callbackPath)"
+    }
+
+    public func start() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            listener.stateUpdateHandler = { [weak self] state in
+                guard let self else {
+                    return
+                }
+
+                switch state {
+                case .ready:
+                    self.redirectURI = "http://127.0.0.1:\(self.listener.port?.rawValue ?? 0)\(self.callbackPath)"
+                    self.listener.stateUpdateHandler = nil
+                    continuation.resume()
+                case .failed(let error):
+                    self.listener.stateUpdateHandler = nil
+                    continuation.resume(throwing: ToolExecutionError.denied("MCP OAuth loopback listener failed: \(error)"))
+                case .cancelled:
+                    break
+                default:
+                    break
+                }
+            }
+            listener.newConnectionHandler = { [weak self] connection in
+                self?.handle(connection)
+            }
+            listener.start(queue: queue)
+        }
+    }
+
+    public func waitForCallback() async throws -> MCPOAuthLoopbackCallback {
+        try await withThrowingTaskGroup(of: MCPOAuthLoopbackCallback.self) { group in
+            group.addTask {
+                try await self.awaitCallback()
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: self.timeoutNanoseconds)
+                self.cancel()
+                throw ToolExecutionError.denied("MCP OAuth loopback callback timed out.")
+            }
+
+            let callback = try await group.next() ?? MCPOAuthLoopbackCallback(
+                code: "",
+                state: "",
+                requestURL: URL(string: redirectURI)!
+            )
+            group.cancelAll()
+            cancel()
+            return callback
+        }
+    }
+
+    public func cancel() {
+        listener.cancel()
+    }
+
+    private func awaitCallback() async throws -> MCPOAuthLoopbackCallback {
+        return try await withCheckedThrowingContinuation { continuation in
+            installCallbackContinuation(continuation)
+        }
+    }
+
+    private func installCallbackContinuation(_ continuation: CheckedContinuation<MCPOAuthLoopbackCallback, any Error>) {
+        lock.lock()
+        if let resolvedCallback {
+            lock.unlock()
+            continuation.resume(with: resolvedCallback)
+            return
+        }
+        callbackContinuation = continuation
+        lock.unlock()
+    }
+
+    private func handle(_ connection: NWConnection) {
+        connection.start(queue: queue)
+        guard Self.isLoopback(connection.endpoint) else {
+            respond(connection, status: "403 Forbidden", body: "OAuth callback must arrive on loopback.")
+            return
+        }
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] data, _, _, error in
+            guard let self else {
+                connection.cancel()
+                return
+            }
+
+            if let error {
+                self.respond(connection, status: "400 Bad Request", body: "OAuth callback read failed.")
+                self.resolve(.failure(ToolExecutionError.denied("MCP OAuth callback read failed: \(error)")))
+                return
+            }
+
+            let result = self.parse(data ?? Data())
+            switch result {
+            case .success(let callback):
+                self.respond(connection, status: "200 OK", body: "cerberus captured the OAuth callback. You can close this tab.")
+                self.resolve(.success(callback))
+            case .failure(let error):
+                self.respond(connection, status: "400 Bad Request", body: error.localizedDescription)
+                self.resolve(.failure(error))
+            }
+        }
+    }
+
+    private func parse(_ data: Data) -> Result<MCPOAuthLoopbackCallback, any Error> {
+        guard let text = String(data: data, encoding: .utf8),
+              let requestLine = text.components(separatedBy: "\r\n").first else {
+            return .failure(ToolExecutionError.invalidArguments("MCP OAuth callback was not valid HTTP."))
+        }
+
+        let parts = requestLine.split(separator: " ")
+        guard parts.count >= 2, parts[0] == "GET" else {
+            return .failure(ToolExecutionError.invalidArguments("MCP OAuth callback must use GET."))
+        }
+
+        guard let url = URL(string: "http://127.0.0.1\(parts[1])"),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.path == callbackPath else {
+            return .failure(ToolExecutionError.invalidArguments("MCP OAuth callback path did not match redirect URI."))
+        }
+
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        if let error = query["error"], !error.isEmpty {
+            return .failure(ToolExecutionError.denied("MCP OAuth authorization failed: \(error)"))
+        }
+        guard let code = query["code"], !code.isEmpty,
+              let state = query["state"], !state.isEmpty else {
+            return .failure(ToolExecutionError.invalidArguments("MCP OAuth callback is missing code or state."))
+        }
+
+        return .success(MCPOAuthLoopbackCallback(code: code, state: state, requestURL: url))
+    }
+
+    private func respond(_ connection: NWConnection, status: String, body: String) {
+        let payload = Data(body.utf8)
+        let header = "HTTP/1.1 \(status)\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: \(payload.count)\r\nConnection: close\r\n\r\n"
+        var response = Data(header.utf8)
+        response.append(payload)
+        connection.send(content: response, completion: .contentProcessed { _ in
+            connection.cancel()
+        })
+    }
+
+    private func resolve(_ result: Result<MCPOAuthLoopbackCallback, any Error>) {
+        lock.lock()
+        guard resolvedCallback == nil else {
+            lock.unlock()
+            return
+        }
+        resolvedCallback = result
+        let continuation = callbackContinuation
+        callbackContinuation = nil
+        lock.unlock()
+
+        continuation?.resume(with: result)
+    }
+
+    private static func isLoopback(_ endpoint: NWEndpoint) -> Bool {
+        guard case .hostPort(let host, _) = endpoint else {
+            return false
+        }
+
+        let text = "\(host)"
+        return text == "127.0.0.1" || text == "::1" || text == "localhost"
     }
 }

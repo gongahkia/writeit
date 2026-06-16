@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import FoundationModels
 
@@ -6,6 +7,7 @@ public protocol MCPOAuthRunning: Sendable {
     func start(serverName: String, scopesCSV: String) async throws -> MCPOAuthStartResult
     func exchange(serverName: String, state: String, code: String) async throws -> MCPOAuthTokenResult
     func refresh(serverName: String) async throws -> MCPOAuthTokenResult
+    func authorizeWithLoopback(serverName: String, scopesCSV: String) async throws -> MCPOAuthTokenResult
 }
 
 public struct MCPConfiguredOAuthRunner: MCPOAuthRunning {
@@ -47,6 +49,24 @@ public struct MCPConfiguredOAuthRunner: MCPOAuthRunning {
             throw ToolExecutionError.invalidArguments("MCP OAuth is only valid for Streamable HTTP servers.")
         }
         return try await client.refreshToken(configuration: configuration)
+    }
+
+    public func authorizeWithLoopback(serverName: String, scopesCSV: String) async throws -> MCPOAuthTokenResult {
+        let configuration = try await registry.configuration(named: serverName)
+        guard configuration.transport == .streamableHTTP else {
+            throw ToolExecutionError.invalidArguments("MCP OAuth is only valid for Streamable HTTP servers.")
+        }
+        return try await client.authorizeWithLoopback(
+            configuration: configuration,
+            scopes: Self.scopes(from: scopesCSV)
+        ) { url in
+            let opened = await MainActor.run {
+                NSWorkspace.shared.open(url)
+            }
+            guard opened else {
+                throw ToolExecutionError.denied("Could not open MCP OAuth authorization URL.")
+            }
+        }
     }
 
     private static func scopes(from csv: String) -> [String] {
@@ -253,6 +273,55 @@ public struct MCPOAuthRefreshTool: AssistantTool {
             toolName: name,
             succeeded: true,
             spokenSummary: "MCP OAuth token refreshed.",
+            untrustedPayload: MCPOAuthExchangeTool.format(result),
+            metadata: [
+                "serverName": arguments.serverName,
+                "tokenType": result.tokenType,
+                "expiresIn": result.expiresIn.map(String.init) ?? "",
+                "hasRefreshToken": "\(result.hasRefreshToken)"
+            ]
+        )
+    }
+}
+
+public struct MCPOAuthAuthorizeLocalTool: AssistantTool {
+    @Generable
+    public struct Arguments: Codable, Sendable {
+        public let serverName: String
+        public let scopesCSV: String
+
+        public init(serverName: String, scopesCSV: String = "") {
+            self.serverName = serverName
+            self.scopesCSV = scopesCSV
+        }
+    }
+
+    public let name = "mcp.oauth.authorize.local"
+    public let capability = "Run a full MCP OAuth browser flow with a localhost callback listener and store the access token in Keychain."
+    public let mutatesState = true
+    public let argumentSchema = #"{"serverName":"configured-http-server","scopesCSV":"optional,comma,separated"}"#
+
+    private let runner: any MCPOAuthRunning
+
+    public init(runner: any MCPOAuthRunning = MCPConfiguredOAuthRunner()) {
+        self.runner = runner
+    }
+
+    public func validate(_ arguments: Arguments) throws {
+        guard !arguments.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ToolExecutionError.invalidArguments("MCP serverName is required.")
+        }
+    }
+
+    public func run(arguments: Arguments) async throws -> ToolResult {
+        let result = try await runner.authorizeWithLoopback(
+            serverName: arguments.serverName,
+            scopesCSV: arguments.scopesCSV
+        )
+        return ToolResult(
+            toolName: name,
+            succeeded: true,
+            spokenSummary: "MCP OAuth browser authorization completed.",
             untrustedPayload: MCPOAuthExchangeTool.format(result),
             metadata: [
                 "serverName": arguments.serverName,
