@@ -10,6 +10,8 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
+    @Published var isAutoSilenceEnabled = true
+    @Published var isVoiceConfirmationEnabled = true
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -259,6 +261,7 @@ final class CerberusAppModel: ObservableObject {
         silenceTask?.cancel()
 
         guard state == .listening,
+              isAutoSilenceEnabled,
               !transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             silenceTask = nil
             return
@@ -277,6 +280,7 @@ final class CerberusAppModel: ObservableObject {
     private func startConfirmationVoiceCapture() {
         guard state == .awaitingConfirm,
               pendingConfirmation != nil,
+              isVoiceConfirmationEnabled,
               !isConfirmationVoiceActive else {
             return
         }

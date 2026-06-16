@@ -19,6 +19,8 @@ struct StatusPanel: View {
                 history
             case .permissions:
                 permissions
+            case .settings:
+                settings
             }
         }
     }
@@ -255,6 +257,34 @@ struct StatusPanel: View {
         }
     }
 
+    private var settings: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
+            Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Hotkey")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Control Option Space")
+                    .font(.caption.monospaced())
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Enabled tools")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Apps, Calendar, Files, Music, Reminders, Web")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+    }
+
     private func statusDot(for state: PermissionState) -> some View {
         Circle()
             .fill(color(for: state))
@@ -280,6 +310,7 @@ private enum PanelSection: String, CaseIterable, Identifiable {
     case session
     case history
     case permissions
+    case settings
 
     var id: String {
         rawValue
@@ -293,6 +324,8 @@ private enum PanelSection: String, CaseIterable, Identifiable {
             "History"
         case .permissions:
             "Access"
+        case .settings:
+            "Settings"
         }
     }
 }
