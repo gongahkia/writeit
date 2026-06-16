@@ -104,7 +104,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var enabledToolDisplayText: String {
-        var labels = ["Apps", "Calendar", "Files", "Memory", "Music", "Reminders", "Screen", "Web"]
+        var labels = ["Apps", "Calendar", "Files", "Mail", "Memory", "Music", "Reminders", "Screen", "Web"]
         if isMCPToolEnabled {
             labels.append("MCP")
         }

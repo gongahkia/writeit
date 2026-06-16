@@ -12,6 +12,7 @@ The project is intentionally scoped as a native macOS utility:
 - Foundation Models for on-device planning and native read-only typed tool calls
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - encrypted local transcripts and memory records
+- read-only Mail.app subject/sender search through macOS Automation
 - local screen text OCR for "what text is on my screen?" requests
 - default-off MCP stdio bridge for configured local MCP servers
 - optional prebuilt FoundationModels adapter loading

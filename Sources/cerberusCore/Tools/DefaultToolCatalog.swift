@@ -7,6 +7,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(FileSearchTool()),
+            AnyAssistantTool(MailSearchTool()),
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
             AnyAssistantTool(MusicNowPlayingTool()),
@@ -26,6 +27,7 @@ public enum DefaultToolCatalog {
         [
             FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
             FoundationModelToolAdapter(FileSearchTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(MailSearchTool(), auditLog: auditLog),
             FoundationModelToolAdapter(MemoryReadTool(), auditLog: auditLog),
             FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),
             FoundationModelToolAdapter(RemindersTool(), auditLog: auditLog),

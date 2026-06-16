@@ -103,6 +103,48 @@ import Testing
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
 }
 
+@Test func mailSearchToolFormatsReadOnlyResults() async throws {
+    struct StubRunner: MailSearchRunning {
+        func search(
+            query: String,
+            mailboxName: String?,
+            unreadOnly: Bool,
+            includeBodySnippet: Bool,
+            limit: Int
+        ) async throws -> [MailMessageSnapshot] {
+            [
+                MailMessageSnapshot(
+                    dateReceived: "Tuesday, June 16, 2026",
+                    sender: "Apple <noreply@apple.com>",
+                    subject: "Developer update",
+                    isRead: false,
+                    bodySnippet: includeBodySnippet ? "New SDK notes" : ""
+                )
+            ]
+        }
+    }
+
+    let tool = MailSearchTool(runner: StubRunner())
+    let result = try await tool.run(
+        arguments: MailSearchTool.Arguments(query: "developer", includeBodySnippet: true)
+    )
+
+    #expect(result.spokenSummary == "Found 1 mail message.")
+    #expect(result.untrustedPayload.contains("Apple <noreply@apple.com>"))
+    #expect(result.untrustedPayload.contains("New SDK notes"))
+    #expect(result.metadata["mailbox"] == "inbox")
+}
+
+@Test func mailAppleScriptRunnerParsesRows() throws {
+    let rows = "Today\tAlice <a@example.com>\tSubject\tunread\tBody\nYesterday\tBob <b@example.com>\tDone\tread\t"
+    let snapshots = try MailAppleScriptRunner.parseRows(rows)
+
+    #expect(snapshots.count == 2)
+    #expect(snapshots[0].subject == "Subject")
+    #expect(!snapshots[0].isRead)
+    #expect(snapshots[1].isRead)
+}
+
 @Test func fileSearchRejectsScopesOutsideHome() throws {
     let tool = FileSearchTool()
 

@@ -27,7 +27,7 @@ Validate the implementation on a Mac that matches the project requirements.
 6. Confirm Control-Option-Space starts listening while the app is not focused.
 7. Connect AirPods, set them as the macOS output device, and confirm Settings shows the AirPods route before testing spoken replies.
 8. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
-9. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
+9. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", "search my mail for Apple", or "what text is on my screen?".
 10. Confirm tool payloads are summarized into a useful spoken response.
 11. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
 12. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
@@ -41,6 +41,7 @@ Validate the implementation on a Mac that matches the project requirements.
 20. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
 21. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
 22. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+23. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
 
 ## Known Follow-Up
 

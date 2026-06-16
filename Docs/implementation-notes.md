@@ -30,6 +30,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
+- `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR. FoundationModels is text-only in this SDK, so this covers screen text, not full visual reasoning.
 - `mcp.call` is default-off, confirmation-gated, and supports configured local MCP stdio servers via `initialize`, `tools/list`, and `tools/call`.
 - A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
