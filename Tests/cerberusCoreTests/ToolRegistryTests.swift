@@ -47,8 +47,10 @@ private struct EchoTool: AssistantTool {
 
 @Test func defaultNativeToolCatalogIsReadOnly() {
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("calendar.read"))
+    #expect(DefaultToolCatalog.readOnlyToolNames.contains("memory.read"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))
 }
 
 @Test func registryRequiresConfirmationForMutatingTools() async throws {

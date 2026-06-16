@@ -9,6 +9,7 @@ The project is intentionally scoped as a native macOS utility:
 - SpeechAnalyzer for on-device speech-to-text
 - Foundation Models for on-device planning and native read-only typed tool calls
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
+- encrypted local transcripts and memory records
 - shell execution has an allowlisted service target, with app-bundle embedding still required for runtime XPC isolation
 
 ## Requirements

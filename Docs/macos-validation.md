@@ -29,9 +29,10 @@ Validate the implementation on a Mac that matches the project requirements.
 8. Confirm tool payloads are summarized into a useful spoken response.
 9. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
 10. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-11. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-12. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-13. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+11. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
+12. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+13. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+14. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 

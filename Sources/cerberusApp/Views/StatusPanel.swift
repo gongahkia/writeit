@@ -316,7 +316,7 @@ struct StatusPanel: View {
                 Text("Enabled tools")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Apps, Calendar, Files, Music, Reminders, Web")
+                Text("Apps, Calendar, Files, Memory, Music, Reminders, Web")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

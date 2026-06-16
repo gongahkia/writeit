@@ -65,6 +65,39 @@ import Testing
     #expect(!rawText.contains("Opened Calendar."))
 }
 
+@Test func encryptedMemoryStoreSearchesWithoutPlaintext() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("memory.jsonl.enc")
+    let keyData = Data(repeating: 9, count: 32)
+    let store = EncryptedMemoryStore(fileURL: fileURL, fixedKeyData: keyData)
+
+    try await store.append(MemoryRecord(content: "Prefers morning standups", tags: ["work"]))
+    try await store.append(MemoryRecord(content: "Uses Neovim", tags: ["tools"]))
+
+    let results = try await store.search(query: "neovim", limit: 5)
+    let rawText = try String(contentsOf: fileURL, encoding: .utf8)
+
+    #expect(results.map(\.content) == ["Uses Neovim"])
+    #expect(!rawText.contains("Neovim"))
+    #expect(!rawText.contains("standups"))
+}
+
+@Test func memoryToolsReadAndWriteEncryptedRecords() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("memory.jsonl.enc")
+    let store = EncryptedMemoryStore(fileURL: fileURL, fixedKeyData: Data(repeating: 3, count: 32))
+    let writeTool = MemoryWriteTool(store: store)
+    let readTool = MemoryReadTool(store: store)
+
+    _ = try await writeTool.run(arguments: MemoryWriteTool.Arguments(content: "Likes terse status updates", tags: ["preference"]))
+    let result = try await readTool.run(arguments: MemoryReadTool.Arguments(query: "terse", limit: 5))
+
+    #expect(result.spokenSummary == "Found 1 memory.")
+    #expect(result.untrustedPayload.contains("Likes terse status updates"))
+}
+
 @Test func shellExecServiceRevalidatesDeniedRequests() async {
     let service = ShellExecService()
     let request = ShellExecRequest(executable: "rm", arguments: ["-rf", "/"], workingDirectory: nil)
