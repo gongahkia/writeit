@@ -64,9 +64,31 @@ Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --adap
 
 The evaluator runs each prompt through Foundation Models and reports exact normalized response-match accuracy. Use it as a smoke metric; adapter quality still needs task-specific human or automated review.
 
+Train with Apple's adapter training toolkit:
+
+```sh
+ADAPTER_TOOLKIT_DIR=/path/to/foundation-models-adapter-toolkit \
+DATA_DIR=/tmp/cerberus-adapter-data \
+Scripts/train_adapter.sh
+```
+
+The wrapper expects the toolkit's documented Python modules, reads `train.jsonl` and `eval.jsonl`, runs `examples.train_adapter`, and exports an `.fmadapter` with `export.export_fmadapter`.
+
+Optional environment:
+
+```sh
+ADAPTER_NAME=cerberus_adapter
+EPOCHS=5
+LEARNING_RATE=1e-3
+BATCH_SIZE=4
+TRAIN_DRAFT=0
+EXPORT_ADAPTER=1
+CHECKPOINT_DIR=.dist/adapter-training/checkpoints
+EXPORT_DIR=.dist/adapter-training/exports
+```
+
 Not implemented:
 
 - adapter training
-- trainer orchestration
 
-Apple's adapter training toolkit is a separate Python workflow. It requires prompt/response JSONL data, train/eval splits, Python 3.11+, toolkit downloads tied to a specific system-model version, and separate adapters for model-version updates. I cannot verify a local FoundationModels Swift training API in the installed SDK; the exposed Swift API supports adapter loading, compilation, compatibility lookup, and cleanup.
+Apple's adapter training toolkit is a separate Python workflow. It requires prompt/response JSONL data, train/eval splits, Python 3.11+, toolkit downloads tied to a specific system-model version, and separate adapters for model-version updates. `Scripts/train_adapter.sh` orchestrates the toolkit after you download it; it cannot train without the toolkit assets. I cannot verify a local FoundationModels Swift training API in the installed SDK; the exposed Swift API supports adapter loading, compilation, compatibility lookup, and cleanup.
