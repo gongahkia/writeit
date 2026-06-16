@@ -104,3 +104,44 @@ import Testing
         try FoundationModelAdapterConfiguration(name: "demo", filePath: "/tmp/demo.adapter").validate()
     }
 }
+
+@Test func adapterTrainingDatasetExporterWritesPromptResponseJSONL() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+    let firstID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+    let secondID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000002"))
+    let thirdID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000003"))
+    let records = [
+        TranscriptRecord(
+            id: firstID,
+            timestamp: Date(timeIntervalSince1970: 1),
+            request: " open calendar ",
+            response: "Opened Calendar."
+        ),
+        TranscriptRecord(
+            id: secondID,
+            timestamp: Date(timeIntervalSince1970: 2),
+            request: " ",
+            response: "ignored"
+        ),
+        TranscriptRecord(
+            id: thirdID,
+            timestamp: Date(timeIntervalSince1970: 3),
+            request: "what is next",
+            response: "Standup at 9."
+        )
+    ]
+    let exporter = AdapterTrainingDatasetExporter()
+    let samples = exporter.samples(from: records)
+    let split = try exporter.split(samples: samples, evalFraction: 0.5)
+
+    try exporter.write(split, to: directory)
+
+    let trainText = try String(contentsOf: directory.appendingPathComponent("train.jsonl"), encoding: .utf8)
+    let evalText = try String(contentsOf: directory.appendingPathComponent("eval.jsonl"), encoding: .utf8)
+    #expect(split.train.count == 1)
+    #expect(split.eval.count == 1)
+    #expect(trainText.contains(#""role":"user""#))
+    #expect(trainText.contains(#""content":"open calendar""#))
+    #expect(evalText.contains(#""content":"Standup at 9.""#))
+}

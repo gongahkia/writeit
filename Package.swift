@@ -17,6 +17,10 @@ let package = Package(
             name: "ShellExecService",
             targets: ["ShellExecService"]
         ),
+        .executable(
+            name: "cerberus-adapter-dataset",
+            targets: ["AdapterDatasetExport"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -74,6 +78,14 @@ let package = Package(
             name: "ShellExecService",
             dependencies: ["cerberusCore"],
             path: "Sources/ShellExecService",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ]
+        ),
+        .executableTarget(
+            name: "AdapterDatasetExport",
+            dependencies: ["cerberusCore"],
+            path: "Sources/AdapterDatasetExport",
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny")
             ]
