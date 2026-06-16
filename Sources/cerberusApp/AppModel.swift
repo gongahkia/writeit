@@ -21,6 +21,8 @@ final class CerberusAppModel: ObservableObject {
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
     private var pendingPlan: AssistantPlan?
+    private var silenceTask: Task<Void, Never>?
+    private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
 
     init() {
         toolRegistry = (try? ToolRegistry(tools: DefaultToolCatalog.tools)) ?? ToolRegistry()
@@ -56,6 +58,9 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func finishListeningAndProcess() {
+        silenceTask?.cancel()
+        silenceTask = nil
+
         Task {
             await transcriber.stop()
             let request = transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -84,6 +89,8 @@ final class CerberusAppModel: ObservableObject {
 
     func cancel() {
         transcriptDraft = ""
+        silenceTask?.cancel()
+        silenceTask = nil
         Task {
             await transcriber.cancel()
         }
@@ -94,6 +101,8 @@ final class CerberusAppModel: ObservableObject {
 
     func reset() {
         transcriptDraft = ""
+        silenceTask?.cancel()
+        silenceTask = nil
         Task {
             await transcriber.cancel()
         }
@@ -195,7 +204,7 @@ final class CerberusAppModel: ObservableObject {
         Task {
             do {
                 try await transcriber.start { [weak self] update in
-                    self?.transcriptDraft = update.text
+                    self?.handleTranscriptionUpdate(update)
                 }
             } catch {
                 apply(.failed(error.localizedDescription))
@@ -203,6 +212,30 @@ final class CerberusAppModel: ObservableObject {
                     self?.finishSpeaking()
                 }
             }
+        }
+    }
+
+    private func handleTranscriptionUpdate(_ update: TranscriptionUpdate) {
+        transcriptDraft = update.text
+        scheduleSilenceTimeoutIfNeeded()
+    }
+
+    private func scheduleSilenceTimeoutIfNeeded() {
+        silenceTask?.cancel()
+
+        guard state == .listening,
+              !transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            silenceTask = nil
+            return
+        }
+
+        let timeout = silenceTimeoutNanoseconds
+        silenceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: timeout)
+            guard !Task.isCancelled else {
+                return
+            }
+            self?.finishListeningAndProcess()
         }
     }
 
