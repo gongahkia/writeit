@@ -54,11 +54,7 @@ check_demo() {
 }
 
 check_oss() {
-  require_command gh
-  [[ -f "$ROOT_DIR/LICENSE" || -f "$ROOT_DIR/COPYING" ]] || die "add a LICENSE or COPYING file before making the repository public." 66
-  local visibility
-  visibility="$(cd "$ROOT_DIR" && gh repo view --json visibility -q .visibility 2>/dev/null)" || die "gh cannot read repository visibility." 69
-  [[ "$visibility" == "PUBLIC" || "$visibility" == "public" ]] || die "repository visibility is $visibility, not PUBLIC." 65
+  "$ROOT_DIR/Scripts/open_source_check.sh" all || die "open-source readiness gate failed." 65
   print "oss ok"
 }
 
