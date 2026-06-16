@@ -47,19 +47,20 @@ Validate the implementation on a Mac that matches the project requirements.
 26. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
 27. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, and `screen.ocr` emits local Vision text results with bounding boxes; both must fail closed when Screen Recording is denied.
 28. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-29. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
-30. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
-31. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-32. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt/OAuth discovery reads run read-only.
-33. With a stdio MCP server that sends `sampling/createMessage`, confirm the panel shows prompt review, then response review, before the MCP tool call completes.
-34. With a stdio MCP server that sends `elicitation/create`, confirm the panel allows accept, decline, and cancel, and invalid accepted JSON fails closed.
-35. With a Streamable HTTP MCP server that supports GET SSE, confirm enabling `MCP tool` starts the listener and routes server sampling/elicitation requests through the panel.
-36. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
-37. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
-38. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-39. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
-40. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
-41. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
+29. Ask to create a calendar event and confirm `calendar.create` is proposed only through `awaiting_confirm`.
+30. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
+31. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
+32. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
+33. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt/OAuth discovery reads run read-only.
+34. With a stdio MCP server that sends `sampling/createMessage`, confirm the panel shows prompt review, then response review, before the MCP tool call completes.
+35. With a stdio MCP server that sends `elicitation/create`, confirm the panel allows accept, decline, and cancel, and invalid accepted JSON fails closed.
+36. With a Streamable HTTP MCP server that supports GET SSE, confirm enabling `MCP tool` starts the listener and routes server sampling/elicitation requests through the panel.
+37. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
+38. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
+39. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+40. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
+41. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
+42. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
 
 ## Known Follow-Up
 

@@ -32,6 +32,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Explicit file search scopes must be existing directories inside the user's home directory.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
+- `calendar.create` is separate from `calendar.read`, mutates state, and is blocked by confirmation unless approved.
 - `reminders.create` is separate from `reminders.read`, mutates state, and is blocked by confirmation unless approved.
 - Audit logs are hash-chained and HMAC-signed at `~/Library/Application Support/cerberus/audit.log`.
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.

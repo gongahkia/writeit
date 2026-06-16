@@ -5,6 +5,7 @@ public enum DefaultToolCatalog {
     public static var tools: [AnyAssistantTool] {
         [
             AnyAssistantTool(AppControlTool()),
+            AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(FileSearchTool()),
             AnyAssistantTool(MailSearchTool()),

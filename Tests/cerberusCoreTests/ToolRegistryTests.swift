@@ -63,8 +63,50 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.snapshot"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("calendar.create"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.create"))
+}
+
+@Test func calendarCreateToolRequiresConfirmationAndValidatesArguments() async throws {
+    let tool = CalendarCreateTool()
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: CalendarCreateTool.Arguments(
+            title: "Dentist",
+            startDateISO8601: "2026-06-16T09:00:00Z"
+        )
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await registry.run(invocation)
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarCreateTool.Arguments(title: " ", startDateISO8601: "2026-06-16T09:00:00Z"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarCreateTool.Arguments(
+            title: "Dentist",
+            startDateISO8601: "2026-06-16T09:00:00Z",
+            endDateISO8601: "2026-06-16T08:00:00Z"
+        ))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarCreateTool.Arguments(
+            title: "Dentist",
+            startDateISO8601: "2026-06-16T09:00:00Z",
+            durationMinutes: 0
+        ))
+    }
+    try tool.validate(CalendarCreateTool.Arguments(
+        title: " Dentist ",
+        startDateISO8601: "2026-06-16T09:00:00Z",
+        durationMinutes: 45
+    ))
+    let start = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:00:00Z"))
+    let end = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:45:00Z"))
+    #expect(CalendarCreateTool.payload(title: "Dentist", calendarName: "Home", startDate: start, endDate: end).contains("[Home] Dentist"))
 }
 
 @Test func remindersCreateToolRequiresConfirmationAndValidatesArguments() async throws {
