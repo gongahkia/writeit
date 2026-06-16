@@ -7,6 +7,7 @@ The project is intentionally scoped as a native macOS utility:
 - menu bar first, no main window by default
 - first-run setup banner for required macOS permissions
 - microphone activates only after an explicit trigger unless `Wake phrase` is enabled
+- menu bar status icon tints red while the microphone is active
 - SpeechAnalyzer for on-device speech-to-text
 - live SpeechAnalyzer benchmark CLI for AirPods/noisy-room checks
 - default-off wake phrase monitor with SpeechAnalyzer fallback or a configured SoundAnalysis/Core ML wake model
