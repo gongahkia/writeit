@@ -39,9 +39,11 @@ let package = Package(
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
                 .linkedFramework("MediaPlayer"),
+                .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("Security"),
                 .linkedFramework("Speech"),
-                .linkedFramework("SwiftUI")
+                .linkedFramework("SwiftUI"),
+                .linkedFramework("Vision")
             ]
         ),
         .target(
@@ -58,8 +60,10 @@ let package = Package(
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
                 .linkedFramework("MediaPlayer"),
+                .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("Security"),
-                .linkedFramework("Speech")
+                .linkedFramework("Speech"),
+                .linkedFramework("Vision")
             ]
         ),
         .executableTarget(

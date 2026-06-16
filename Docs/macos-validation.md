@@ -20,19 +20,20 @@ Validate the implementation on a Mac that matches the project requirements.
 ## Runtime Checks
 
 1. Launch the menu bar app and confirm the status item appears without a main window.
-2. Request Microphone and Speech Recognition permissions.
+2. Request Microphone, Speech Recognition, and Screen Recording permissions.
 3. Press `Listen`, speak a short request, then wait 1.5 seconds or press `Run`.
 4. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
 5. Confirm Control-Option-Space starts listening while the app is not focused.
 6. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
-7. Trigger a read-only tool request, such as "what is playing in Music?" or "search my files for README".
+7. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
 8. Confirm tool payloads are summarized into a useful spoken response.
 9. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
 10. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
 11. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-12. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-13. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-14. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+12. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
+13. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+14. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+15. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 
@@ -41,3 +42,4 @@ Validate the implementation on a Mac that matches the project requirements.
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
 - AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
+- Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.

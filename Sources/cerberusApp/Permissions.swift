@@ -12,6 +12,7 @@ enum SystemPermission: String, CaseIterable, Identifiable {
     case reminders
     case accessibility
     case inputMonitoring = "input_monitoring"
+    case screenRecording = "screen_recording"
 
     var id: String { rawValue }
 
@@ -29,6 +30,8 @@ enum SystemPermission: String, CaseIterable, Identifiable {
             "Accessibility"
         case .inputMonitoring:
             "Input Monitoring"
+        case .screenRecording:
+            "Screen Recording"
         }
     }
 }
@@ -91,6 +94,8 @@ final class PermissionCenter {
             state = requestAccessibility()
         case .inputMonitoring:
             state = requestInputMonitoring()
+        case .screenRecording:
+            state = requestScreenRecording()
         }
 
         return PermissionSnapshot(kind: kind, state: state)
@@ -110,6 +115,8 @@ final class PermissionCenter {
             AXIsProcessTrusted() ? .granted : .notDetermined
         case .inputMonitoring:
             CGPreflightListenEventAccess() ? .granted : .notDetermined
+        case .screenRecording:
+            CGPreflightScreenCaptureAccess() ? .granted : .notDetermined
         }
     }
 
@@ -154,6 +161,10 @@ final class PermissionCenter {
 
     private func requestInputMonitoring() -> PermissionState {
         CGRequestListenEventAccess() ? .granted : currentState(for: .inputMonitoring)
+    }
+
+    private func requestScreenRecording() -> PermissionState {
+        CGRequestScreenCaptureAccess() ? .granted : currentState(for: .screenRecording)
     }
 
     nonisolated private static func mapMediaAuthorization(_ status: AVAuthorizationStatus) -> PermissionState {
