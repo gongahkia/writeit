@@ -200,11 +200,169 @@ public struct RemindersCreateTool: AssistantTool {
     }
 }
 
+public struct RemindersCompleteTool: AssistantTool {
+    @Generable
+    public struct Arguments: Codable, Sendable {
+        public let title: String
+        public let listName: String?
+        public let dueDateISO8601: String?
+
+        public init(title: String, listName: String? = nil, dueDateISO8601: String? = nil) {
+            self.title = title
+            self.listName = listName
+            self.dueDateISO8601 = dueDateISO8601
+        }
+    }
+
+    public let name = "reminders.complete"
+    public let capability = "Mark one matching open reminder complete. Requires explicit confirmation."
+    public let mutatesState = true
+    public let argumentSchema = #"{"title":"Buy milk","listName":"optional list name","dueDateISO8601":"optional ISO8601 due date"}"#
+
+    public init() {}
+
+    public func validate(_ arguments: Arguments) throws {
+        _ = try normalizedTitle(arguments.title)
+        if let dueDateISO8601 = arguments.dueDateISO8601 {
+            _ = try EventKitToolSupport.parseDate(dueDateISO8601, default: Date())
+        }
+    }
+
+    public func run(arguments: Arguments) async throws -> ToolResult {
+        try validate(arguments)
+        try EventKitToolSupport.requireAccess(to: .reminder)
+
+        let eventStore = EKEventStore()
+        let title = try normalizedTitle(arguments.title)
+        let dueDate = try EventKitToolSupport.parseDate(arguments.dueDateISO8601, default: Date.distantPast)
+        let filtersDueDate = arguments.dueDateISO8601?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let calendars = try selectedCalendars(arguments.listName, eventStore: eventStore)
+        let predicate = eventStore.predicateForReminders(in: calendars)
+        let outcome = try await completeReminder(
+            eventStore: eventStore,
+            predicate: predicate,
+            title: title,
+            dueDate: filtersDueDate ? dueDate : nil
+        )
+
+        return ToolResult(
+            toolName: name,
+            succeeded: true,
+            spokenSummary: "Reminder completed.",
+            untrustedPayload: Self.payload(title: outcome.title, listName: outcome.listName, dueDate: outcome.dueDate),
+            metadata: [
+                "title": outcome.title,
+                "list": outcome.listName,
+                "completedAt": ISO8601DateFormatter().string(from: outcome.completedAt)
+            ]
+        )
+    }
+
+    static func payload(title: String, listName: String, dueDate: Date?) -> String {
+        let due = dueDate.map { ISO8601DateFormatter().string(from: $0) } ?? "no due date"
+        return "Completed reminder: [\(listName)] \(title) due \(due)"
+    }
+
+    private func normalizedTitle(_ title: String) throws -> String {
+        let normalized = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else {
+            throw ToolExecutionError.invalidArguments("Reminder title is required.")
+        }
+        return normalized
+    }
+
+    private func selectedCalendars(_ listName: String?, eventStore: EKEventStore) throws -> [EKCalendar]? {
+        guard let listName = listName?.trimmingCharacters(in: .whitespacesAndNewlines), !listName.isEmpty else {
+            return nil
+        }
+        let calendars = eventStore.calendars(for: .reminder).filter {
+            $0.title.localizedCaseInsensitiveCompare(listName) == .orderedSame
+        }
+        guard calendars.isEmpty == false else {
+            throw ToolExecutionError.invalidArguments("Reminder list not found: \(listName)")
+        }
+        return calendars
+    }
+
+    private func completeReminder(
+        eventStore: EKEventStore,
+        predicate: NSPredicate,
+        title: String,
+        dueDate: Date?
+    ) async throws -> CompletionOutcome {
+        let completedAt = Date()
+        let result = await withCheckedContinuation { continuation in
+            eventStore.fetchReminders(matching: predicate) { reminders in
+                let matches = (reminders ?? []).filter { reminder in
+                    guard reminder.isCompleted == false else {
+                        return false
+                    }
+                    guard (reminder.title ?? "").localizedCaseInsensitiveCompare(title) == .orderedSame else {
+                        return false
+                    }
+                    return self.matchesDueDate(reminder, dueDate: dueDate)
+                }
+
+                guard let reminder = matches.only else {
+                    let message = matches.isEmpty
+                        ? "No matching open reminder found."
+                        : "Multiple matching reminders found; include listName or dueDateISO8601."
+                    continuation.resume(returning: Result<CompletionOutcome, ToolExecutionError>.failure(.invalidArguments(message)))
+                    return
+                }
+
+                reminder.isCompleted = true
+                reminder.completionDate = completedAt
+
+                do {
+                    try eventStore.save(reminder, commit: true)
+                    continuation.resume(returning: Result<CompletionOutcome, ToolExecutionError>.success(
+                        CompletionOutcome(
+                            title: reminder.title ?? title,
+                            listName: reminder.calendar?.title ?? "Unknown list",
+                            dueDate: reminder.dueDateComponents?.date,
+                            completedAt: completedAt
+                        )
+                    ))
+                } catch {
+                    continuation.resume(returning: Result<CompletionOutcome, ToolExecutionError>.failure(
+                        .denied("Unable to save completed reminder: \(error.localizedDescription)")
+                    ))
+                }
+            }
+        }
+        return try result.get()
+    }
+
+    private func matchesDueDate(_ reminder: EKReminder, dueDate: Date?) -> Bool {
+        guard let dueDate else {
+            return true
+        }
+        guard let reminderDueDate = reminder.dueDateComponents?.date else {
+            return false
+        }
+        return Calendar.current.isDate(reminderDueDate, inSameDayAs: dueDate)
+    }
+
+    private struct CompletionOutcome: Sendable {
+        let title: String
+        let listName: String
+        let dueDate: Date?
+        let completedAt: Date
+    }
+}
+
 private struct ReminderSnapshot: Sendable {
     let title: String
     let listName: String
     let dueDate: Date?
     let isCompleted: Bool
+}
+
+private extension Array {
+    var only: Element? {
+        count == 1 ? self[0] : nil
+    }
 }
 
 private extension String {

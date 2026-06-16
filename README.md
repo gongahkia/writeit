@@ -19,6 +19,7 @@ The project is intentionally scoped as a native macOS utility:
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - calendar event creation is a separate mutating tool and requires confirmation
 - reminder creation is a separate mutating tool and requires confirmation
+- reminder completion is a separate mutating tool and requires confirmation
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation
 - local screen snapshots plus text OCR with bounding boxes for "what is on my screen?" requests
