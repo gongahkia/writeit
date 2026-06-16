@@ -9,6 +9,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
+    @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -129,6 +130,17 @@ final class CerberusAppModel: ObservableObject {
 
     func refreshPermissions() {
         permissionSnapshots = permissionCenter.currentSnapshots()
+    }
+
+    func refreshTranscriptRecords() {
+        Task {
+            do {
+                transcriptRecords = try await transcriptStore.records()
+                    .sorted { $0.timestamp > $1.timestamp }
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
     }
 
     func requestPermission(_ kind: SystemPermission) {

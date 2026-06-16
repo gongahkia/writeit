@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-public struct TranscriptRecord: Codable, Equatable, Sendable {
+public struct TranscriptRecord: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let timestamp: Date
     public let request: String

@@ -3,15 +3,33 @@ import cerberusCore
 
 struct StatusPanel: View {
     @ObservedObject var model: CerberusAppModel
+    @State private var selectedSection: PanelSection = .session
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
-            controls
-            transcript
-            permissions
-            recentEvents
+            sectionPicker
+
+            switch selectedSection {
+            case .session:
+                controls
+                transcript
+                recentEvents
+            case .history:
+                history
+            case .permissions:
+                permissions
+            }
         }
+    }
+
+    private var sectionPicker: some View {
+        Picker("Panel", selection: $selectedSection) {
+            ForEach(PanelSection.allCases) { section in
+                Text(section.title).tag(section)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     private var header: some View {
@@ -126,6 +144,73 @@ struct StatusPanel: View {
         }
     }
 
+    private var history: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Transcript history")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    model.refreshTranscriptRecords()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Refresh transcript history")
+            }
+
+            if model.transcriptRecords.isEmpty {
+                Text("No transcripts yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.transcriptRecords.prefix(20)) { record in
+                            transcriptRow(record)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+        }
+        .task {
+            model.refreshTranscriptRecords()
+        }
+    }
+
+    private func transcriptRow(_ record: TranscriptRecord) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(record.timestamp, style: .time)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                if let toolName = record.toolName {
+                    Text(toolName)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(record.request)
+                .font(.caption)
+                .lineLimit(2)
+
+            Text(record.response)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+    }
+
     private var permissions: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -187,6 +272,27 @@ struct StatusPanel: View {
             .orange
         case .unknown:
             .gray
+        }
+    }
+}
+
+private enum PanelSection: String, CaseIterable, Identifiable {
+    case session
+    case history
+    case permissions
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .session:
+            "Session"
+        case .history:
+            "History"
+        case .permissions:
+            "Access"
         }
     }
 }
