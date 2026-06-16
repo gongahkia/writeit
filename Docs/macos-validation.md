@@ -48,13 +48,13 @@ Validate the implementation on a Mac that matches the project requirements.
 27. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
 28. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
 29. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-30. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+30. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples and detected gestures.
 31. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
 
 ## Known Follow-Up
 
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
-- AirPods nod/shake classification has manual neutral-pose calibration and adjustable thresholds, but those thresholds still need real walking/noisy-environment tuning.
+- AirPods nod/shake classification has manual neutral-pose calibration, adjustable thresholds, and CSV validation logging, but those thresholds still need real walking/noisy-environment tuning.
 - Direct per-device speech routing is not implemented; `AVSpeechSynthesizer` on macOS uses the system output route, and the app only reports that route.
 - Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.

@@ -10,6 +10,7 @@ The project is intentionally scoped as a native macOS utility:
 - default-off configurable STT wake phrase monitor
 - speech replies use the current macOS output route, with live route status shown in Settings
 - Foundation Models for on-device planning and native read-only typed tool calls
+- optional AirPods gesture validation CSV logging for threshold tuning
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation

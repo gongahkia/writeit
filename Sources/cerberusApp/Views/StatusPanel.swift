@@ -534,6 +534,8 @@ struct StatusPanel: View {
 
                 gestureSlider("Nod", value: $model.headNodThreshold)
                 gestureSlider("Shake", value: $model.headShakeThreshold)
+                Toggle("Log gesture validation CSV", isOn: $model.isHeadGestureValidationLoggingEnabled)
+                    .font(.caption)
             }
 
             VStack(alignment: .leading, spacing: 6) {

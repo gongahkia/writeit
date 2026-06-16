@@ -151,6 +151,7 @@ final class CerberusAppModel: ObservableObject {
             updateHeadGestureThresholds()
         }
     }
+    @Published var isHeadGestureValidationLoggingEnabled = false
     @Published var transcriptDraft = ""
     @Published var mcpClientDraft = ""
     @Published var mcpElicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
@@ -162,6 +163,7 @@ final class CerberusAppModel: ObservableObject {
     private let earconPlayer = EarconPlayer()
     private let hotKeyMonitor = GlobalHotKeyMonitor()
     private let headGestureDetector = HeadGestureDetector()
+    private let headGestureValidationLog = HeadGestureValidationLog()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
@@ -586,6 +588,8 @@ final class CerberusAppModel: ObservableObject {
                     denyPendingConfirmation()
                 }
             }
+        } onSample: { [weak self] snapshot in
+            self?.recordHeadGestureSnapshot(snapshot)
         }
 
         _ = mediaKeyInterceptor.start { [weak self] trigger in
@@ -608,6 +612,21 @@ final class CerberusAppModel: ObservableObject {
 
     private func updateHeadGestureThresholds() {
         headGestureDetector.updateThresholds(pitch: headNodThreshold, yaw: headShakeThreshold)
+    }
+
+    private func recordHeadGestureSnapshot(_ snapshot: HeadGestureMotionSnapshot) {
+        guard isHeadGestureValidationLoggingEnabled else {
+            return
+        }
+        Task {
+            do {
+                try await headGestureValidationLog.append(snapshot)
+            } catch {
+                await MainActor.run {
+                    statusLine = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func startVoiceCapture() {

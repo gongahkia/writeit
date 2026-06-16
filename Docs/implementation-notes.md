@@ -19,6 +19,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 
 - SwiftPM builds `cerberus`, `CerberusCore`, and `ShellExecService`.
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
+- AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv` for threshold tuning.
 - `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer` and the current macOS output device; Settings reports the current route through CoreAudio and refreshes when the default output device changes.
@@ -41,7 +42,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
-- AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration and threshold adjustment.
+- AirPods head gestures are also used by Siri/system features, so custom nod detection still needs real-device false-positive testing with validation logs after neutral-pose calibration and threshold adjustment.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.

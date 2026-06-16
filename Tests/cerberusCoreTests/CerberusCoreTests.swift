@@ -66,6 +66,27 @@ import Testing
     #expect(classifier.classify(pitch: 0.7, yaw: 0, at: start.addingTimeInterval(1.0)) == .nod)
 }
 
+@Test func headGestureValidationLogWritesCSV() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("head-gesture-validation.csv")
+    let log = HeadGestureValidationLog(fileURL: fileURL)
+    let snapshot = HeadGestureMotionSnapshot(
+        timestamp: Date(timeIntervalSince1970: 0),
+        pitch: 0.1234567,
+        yaw: -0.25,
+        pitchThreshold: 0.35,
+        yawThreshold: 0.45,
+        gesture: .nod
+    )
+
+    try await log.append(snapshot)
+
+    let text = try String(contentsOf: fileURL, encoding: .utf8)
+    #expect(text.contains(HeadGestureMotionSnapshot.csvHeader))
+    #expect(text.contains("1970-01-01T00:00:00Z,0.123457,-0.250000,0.350000,0.450000,nod"))
+}
+
 @Test func wakeWordDetectorMatchesNormalizedPhrase() {
     let detector = WakeWordDetector()
 
