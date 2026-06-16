@@ -6,6 +6,12 @@ Use the benchmark CLI to measure Foundation Models latency for the app's plannin
 Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 5
 ```
 
+Persist a JSON report:
+
+```sh
+Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 5 --output .dist/validation/model-loop.json
+```
+
 By default, the command measures:
 
 - guided `AssistantPlan` generation

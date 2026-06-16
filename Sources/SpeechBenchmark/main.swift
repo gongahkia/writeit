@@ -60,9 +60,34 @@ struct SpeechBenchmarkCommand {
         print(String(format: "record duration: %.3fs", stopRequestedAt.timeIntervalSince(start)))
         print(String(format: "finalize duration: %.3fs", stoppedAt.timeIntervalSince(stopRequestedAt)))
 
-        if let expectedText = options.expectedText {
-            let rate = SpeechBenchmarkScorer.wordErrorRate(expected: expectedText, actual: latestTranscript)
+        let firstUpdateLatency = firstUpdateAt.map { $0.timeIntervalSince(start) }
+        let recordDuration = stopRequestedAt.timeIntervalSince(start)
+        let finalizeDuration = stoppedAt.timeIntervalSince(stopRequestedAt)
+        let wordErrorRate = options.expectedText.map {
+            SpeechBenchmarkScorer.wordErrorRate(expected: $0, actual: latestTranscript)
+        }
+
+        if let wordErrorRate {
+            let rate = wordErrorRate
             print(String(format: "word error rate: %.4f", rate))
+        }
+
+        if let outputURL = options.outputURL {
+            let report = SpeechBenchmarkReport(
+                startedAt: start,
+                localeIdentifier: options.locale.identifier,
+                seconds: options.seconds,
+                expectedText: options.expectedText,
+                transcript: latestTranscript,
+                updateCount: updateCount,
+                finalUpdateCount: finalUpdateCount,
+                firstUpdateLatencySeconds: firstUpdateLatency,
+                recordDurationSeconds: recordDuration,
+                finalizeDurationSeconds: finalizeDuration,
+                wordErrorRate: wordErrorRate
+            )
+            try BenchmarkReportWriter.write(report, to: outputURL)
+            print("wrote report: \(outputURL.path)")
         }
     }
 
@@ -84,12 +109,14 @@ private struct Options {
     let seconds: Double
     let locale: Locale
     let expectedText: String?
+    let outputURL: URL?
     let verbose: Bool
 
     init(arguments: [String]) throws {
         var seconds = 8.0
         var locale = Locale.current
         var expectedText: String?
+        var outputURL: URL?
         var verbose = false
         var iterator = arguments.makeIterator()
 
@@ -110,6 +137,11 @@ private struct Options {
                     throw ToolExecutionError.invalidArguments("--expected requires text.")
                 }
                 expectedText = value
+            case "--output":
+                guard let value = iterator.next() else {
+                    throw ToolExecutionError.invalidArguments("--output requires a path.")
+                }
+                outputURL = Self.fileURL(value)
             case "--verbose":
                 verbose = true
             default:
@@ -120,15 +152,35 @@ private struct Options {
         self.seconds = seconds
         self.locale = locale
         self.expectedText = expectedText
+        self.outputURL = outputURL
         self.verbose = verbose
     }
 
     static func printUsage() {
         print("""
-        usage: cerberus-speech-benchmark [--seconds 8] [--locale en-US] [--expected text] [--verbose]
+        usage: cerberus-speech-benchmark [--seconds 8] [--locale en-US] [--expected text] [--output report.json] [--verbose]
 
         Records from the current macOS input device with SpeechAnalyzer and reports transcript latency plus optional word error rate.
         Select AirPods as the macOS input device before running an AirPods benchmark.
         """)
     }
+
+    private static func fileURL(_ path: String) -> URL {
+        URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+    }
+}
+
+private struct SpeechBenchmarkReport: Encodable {
+    let tool = "cerberus-speech-benchmark"
+    let startedAt: Date
+    let localeIdentifier: String
+    let seconds: Double
+    let expectedText: String?
+    let transcript: String
+    let updateCount: Int
+    let finalUpdateCount: Int
+    let firstUpdateLatencySeconds: Double?
+    let recordDurationSeconds: Double
+    let finalizeDurationSeconds: Double
+    let wordErrorRate: Double?
 }

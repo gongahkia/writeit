@@ -157,6 +157,26 @@ import Testing
     #expect(summary.line(label: "plan").contains("plan: count=4"))
 }
 
+@Test func benchmarkReportWriterWritesPrettyJSON() throws {
+    struct Report: Codable {
+        let name: String
+        let value: Int
+    }
+
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("report.json")
+    defer {
+        try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+    }
+
+    try BenchmarkReportWriter.write(Report(name: "demo", value: 2), to: fileURL)
+
+    let text = try String(contentsOf: fileURL, encoding: .utf8)
+    #expect(text.contains(#""name" : "demo""#))
+    #expect(text.contains(#""value" : 2"#))
+}
+
 @Test func wakeWordSoundClassifierConfigurationValidatesModelAndLabels() throws {
     let valid = WakeWordSoundClassifierConfiguration(
         modelPath: "/tmp/wake.mlmodelc",

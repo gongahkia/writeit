@@ -1,6 +1,6 @@
 import Foundation
 
-public struct LatencyBenchmarkSummary: Equatable, Sendable {
+public struct LatencyBenchmarkSummary: Codable, Equatable, Sendable {
     public let count: Int
     public let minimum: Double
     public let median: Double

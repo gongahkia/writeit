@@ -21,6 +21,7 @@ struct ModelBenchmarkCommand {
             await assistant.prewarm()
         }
 
+        let startedAt = Date()
         print("request: \(options.request)")
         print("iterations: \(options.iterations)")
         print("native read-only tools: \(options.enableNativeReadOnlyTools)")
@@ -68,10 +69,34 @@ struct ModelBenchmarkCommand {
             }
         }
 
-        print(LatencyBenchmarkSummary(samples: planDurations).line(label: "plan"))
-        print(LatencyBenchmarkSummary(samples: summarizeDurations).line(label: "summarize synthetic tool output"))
+        let planSummary = LatencyBenchmarkSummary(samples: planDurations)
+        let summarizeSummary = LatencyBenchmarkSummary(samples: summarizeDurations)
+        let nativeToolSummary = options.enableNativeReadOnlyTools
+            ? LatencyBenchmarkSummary(samples: nativeToolDurations)
+            : nil
+
+        print(planSummary.line(label: "plan"))
+        print(summarizeSummary.line(label: "summarize synthetic tool output"))
         if options.enableNativeReadOnlyTools {
-            print(LatencyBenchmarkSummary(samples: nativeToolDurations).line(label: "native read-only tool answer"))
+            print(nativeToolSummary?.line(label: "native read-only tool answer") ?? "")
+        }
+
+        if let outputURL = options.outputURL {
+            let report = ModelBenchmarkReport(
+                startedAt: startedAt,
+                request: options.request,
+                iterations: options.iterations,
+                nativeReadOnlyToolsEnabled: options.enableNativeReadOnlyTools,
+                prewarmed: options.prewarm,
+                planDurationsSeconds: planDurations,
+                summarizeDurationsSeconds: summarizeDurations,
+                nativeReadOnlyToolDurationsSeconds: nativeToolDurations,
+                planSummary: planSummary,
+                summarizeSummary: summarizeSummary,
+                nativeReadOnlyToolSummary: nativeToolSummary
+            )
+            try BenchmarkReportWriter.write(report, to: outputURL)
+            print("wrote report: \(outputURL.path)")
         }
     }
 }
@@ -82,6 +107,7 @@ private struct Options {
     let syntheticToolPayload: String
     let enableNativeReadOnlyTools: Bool
     let prewarm: Bool
+    let outputURL: URL?
     let verbose: Bool
 
     init(arguments: [String]) throws {
@@ -90,6 +116,7 @@ private struct Options {
         var syntheticToolPayload = "Synthetic local tool output for latency measurement. No external data."
         var enableNativeReadOnlyTools = false
         var prewarm = true
+        var outputURL: URL?
         var verbose = false
         var iterator = arguments.makeIterator()
 
@@ -114,6 +141,11 @@ private struct Options {
                 enableNativeReadOnlyTools = true
             case "--no-prewarm":
                 prewarm = false
+            case "--output":
+                guard let value = iterator.next() else {
+                    throw ToolExecutionError.invalidArguments("--output requires a path.")
+                }
+                outputURL = Self.fileURL(value)
             case "--verbose":
                 verbose = true
             default:
@@ -126,15 +158,35 @@ private struct Options {
         self.syntheticToolPayload = syntheticToolPayload
         self.enableNativeReadOnlyTools = enableNativeReadOnlyTools
         self.prewarm = prewarm
+        self.outputURL = outputURL
         self.verbose = verbose
     }
 
     static func printUsage() {
         print("""
-        usage: cerberus-model-benchmark [--request text] [--iterations 3] [--payload text] [--native-read-only-tools] [--no-prewarm] [--verbose]
+        usage: cerberus-model-benchmark [--request text] [--iterations 3] [--payload text] [--native-read-only-tools] [--no-prewarm] [--output report.json] [--verbose]
 
         Measures Foundation Models planning latency and synthetic tool-output summarization latency.
         By default it does not run live native tools. Add --native-read-only-tools to benchmark the app's read-only Tool session.
         """)
     }
+
+    private static func fileURL(_ path: String) -> URL {
+        URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+    }
+}
+
+private struct ModelBenchmarkReport: Encodable {
+    let tool = "cerberus-model-benchmark"
+    let startedAt: Date
+    let request: String
+    let iterations: Int
+    let nativeReadOnlyToolsEnabled: Bool
+    let prewarmed: Bool
+    let planDurationsSeconds: [Double]
+    let summarizeDurationsSeconds: [Double]
+    let nativeReadOnlyToolDurationsSeconds: [Double]
+    let planSummary: LatencyBenchmarkSummary
+    let summarizeSummary: LatencyBenchmarkSummary
+    let nativeReadOnlyToolSummary: LatencyBenchmarkSummary?
 }
