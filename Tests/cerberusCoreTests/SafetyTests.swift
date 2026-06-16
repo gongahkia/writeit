@@ -201,6 +201,37 @@ import Testing
     #expect(result.untrustedPayload == #"local.echo:{"text":"hello"}"#)
 }
 
+@Test func mcpResourceToolsUseConfiguredRunner() async throws {
+    struct StubRunner: MCPResourceRunning {
+        func list(serverName: String) async throws -> [MCPResourceDescriptor] {
+            [
+                MCPResourceDescriptor(
+                    uri: "file:///tmp/a.txt",
+                    name: "a.txt",
+                    title: "A",
+                    description: "demo",
+                    mimeType: "text/plain"
+                )
+            ]
+        }
+
+        func read(serverName: String, uri: String) async throws -> MCPResourceReadResult {
+            MCPResourceReadResult(contentText: "[\(uri)] text/plain\nhello")
+        }
+    }
+
+    let listTool = MCPResourceListTool(runner: StubRunner())
+    let listResult = try await listTool.run(arguments: MCPResourceListTool.Arguments(serverName: "local"))
+    let readTool = MCPResourceReadTool(runner: StubRunner())
+    let readResult = try await readTool.run(
+        arguments: MCPResourceReadTool.Arguments(serverName: "local", uri: "file:///tmp/a.txt")
+    )
+
+    #expect(listResult.spokenSummary == "Found 1 MCP resource.")
+    #expect(listResult.untrustedPayload.contains("file:///tmp/a.txt"))
+    #expect(readResult.untrustedPayload.contains("hello"))
+}
+
 @Test func mcpStreamableHTTPClientCallsTools() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var requestBodies: [String] = []

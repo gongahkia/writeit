@@ -24,6 +24,30 @@ public struct MCPToolCallResult: Equatable, Sendable {
     }
 }
 
+public struct MCPResourceDescriptor: Equatable, Sendable {
+    public let uri: String
+    public let name: String
+    public let title: String?
+    public let description: String?
+    public let mimeType: String?
+
+    public init(uri: String, name: String, title: String?, description: String?, mimeType: String?) {
+        self.uri = uri
+        self.name = name
+        self.title = title
+        self.description = description
+        self.mimeType = mimeType
+    }
+}
+
+public struct MCPResourceReadResult: Equatable, Sendable {
+    public let contentText: String
+
+    public init(contentText: String) {
+        self.contentText = contentText
+    }
+}
+
 public struct MCPStdioClient: Sendable {
     public let configuration: MCPServerConfiguration
     public let timeoutNanoseconds: UInt64
@@ -53,6 +77,28 @@ public struct MCPStdioClient: Sendable {
 
         try await session.initialize()
         return try await session.callTool(name: name, argumentsJSON: argumentsJSON)
+    }
+
+    public func listResources() async throws -> [MCPResourceDescriptor] {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.listResources()
+    }
+
+    public func readResource(uri: String) async throws -> MCPResourceReadResult {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.readResource(uri: uri)
     }
 }
 
@@ -127,6 +173,28 @@ private final class MCPStdioSession: @unchecked Sendable {
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
         return MCPToolCallResult(isError: isError, contentText: text)
+    }
+
+    func listResources() async throws -> [MCPResourceDescriptor] {
+        var resources: [MCPResourceDescriptor] = []
+        var cursor: String?
+
+        repeat {
+            let params: [String: Any]? = cursor.map { ["cursor": $0] }
+            let result = try await request(method: "resources/list", params: params)
+            let pageResources = result["resources"] as? [[String: Any]] ?? []
+            resources += pageResources.compactMap(Self.resourceDescriptor(from:))
+            cursor = result["nextCursor"] as? String
+        } while cursor != nil
+
+        return resources
+    }
+
+    func readResource(uri: String) async throws -> MCPResourceReadResult {
+        let result = try await request(method: "resources/read", params: ["uri": uri])
+        let contents = result["contents"] as? [[String: Any]] ?? []
+        let text = contents.map(Self.resourceContentText(from:)).filter { !$0.isEmpty }.joined(separator: "\n")
+        return MCPResourceReadResult(contentText: text)
     }
 
     func close() {
@@ -249,6 +317,32 @@ private final class MCPStdioSession: @unchecked Sendable {
             description: object["description"] as? String,
             inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:])
         )
+    }
+
+    private static func resourceDescriptor(from object: [String: Any]) -> MCPResourceDescriptor? {
+        guard let uri = object["uri"] as? String else {
+            return nil
+        }
+
+        return MCPResourceDescriptor(
+            uri: uri,
+            name: object["name"] as? String ?? uri,
+            title: object["title"] as? String,
+            description: object["description"] as? String,
+            mimeType: object["mimeType"] as? String
+        )
+    }
+
+    private static func resourceContentText(from object: [String: Any]) -> String {
+        let uri = object["uri"] as? String ?? "resource"
+        let mimeType = object["mimeType"] as? String ?? "unknown"
+        if let text = object["text"] as? String {
+            return "[\(uri)] \(mimeType)\n\(text)"
+        }
+        if let blob = object["blob"] as? String {
+            return "[\(uri)] \(mimeType)\n[blob: \(blob.count) base64 characters]"
+        }
+        return stableJSONString(object)
     }
 
     private static func contentText(from object: [String: Any]) -> String {

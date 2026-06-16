@@ -69,12 +69,17 @@ final class CerberusAppModel: ObservableObject {
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
-    private static let mcpToolSummary = MCPTool().summary
+    private static let mcpTools = [
+        AnyAssistantTool(MCPTool()),
+        AnyAssistantTool(MCPResourceListTool()),
+        AnyAssistantTool(MCPResourceReadTool())
+    ]
+    private static let mcpToolSummaries = mcpTools.map(\.summary)
     private static let shellToolSummary = ShellTool().summary
 
     init() {
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
-        let tools = DefaultToolCatalog.tools + [AnyAssistantTool(MCPTool()), AnyAssistantTool(shellTool)]
+        let tools = DefaultToolCatalog.tools + Self.mcpTools + [AnyAssistantTool(shellTool)]
         toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
         assistant = Assistant(
             toolSummaries: Self.ambientToolSummaries,
@@ -719,7 +724,7 @@ final class CerberusAppModel: ObservableObject {
     private var enabledToolSummaries: [ToolSummary] {
         var summaries = Self.ambientToolSummaries
         if isMCPToolEnabled {
-            summaries.append(Self.mcpToolSummary)
+            summaries += Self.mcpToolSummaries
         }
         if isShellToolEnabled {
             summaries.append(Self.shellToolSummary)

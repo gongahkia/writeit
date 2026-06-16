@@ -31,13 +31,12 @@ Save this as `~/Library/Application Support/cerberus/mcp-servers.json`, then ena
 Current scope:
 
 - stdio and Streamable HTTP transports
-- `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`
+- `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, and `resources/read`
 - each `mcp.call` is confirmation-gated
-- tool output is treated as untrusted payload
+- tool/resource output is treated as untrusted payload
 
 Not implemented:
 
-- resources
 - prompts
 - sampling
 - elicitation

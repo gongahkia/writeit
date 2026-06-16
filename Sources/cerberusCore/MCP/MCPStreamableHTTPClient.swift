@@ -36,6 +36,28 @@ public struct MCPStreamableHTTPClient: Sendable {
         try await session.sendInitializedNotification()
         return try await session.callTool(name: name, argumentsJSON: argumentsJSON)
     }
+
+    public func listResources() async throws -> [MCPResourceDescriptor] {
+        let session = MCPStreamableHTTPSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            urlSession: urlSession
+        )
+        try await session.initialize()
+        try await session.sendInitializedNotification()
+        return try await session.listResources()
+    }
+
+    public func readResource(uri: String) async throws -> MCPResourceReadResult {
+        let session = MCPStreamableHTTPSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            urlSession: urlSession
+        )
+        try await session.initialize()
+        try await session.sendInitializedNotification()
+        return try await session.readResource(uri: uri)
+    }
 }
 
 private final class MCPStreamableHTTPSession: @unchecked Sendable {
@@ -95,6 +117,28 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
         return MCPToolCallResult(isError: isError, contentText: text)
+    }
+
+    func listResources() async throws -> [MCPResourceDescriptor] {
+        var resources: [MCPResourceDescriptor] = []
+        var cursor: String?
+
+        repeat {
+            let params: [String: Any]? = cursor.map { ["cursor": $0] }
+            let result = try await request(method: "resources/list", params: params)
+            let pageResources = result["resources"] as? [[String: Any]] ?? []
+            resources += pageResources.compactMap(Self.resourceDescriptor(from:))
+            cursor = result["nextCursor"] as? String
+        } while cursor != nil
+
+        return resources
+    }
+
+    func readResource(uri: String) async throws -> MCPResourceReadResult {
+        let result = try await request(method: "resources/read", params: ["uri": uri])
+        let contents = result["contents"] as? [[String: Any]] ?? []
+        let text = contents.map(Self.resourceContentText(from:)).filter { !$0.isEmpty }.joined(separator: "\n")
+        return MCPResourceReadResult(contentText: text)
     }
 
     private func request(method: String, params: [String: Any]?) async throws -> [String: Any] {
@@ -239,6 +283,32 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             description: object["description"] as? String,
             inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:])
         )
+    }
+
+    private static func resourceDescriptor(from object: [String: Any]) -> MCPResourceDescriptor? {
+        guard let uri = object["uri"] as? String else {
+            return nil
+        }
+
+        return MCPResourceDescriptor(
+            uri: uri,
+            name: object["name"] as? String ?? uri,
+            title: object["title"] as? String,
+            description: object["description"] as? String,
+            mimeType: object["mimeType"] as? String
+        )
+    }
+
+    private static func resourceContentText(from object: [String: Any]) -> String {
+        let uri = object["uri"] as? String ?? "resource"
+        let mimeType = object["mimeType"] as? String ?? "unknown"
+        if let text = object["text"] as? String {
+            return "[\(uri)] \(mimeType)\n\(text)"
+        }
+        if let blob = object["blob"] as? String {
+            return "[\(uri)] \(mimeType)\n[blob: \(blob.count) base64 characters]"
+        }
+        return stableJSONString(object)
     }
 
     private static func contentText(from object: [String: Any]) -> String {
