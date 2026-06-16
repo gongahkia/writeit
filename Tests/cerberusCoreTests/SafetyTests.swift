@@ -383,6 +383,96 @@ import Testing
     #expect(result.contentText == "client requests rejected")
 }
 
+@Test func mcpStdioClientHandlesServerSamplingAndElicitationRequestsWithHandlers() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let scriptURL = directory.appendingPathComponent("mcp-handler-server.sh")
+    let script = """
+    #!/bin/sh
+    while IFS= read -r line; do
+      case "$line" in
+        *initialize*)
+          case "$line" in
+            *sampling*elicitation*|*elicitation*sampling*)
+              printf '%s\\n' '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"stub","version":"1"}}}'
+              ;;
+            *)
+              printf '%s\\n' '{"jsonrpc":"2.0","id":1,"error":{"message":"missing client capabilities"}}'
+              ;;
+          esac
+          ;;
+        *notifications*initialized*)
+          ;;
+        *tools*call*)
+          printf '%s\\n' '{"jsonrpc":"2.0","id":99,"method":"sampling/createMessage","params":{"messages":[{"role":"user","content":{"type":"text","text":"sample"}}],"maxTokens":10}}'
+          IFS= read -r sampling_response
+          case "$sampling_response" in
+            *"sampled text"*)
+              printf '%s\\n' '{"jsonrpc":"2.0","id":100,"method":"elicitation/create","params":{"message":"name","requestedSchema":{"type":"object","properties":{"name":{"type":"string","minLength":3}},"required":["name"]}}}'
+              IFS= read -r elicitation_response
+              case "$elicitation_response" in
+                *"accept"*"octocat"*)
+                  printf '%s\\n' '{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"client requests handled"}],"isError":false}}'
+                  ;;
+                *)
+                  printf '%s\\n' '{"jsonrpc":"2.0","id":2,"error":{"message":"elicitation was not handled"}}'
+                  ;;
+              esac
+              ;;
+            *)
+              printf '%s\\n' '{"jsonrpc":"2.0","id":2,"error":{"message":"sampling was not handled"}}'
+              ;;
+          esac
+          ;;
+      esac
+    done
+    """
+    try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+    let handlers = MCPClientRequestHandlers(
+        sampling: { request in
+            #expect(request.serverName == "stub")
+            #expect(request.messagesText.contains("sample"))
+            #expect(request.maxTokens == 10)
+            return MCPSamplingResponse(text: "sampled text", model: "cerberus-test")
+        },
+        elicitation: { request in
+            #expect(request.serverName == "stub")
+            #expect(request.message == "name")
+            #expect(request.schemaJSON.contains("minLength"))
+            return MCPElicitationResponse(action: .accept, contentJSON: #"{"name":"octocat"}"#)
+        }
+    )
+    let configuration = MCPServerConfiguration(name: "stub", executable: scriptURL.path)
+    let result = try await MCPStdioClient(configuration: configuration, clientRequestHandlers: handlers)
+        .callTool(name: "echo", argumentsJSON: "{}")
+
+    #expect(result.contentText == "client requests handled")
+}
+
+@Test func mcpElicitationResponseValidatesAcceptedContentAgainstSchema() throws {
+    let request = MCPElicitationRequest(serverName: "stub", params: [
+        "message": "age",
+        "requestedSchema": [
+            "type": "object",
+            "properties": [
+                "age": [
+                    "type": "integer",
+                    "minimum": 18
+                ]
+            ],
+            "required": ["age"]
+        ]
+    ])
+
+    let response = MCPElicitationResponse(action: .accept, contentJSON: #"{"age":17}"#)
+
+    #expect(throws: ToolExecutionError.self) {
+        _ = try response.resultObject(for: request)
+    }
+}
+
 @Test func mcpOAuthBuildsPKCEAuthorizationURL() throws {
     let challenge = MCPOAuthClient.codeChallenge(
         for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

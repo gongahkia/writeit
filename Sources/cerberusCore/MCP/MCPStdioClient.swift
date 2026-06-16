@@ -87,14 +87,24 @@ public struct MCPPromptGetResult: Equatable, Sendable {
 public struct MCPStdioClient: Sendable {
     public let configuration: MCPServerConfiguration
     public let timeoutNanoseconds: UInt64
+    public let clientRequestHandlers: MCPClientRequestHandlers
 
-    public init(configuration: MCPServerConfiguration, timeoutNanoseconds: UInt64 = 10_000_000_000) {
+    public init(
+        configuration: MCPServerConfiguration,
+        timeoutNanoseconds: UInt64 = 10_000_000_000,
+        clientRequestHandlers: MCPClientRequestHandlers = .none
+    ) {
         self.configuration = configuration
         self.timeoutNanoseconds = timeoutNanoseconds
+        self.clientRequestHandlers = clientRequestHandlers
     }
 
     public func listTools() async throws -> [MCPToolDescriptor] {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -105,7 +115,11 @@ public struct MCPStdioClient: Sendable {
     }
 
     public func callTool(name: String, argumentsJSON: String) async throws -> MCPToolCallResult {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -116,7 +130,11 @@ public struct MCPStdioClient: Sendable {
     }
 
     public func listResources() async throws -> [MCPResourceDescriptor] {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -127,7 +145,11 @@ public struct MCPStdioClient: Sendable {
     }
 
     public func readResource(uri: String) async throws -> MCPResourceReadResult {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -138,7 +160,11 @@ public struct MCPStdioClient: Sendable {
     }
 
     public func listPrompts() async throws -> [MCPPromptDescriptor] {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -149,7 +175,11 @@ public struct MCPStdioClient: Sendable {
     }
 
     public func getPrompt(name: String, argumentsJSON: String) async throws -> MCPPromptGetResult {
-        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        let session = MCPStdioSession(
+            configuration: configuration,
+            timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers
+        )
         try await session.start()
         defer {
             session.close()
@@ -169,11 +199,17 @@ private final class MCPStdioSession: @unchecked Sendable {
     private let stderrPipe = Pipe()
     private let readLock = NSLock()
     private let writeLock = NSLock()
+    private let clientRequestHandlers: MCPClientRequestHandlers
     private var nextRequestID = 1
 
-    init(configuration: MCPServerConfiguration, timeoutNanoseconds: UInt64) {
+    init(
+        configuration: MCPServerConfiguration,
+        timeoutNanoseconds: UInt64,
+        clientRequestHandlers: MCPClientRequestHandlers
+    ) {
         self.configuration = configuration
         self.timeoutNanoseconds = timeoutNanoseconds
+        self.clientRequestHandlers = clientRequestHandlers
     }
 
     func start() async throws {
@@ -194,7 +230,7 @@ private final class MCPStdioSession: @unchecked Sendable {
     func initialize() async throws {
         _ = try await request(method: "initialize", params: [
             "protocolVersion": "2025-06-18",
-            "capabilities": [:],
+            "capabilities": clientRequestHandlers.capabilities,
             "clientInfo": [
                 "name": "cerberus",
                 "version": "0.1.0"
@@ -308,7 +344,7 @@ private final class MCPStdioSession: @unchecked Sendable {
         while true {
             let response = try await readMessage()
             guard response["id"] as? Int == requestID else {
-                try handleServerRequestIfNeeded(response)
+                try await handleServerRequestIfNeeded(response)
                 continue
             }
 
@@ -321,7 +357,7 @@ private final class MCPStdioSession: @unchecked Sendable {
         }
     }
 
-    private func handleServerRequestIfNeeded(_ message: [String: Any]) throws {
+    private func handleServerRequestIfNeeded(_ message: [String: Any]) async throws {
         guard let id = message["id"],
               let method = message["method"] as? String else {
             return
@@ -329,23 +365,53 @@ private final class MCPStdioSession: @unchecked Sendable {
 
         switch method {
         case "sampling/createMessage":
-            try sendErrorResponse(
-                id: id,
-                code: -32000,
-                message: "MCP sampling is not supported by cerberus."
-            )
+            await handleSamplingRequest(id: id, params: message["params"] as? [String: Any] ?? [:])
         case "elicitation/create":
-            try sendErrorResponse(
-                id: id,
-                code: -32000,
-                message: "MCP elicitation is not supported by cerberus."
-            )
+            await handleElicitationRequest(id: id, params: message["params"] as? [String: Any] ?? [:])
         default:
             try sendErrorResponse(
                 id: id,
                 code: -32601,
                 message: "MCP client method is not supported by cerberus: \(method)"
             )
+        }
+    }
+
+    private func handleSamplingRequest(id: Any, params: [String: Any]) async {
+        guard let sampling = clientRequestHandlers.sampling else {
+            try? sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP sampling is not supported by cerberus."
+            )
+            return
+        }
+
+        do {
+            let request = MCPSamplingRequest(serverName: configuration.name, params: params)
+            let response = try await sampling(request)
+            try sendResultResponse(id: id, result: response.resultObject())
+        } catch {
+            try? sendErrorResponse(id: id, code: -32000, message: error.localizedDescription)
+        }
+    }
+
+    private func handleElicitationRequest(id: Any, params: [String: Any]) async {
+        guard let elicitation = clientRequestHandlers.elicitation else {
+            try? sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP elicitation is not supported by cerberus."
+            )
+            return
+        }
+
+        do {
+            let request = MCPElicitationRequest(serverName: configuration.name, params: params)
+            let response = try await elicitation(request)
+            try sendResultResponse(id: id, result: response.resultObject(for: request))
+        } catch {
+            try? sendErrorResponse(id: id, code: -32000, message: error.localizedDescription)
         }
     }
 
@@ -357,6 +423,14 @@ private final class MCPStdioSession: @unchecked Sendable {
                 "code": code,
                 "message": message
             ]
+        ])
+    }
+
+    private func sendResultResponse(id: Any, result: [String: Any]) throws {
+        try send([
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": result
         ])
     }
 
