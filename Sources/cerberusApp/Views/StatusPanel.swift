@@ -305,6 +305,13 @@ struct StatusPanel: View {
                     .font(.caption.monospaced())
             }
 
+            Button {
+                model.calibrateHeadGestures()
+            } label: {
+                Label("Calibrate AirPods", systemImage: "airpodspro")
+            }
+            .buttonStyle(.bordered)
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Enabled tools")
                     .font(.caption)

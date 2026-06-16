@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import cerberusCore
 
@@ -30,4 +31,24 @@ import Testing
     #expect(prompt.contains("untrusted data"))
     #expect(prompt.contains("calendar.read"))
     #expect(prompt.contains("read-only"))
+}
+
+@Test func headGestureClassifierUsesCalibratedNeutralPose() {
+    var classifier = HeadGestureClassifier(pitchThreshold: 0.3, yawThreshold: 0.4, cooldown: 1.0)
+    let start = Date(timeIntervalSince1970: 1_000)
+
+    classifier.calibrate(pitch: 0.1, yaw: -0.1)
+
+    #expect(classifier.classify(pitch: 0.2, yaw: -0.2, at: start) == nil)
+    #expect(classifier.classify(pitch: 0.5, yaw: -0.1, at: start.addingTimeInterval(1.1)) == .nod)
+}
+
+@Test func headGestureClassifierAppliesCooldown() {
+    var classifier = HeadGestureClassifier(pitchThreshold: 0.3, yawThreshold: 0.4, cooldown: 2.0)
+    let start = Date(timeIntervalSince1970: 2_000)
+
+    classifier.calibrate(pitch: 0, yaw: 0)
+
+    #expect(classifier.classify(pitch: 0.4, yaw: 0, at: start) == .nod)
+    #expect(classifier.classify(pitch: 0.8, yaw: 0, at: start.addingTimeInterval(1.0)) == nil)
 }

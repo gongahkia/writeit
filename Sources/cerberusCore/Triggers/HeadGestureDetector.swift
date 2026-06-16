@@ -6,22 +6,65 @@ public enum HeadGesture: Equatable, Sendable {
     case shake
 }
 
-@MainActor
-public final class HeadGestureDetector {
-    private let motionManager = CMHeadphoneMotionManager()
-    private let queue = OperationQueue()
-    private var lastPitch: Double?
-    private var lastYaw: Double?
+public struct HeadGestureClassifier: Sendable {
+    public var pitchThreshold: Double
+    public var yawThreshold: Double
+    public var cooldown: TimeInterval
+    private var neutralPitch: Double?
+    private var neutralYaw: Double?
     private var lastTriggerDate = Date.distantPast
-
-    private let pitchThreshold: Double
-    private let yawThreshold: Double
-    private let cooldown: TimeInterval
 
     public init(pitchThreshold: Double = 0.35, yawThreshold: Double = 0.45, cooldown: TimeInterval = 1.2) {
         self.pitchThreshold = pitchThreshold
         self.yawThreshold = yawThreshold
         self.cooldown = cooldown
+    }
+
+    public mutating func calibrate(pitch: Double, yaw: Double) {
+        neutralPitch = pitch
+        neutralYaw = yaw
+    }
+
+    public mutating func classify(pitch: Double, yaw: Double, at date: Date = Date()) -> HeadGesture? {
+        guard let neutralPitch, let neutralYaw else {
+            calibrate(pitch: pitch, yaw: yaw)
+            return nil
+        }
+
+        guard date.timeIntervalSince(lastTriggerDate) >= cooldown else {
+            return nil
+        }
+
+        if abs(pitch - neutralPitch) >= pitchThreshold {
+            lastTriggerDate = date
+            calibrate(pitch: pitch, yaw: yaw)
+            return .nod
+        }
+
+        if abs(yaw - neutralYaw) >= yawThreshold {
+            lastTriggerDate = date
+            calibrate(pitch: pitch, yaw: yaw)
+            return .shake
+        }
+
+        return nil
+    }
+}
+
+@MainActor
+public final class HeadGestureDetector {
+    private let motionManager = CMHeadphoneMotionManager()
+    private let queue = OperationQueue()
+    private var latestPitch: Double?
+    private var latestYaw: Double?
+    private var classifier: HeadGestureClassifier
+
+    public init(pitchThreshold: Double = 0.35, yawThreshold: Double = 0.45, cooldown: TimeInterval = 1.2) {
+        classifier = HeadGestureClassifier(
+            pitchThreshold: pitchThreshold,
+            yawThreshold: yawThreshold,
+            cooldown: cooldown
+        )
         queue.name = "dev.gongahkia.cerberus.head-motion"
         queue.qualityOfService = .userInteractive
     }
@@ -48,31 +91,27 @@ public final class HeadGestureDetector {
 
     public func stop() {
         motionManager.stopDeviceMotionUpdates()
-        lastPitch = nil
-        lastYaw = nil
+        latestPitch = nil
+        latestYaw = nil
+    }
+
+    public func calibrate() -> Bool {
+        guard let latestPitch, let latestYaw else {
+            return false
+        }
+
+        classifier.calibrate(pitch: latestPitch, yaw: latestYaw)
+        return true
     }
 
     private func handle(motion: CMDeviceMotion, onGesture: @MainActor @Sendable (HeadGesture) -> Void) {
         let pitch = motion.attitude.pitch
         let yaw = motion.attitude.yaw
-        defer {
-            lastPitch = pitch
-            lastYaw = yaw
-        }
+        latestPitch = pitch
+        latestYaw = yaw
 
-        guard Date().timeIntervalSince(lastTriggerDate) >= cooldown else {
-            return
-        }
-
-        if let lastPitch, abs(pitch - lastPitch) >= pitchThreshold {
-            lastTriggerDate = Date()
-            onGesture(.nod)
-            return
-        }
-
-        if let lastYaw, abs(yaw - lastYaw) >= yawThreshold {
-            lastTriggerDate = Date()
-            onGesture(.shake)
+        if let gesture = classifier.classify(pitch: pitch, yaw: yaw) {
+            onGesture(gesture)
         }
     }
 }

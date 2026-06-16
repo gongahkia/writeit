@@ -167,6 +167,12 @@ final class CerberusAppModel: ObservableObject {
         requestPermission(nextPermissionSnapshot.kind)
     }
 
+    func calibrateHeadGestures() {
+        statusLine = headGestureDetector.calibrate()
+            ? "Head gesture neutral pose calibrated."
+            : "No AirPods motion sample is available yet."
+    }
+
     func approvePendingConfirmation() {
         stopConfirmationVoiceCapture()
         Task {
