@@ -18,6 +18,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
     public let oauthRedirectURI: String?
     public let oauthScopes: [String]
     public let accessTokenKeychainAccount: String?
+    public let nativeReadOnlyTools: [String]
 
     public init(
         name: String,
@@ -31,7 +32,8 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         oauthClientID: String? = nil,
         oauthRedirectURI: String? = nil,
         oauthScopes: [String] = [],
-        accessTokenKeychainAccount: String? = nil
+        accessTokenKeychainAccount: String? = nil,
+        nativeReadOnlyTools: [String] = []
     ) {
         self.name = name
         self.transport = transport
@@ -45,6 +47,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         self.oauthRedirectURI = oauthRedirectURI
         self.oauthScopes = oauthScopes
         self.accessTokenKeychainAccount = accessTokenKeychainAccount
+        self.nativeReadOnlyTools = nativeReadOnlyTools
     }
 
     enum CodingKeys: String, CodingKey {
@@ -60,6 +63,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         case oauthRedirectURI
         case oauthScopes
         case accessTokenKeychainAccount
+        case nativeReadOnlyTools
     }
 
     public init(from decoder: any Decoder) throws {
@@ -76,6 +80,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         oauthRedirectURI = try container.decodeIfPresent(String.self, forKey: .oauthRedirectURI)
         oauthScopes = try container.decodeIfPresent([String].self, forKey: .oauthScopes) ?? []
         accessTokenKeychainAccount = try container.decodeIfPresent(String.self, forKey: .accessTokenKeychainAccount)
+        nativeReadOnlyTools = try container.decodeIfPresent([String].self, forKey: .nativeReadOnlyTools) ?? []
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -92,6 +97,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         try container.encodeIfPresent(oauthRedirectURI, forKey: .oauthRedirectURI)
         try container.encode(oauthScopes, forKey: .oauthScopes)
         try container.encodeIfPresent(accessTokenKeychainAccount, forKey: .accessTokenKeychainAccount)
+        try container.encode(nativeReadOnlyTools, forKey: .nativeReadOnlyTools)
     }
 }
 

@@ -23,6 +23,7 @@ Config path:
       "oauthRedirectURI": "http://127.0.0.1:8765/callback",
       "oauthScopes": ["read"],
       "accessTokenKeychainAccount": "mcp.oauth.access.remote-demo",
+      "nativeReadOnlyTools": ["search"],
       "headers": {
         "Authorization": "Bearer token"
       }
@@ -47,8 +48,7 @@ Current scope:
 - elicitation requests use generated controls for flat primitive schemas, with JSON fallback plus accept, decline, and cancel actions
 - accepted elicitation content is validated against the MCP flat primitive schema subset before returning to the server
 - each `mcp.call` is confirmation-gated
+- configured `nativeReadOnlyTools` are exposed as FoundationModels native tools through dynamic schemas for flat primitive JSON-object inputs
 - tool/resource/prompt output is treated as untrusted payload
 
-Not implemented:
-
-- dynamic FoundationModels native tool schemas
+Only put trusted read-only tool names in `nativeReadOnlyTools`; this path is not used for mutating tools because native tool calls do not go through the app-owned confirmation gate.

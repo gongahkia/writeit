@@ -34,6 +34,15 @@ public actor Assistant {
         rebuildSessions()
     }
 
+    public func updateToolConfiguration(
+        toolSummaries: [ToolSummary],
+        readOnlyNativeTools: [any FoundationModels.Tool]
+    ) {
+        self.toolSummaries = toolSummaries
+        self.readOnlyNativeTools = readOnlyNativeTools
+        rebuildSessions()
+    }
+
     public func updateModel(_ model: SystemLanguageModel) {
         self.model = model
         rebuildSessions()

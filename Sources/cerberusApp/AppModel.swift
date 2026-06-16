@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import cerberusCore
 
 struct PendingMCPClientRequest: Identifiable {
@@ -166,10 +167,12 @@ final class CerberusAppModel: ObservableObject {
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
     private let assistant: Assistant
+    private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore = EncryptedTranscriptStore()
     private let adapterLoader = FoundationModelAdapterLoader()
-    private let mcpServerRegistry = MCPServerRegistry()
+    private let mcpServerRegistry: MCPServerRegistry
     private let mcpClientRequestBroker: MCPClientRequestBroker
+    private let mcpNativeToolLoader: MCPNativeToolLoader
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
@@ -202,14 +205,23 @@ final class CerberusAppModel: ObservableObject {
 
     init() {
         let mcpClientRequestBroker = MCPClientRequestBroker()
+        let mcpServerRegistry = MCPServerRegistry()
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
         let tools = DefaultToolCatalog.tools + mcpTools + [AnyAssistantTool(shellTool)]
+        let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
         self.mcpClientRequestBroker = mcpClientRequestBroker
+        self.mcpServerRegistry = mcpServerRegistry
+        self.mcpNativeToolLoader = MCPNativeToolLoader(
+            registry: mcpServerRegistry,
+            clientRequestHandlers: mcpClientRequestBroker.handlers,
+            auditLog: auditLog
+        )
+        self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
         toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
         assistant = Assistant(
             toolSummaries: Self.ambientToolSummaries,
-            readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
+            readOnlyNativeTools: baseReadOnlyNativeTools
         )
         mcpClientRequestBroker.model = self
         refreshPermissions()
@@ -972,8 +984,18 @@ final class CerberusAppModel: ObservableObject {
 
     private func refreshAssistantToolPrompt() {
         let summaries = enabledToolSummaries
+        let nativeToolBase = baseReadOnlyNativeTools
+        let shouldLoadMCPNativeTools = isMCPToolEnabled
+        let nativeToolLoader = mcpNativeToolLoader
         Task {
-            await assistant.updateTools(summaries)
+            var nativeTools = nativeToolBase
+            if shouldLoadMCPNativeTools {
+                nativeTools += (try? await nativeToolLoader.load()) ?? []
+            }
+            await assistant.updateToolConfiguration(
+                toolSummaries: summaries,
+                readOnlyNativeTools: nativeTools
+            )
         }
     }
 
