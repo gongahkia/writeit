@@ -22,6 +22,7 @@ final class CerberusAppModel: ObservableObject {
     private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
+    private let transcriptStore = EncryptedTranscriptStore()
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var silenceTask: Task<Void, Never>?
@@ -378,6 +379,7 @@ final class CerberusAppModel: ObservableObject {
             let invocation = try makeInvocation(from: plan)
             let result = try await toolRegistry.run(invocation, confirmed: confirmed)
             let spokenResponse = await spokenResponse(for: result, plan: plan)
+            recordTranscript(response: spokenResponse, toolName: plan.toolName, argumentsSummary: plan.toolArgumentsSummary)
             _ = try? await auditLog.append(
                 toolName: plan.toolName,
                 argumentsSummary: plan.toolArgumentsSummary,
@@ -389,6 +391,11 @@ final class CerberusAppModel: ObservableObject {
                 toolName: plan.toolName,
                 argumentsSummary: plan.toolArgumentsSummary,
                 resultSummary: "error: \(error.localizedDescription)"
+            )
+            recordTranscript(
+                response: error.localizedDescription,
+                toolName: plan.toolName,
+                argumentsSummary: plan.toolArgumentsSummary
             )
             apply(.failed(error.localizedDescription))
             speaker.speak(error.localizedDescription) { [weak self] in
@@ -434,9 +441,26 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private func speak(_ response: String) {
+        recordTranscript(response: response)
         apply(.responseReady(response))
         speaker.speak(response) { [weak self] in
             self?.finishSpeaking()
+        }
+    }
+
+    private func recordTranscript(response: String, toolName: String? = nil, argumentsSummary: String? = nil) {
+        guard let request = activeRequest, !request.isEmpty else {
+            return
+        }
+
+        let record = TranscriptRecord(
+            request: request,
+            response: response,
+            toolName: toolName,
+            argumentsSummary: argumentsSummary
+        )
+        Task {
+            _ = try? await transcriptStore.append(record)
         }
     }
 

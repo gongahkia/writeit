@@ -35,6 +35,7 @@ let package = Package(
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
                 .linkedFramework("MediaPlayer"),
+                .linkedFramework("Security"),
                 .linkedFramework("Speech"),
                 .linkedFramework("SwiftUI")
             ]
@@ -53,6 +54,7 @@ let package = Package(
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
                 .linkedFramework("MediaPlayer"),
+                .linkedFramework("Security"),
                 .linkedFramework("Speech")
             ]
         ),

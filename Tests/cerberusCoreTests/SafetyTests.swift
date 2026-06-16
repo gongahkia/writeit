@@ -46,3 +46,21 @@ import Testing
     #expect(VoiceConfirmationParser.decision(in: "no cancel that") == .deny)
     #expect(VoiceConfirmationParser.decision(in: "maybe later") == nil)
 }
+
+@Test func encryptedTranscriptStoreRoundTripsWithoutPlaintext() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("transcripts.jsonl.enc")
+    let keyData = Data(repeating: 7, count: 32)
+    let store = EncryptedTranscriptStore(fileURL: fileURL, fixedKeyData: keyData)
+
+    try await store.append(TranscriptRecord(request: "open calendar", response: "Opened Calendar.", toolName: "app.control"))
+
+    let records = try await store.records()
+    let rawText = try String(contentsOf: fileURL, encoding: .utf8)
+
+    #expect(records.count == 1)
+    #expect(records.first?.request == "open calendar")
+    #expect(!rawText.contains("open calendar"))
+    #expect(!rawText.contains("Opened Calendar."))
+}
