@@ -30,15 +30,19 @@ import Testing
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("audit.log")
-    let auditLog = AuditLog(fileURL: fileURL)
+    let signingKeyData = Data(repeating: 5, count: 32)
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: signingKeyData)
 
     let first = try await auditLog.append(toolName: "one", argumentsSummary: "a", resultSummary: "b")
     let second = try await auditLog.append(toolName: "two", argumentsSummary: "c", resultSummary: "d")
 
     #expect(first.previousHash == "genesis")
     #expect(second.previousHash == first.hash)
+    #expect(first.signature != nil)
+    #expect(second.signature != nil)
     #expect(try await auditLog.entries().count == 2)
     #expect(try await auditLog.recentEntries(limit: 1).map(\.toolName) == ["two"])
+    #expect(try await auditLog.signaturesAreValid())
 }
 
 @Test func voiceConfirmationParserClassifiesShortApprovalsAndDenials() {

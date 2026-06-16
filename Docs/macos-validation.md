@@ -29,7 +29,7 @@ Validate the implementation on a Mac that matches the project requirements.
 8. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
 9. Confirm tool payloads are summarized into a useful spoken response.
 10. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
-11. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
+11. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
 12. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
 13. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
 14. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.

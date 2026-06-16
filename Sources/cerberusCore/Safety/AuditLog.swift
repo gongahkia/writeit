@@ -8,13 +8,15 @@ public struct AuditLogEntry: Codable, Equatable, Sendable {
     public let resultSummary: String
     public let previousHash: String
     public let hash: String
+    public let signature: String?
 
     public init(
         timestamp: Date = Date(),
         toolName: String,
         argumentsSummary: String,
         resultSummary: String,
-        previousHash: String
+        previousHash: String,
+        signature: String? = nil
     ) {
         self.timestamp = timestamp
         self.toolName = toolName
@@ -28,6 +30,7 @@ public struct AuditLogEntry: Codable, Equatable, Sendable {
             resultSummary: resultSummary,
             previousHash: previousHash
         )
+        self.signature = signature
     }
 
     public static func hash(
@@ -48,15 +51,43 @@ public struct AuditLogEntry: Codable, Equatable, Sendable {
         let digest = SHA256.hash(data: Data(payload.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
+
+    public func signed(using key: SymmetricKey) -> AuditLogEntry {
+        AuditLogEntry(
+            timestamp: timestamp,
+            toolName: toolName,
+            argumentsSummary: argumentsSummary,
+            resultSummary: resultSummary,
+            previousHash: previousHash,
+            signature: Self.signature(for: hash, using: key)
+        )
+    }
+
+    public func isSignatureValid(using key: SymmetricKey) -> Bool {
+        signature == Self.signature(for: hash, using: key)
+    }
+
+    public static func signature(for hash: String, using key: SymmetricKey) -> String {
+        let authenticationCode = HMAC<SHA256>.authenticationCode(for: Data(hash.utf8), using: key)
+        return Data(authenticationCode).map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 public actor AuditLog {
     private let fileURL: URL
+    private let keychainStore: KeychainSecretStore
+    private let fixedSigningKeyData: Data?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    public init(fileURL: URL = AuditLog.defaultFileURL()) {
+    public init(
+        fileURL: URL = AuditLog.defaultFileURL(),
+        keychainStore: KeychainSecretStore = KeychainSecretStore(account: "audit-signing-key"),
+        fixedSigningKeyData: Data? = nil
+    ) {
         self.fileURL = fileURL
+        self.keychainStore = keychainStore
+        self.fixedSigningKeyData = fixedSigningKeyData
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
     }
@@ -73,7 +104,7 @@ public actor AuditLog {
             argumentsSummary: argumentsSummary,
             resultSummary: resultSummary,
             previousHash: try lastHash()
-        )
+        ).signed(using: try signingKey())
         let data = try encoder.encode(entry)
 
         if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -113,6 +144,11 @@ public actor AuditLog {
         Array(try entries().suffix(max(0, limit)).reversed())
     }
 
+    public func signaturesAreValid() throws -> Bool {
+        let key = try signingKey()
+        return try entries().allSatisfy { $0.isSignatureValid(using: key) }
+    }
+
     public static func defaultFileURL() -> URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
@@ -124,5 +160,20 @@ public actor AuditLog {
 
     private func lastHash() throws -> String {
         try entries().last?.hash ?? "genesis"
+    }
+
+    private func signingKey() throws -> SymmetricKey {
+        if let fixedSigningKeyData {
+            return SymmetricKey(data: fixedSigningKeyData)
+        }
+
+        if let existing = try keychainStore.data() {
+            return SymmetricKey(data: existing)
+        }
+
+        let key = SymmetricKey(size: .bits256)
+        let keyData = key.withUnsafeBytes { Data($0) }
+        try keychainStore.save(keyData)
+        return key
     }
 }
