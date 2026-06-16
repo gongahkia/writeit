@@ -9,9 +9,19 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
+    @Published private(set) var isWakeWordMonitoring = false
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var isWakeWordEnabled = false {
+        didSet {
+            if isWakeWordEnabled {
+                startWakeWordMonitoringIfNeeded()
+            } else {
+                stopWakeWordMonitoring()
+            }
+        }
+    }
     @Published var isMCPToolEnabled = false {
         didSet {
             refreshAssistantToolPrompt()
@@ -26,11 +36,13 @@ final class CerberusAppModel: ObservableObject {
 
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
+    private let wakeWordTranscriber = Transcriber()
     private let speaker = Speaker()
     private let earconPlayer = EarconPlayer()
     private let hotKeyMonitor = GlobalHotKeyMonitor()
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
+    private let wakeWordDetector = WakeWordDetector()
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
@@ -63,7 +75,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var isMicrophoneActive: Bool {
-        state.isMicrophoneActive || isConfirmationVoiceActive
+        state.isMicrophoneActive || isConfirmationVoiceActive || isWakeWordMonitoring
     }
 
     var nextPermissionSnapshot: PermissionSnapshot? {
@@ -103,8 +115,11 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func startListening(trigger: WakeTrigger = .manual) {
-        if apply(.wakeDetected(trigger)) {
-            startVoiceCapture()
+        Task {
+            await stopWakeWordMonitoringAndWait()
+            if apply(.wakeDetected(trigger)) {
+                startVoiceCapture()
+            }
         }
     }
 
@@ -137,6 +152,7 @@ final class CerberusAppModel: ObservableObject {
         transcriptDraft = ""
         activeRequest = nil
         apply(.speechFinished)
+        startWakeWordMonitoringIfNeeded()
     }
 
     func cancel() {
@@ -151,6 +167,7 @@ final class CerberusAppModel: ObservableObject {
         speaker.stop()
         clearPendingConfirmation()
         apply(.cancelRequested)
+        startWakeWordMonitoringIfNeeded()
     }
 
     func reset() {
@@ -165,6 +182,7 @@ final class CerberusAppModel: ObservableObject {
         speaker.stop()
         clearPendingConfirmation()
         apply(.reset)
+        startWakeWordMonitoringIfNeeded()
     }
 
     func refreshPermissions() {
@@ -305,6 +323,61 @@ final class CerberusAppModel: ObservableObject {
     private func handleTranscriptionUpdate(_ update: TranscriptionUpdate) {
         transcriptDraft = update.text
         scheduleSilenceTimeoutIfNeeded()
+    }
+
+    private func startWakeWordMonitoringIfNeeded() {
+        guard isWakeWordEnabled,
+              state == .idle,
+              !isWakeWordMonitoring,
+              !transcriber.isRunning,
+              !wakeWordTranscriber.isRunning else {
+            return
+        }
+
+        isWakeWordMonitoring = true
+        Task {
+            do {
+                try await wakeWordTranscriber.start { [weak self] update in
+                    self?.handleWakeWordUpdate(update)
+                }
+            } catch {
+                isWakeWordMonitoring = false
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleWakeWordUpdate(_ update: TranscriptionUpdate) {
+        guard isWakeWordMonitoring,
+              state == .idle,
+              wakeWordDetector.detectsWakeWord(in: update.text) else {
+            return
+        }
+
+        Task {
+            await stopWakeWordMonitoringAndWait()
+            startListening(trigger: .wakeWord)
+        }
+    }
+
+    private func stopWakeWordMonitoring() {
+        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning else {
+            return
+        }
+
+        isWakeWordMonitoring = false
+        Task {
+            await wakeWordTranscriber.cancel()
+        }
+    }
+
+    private func stopWakeWordMonitoringAndWait() async {
+        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning else {
+            return
+        }
+
+        isWakeWordMonitoring = false
+        await wakeWordTranscriber.cancel()
     }
 
     private func scheduleSilenceTimeoutIfNeeded() {

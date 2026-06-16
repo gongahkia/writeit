@@ -48,6 +48,7 @@ public enum AssistantEvent: Equatable, Sendable {
 public enum WakeTrigger: String, CaseIterable, Equatable, Sendable {
     case manual
     case hotKey = "hot_key"
+    case wakeWord = "wake_word"
     case headNod = "head_nod"
     case stemTriplePress = "stem_triple_press"
 }

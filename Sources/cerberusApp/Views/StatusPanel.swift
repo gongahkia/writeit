@@ -294,6 +294,7 @@ struct StatusPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
+            Toggle("Wake phrase", isOn: $model.isWakeWordEnabled)
             Toggle("MCP tool", isOn: $model.isMCPToolEnabled)
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
 

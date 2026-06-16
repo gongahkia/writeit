@@ -52,3 +52,10 @@ import Testing
     #expect(classifier.classify(pitch: 0.4, yaw: 0, at: start) == .nod)
     #expect(classifier.classify(pitch: 0.8, yaw: 0, at: start.addingTimeInterval(1.0)) == nil)
 }
+
+@Test func wakeWordDetectorMatchesNormalizedPhrase() {
+    let detector = WakeWordDetector()
+
+    #expect(detector.detectsWakeWord(in: "Hey, Cerberus."))
+    #expect(!detector.detectsWakeWord(in: "hello service"))
+}
