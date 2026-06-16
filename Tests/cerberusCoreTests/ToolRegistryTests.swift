@@ -58,11 +58,38 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("calendar.read"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("mail.search"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("memory.read"))
+    #expect(DefaultToolCatalog.readOnlyToolNames.contains("reminders.read"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.ocr"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.snapshot"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.create"))
+}
+
+@Test func remindersCreateToolRequiresConfirmationAndValidatesArguments() async throws {
+    let tool = RemindersCreateTool()
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: RemindersCreateTool.Arguments(title: "Buy milk")
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await registry.run(invocation)
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersCreateTool.Arguments(title: " "))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersCreateTool.Arguments(title: "Buy milk", priority: 10))
+    }
+    try tool.validate(RemindersCreateTool.Arguments(
+        title: " Buy milk ",
+        dueDateISO8601: "2026-06-16T12:00:00Z",
+        priority: 5
+    ))
+    #expect(RemindersCreateTool.payload(title: "Buy milk", listName: "Tasks", dueDate: nil) == "Created reminder: [Tasks] Buy milk due no due date")
 }
 
 @Test func mcpDynamicNativeToolAdapterCallsConfiguredRunner() async throws {

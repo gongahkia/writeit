@@ -11,6 +11,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
             AnyAssistantTool(MusicNowPlayingTool()),
+            AnyAssistantTool(RemindersCreateTool()),
             AnyAssistantTool(RemindersTool()),
             AnyAssistantTool(ScreenOCRTool()),
             AnyAssistantTool(ScreenSnapshotTool()),
