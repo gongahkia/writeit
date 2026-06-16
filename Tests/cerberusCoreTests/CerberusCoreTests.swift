@@ -53,6 +53,17 @@ import Testing
     #expect(classifier.classify(pitch: 0.8, yaw: 0, at: start.addingTimeInterval(1.0)) == nil)
 }
 
+@Test func headGestureClassifierUpdatesThresholds() {
+    var classifier = HeadGestureClassifier(pitchThreshold: 0.3, yawThreshold: 0.4, cooldown: 0)
+    let start = Date(timeIntervalSince1970: 3_000)
+
+    classifier.calibrate(pitch: 0, yaw: 0)
+    classifier.updateThresholds(pitch: 0.6, yaw: 0.7)
+
+    #expect(classifier.classify(pitch: 0.4, yaw: 0, at: start) == nil)
+    #expect(classifier.classify(pitch: 0.7, yaw: 0, at: start.addingTimeInterval(1.0)) == .nod)
+}
+
 @Test func wakeWordDetectorMatchesNormalizedPhrase() {
     let detector = WakeWordDetector()
 

@@ -45,7 +45,7 @@ Validate the implementation on a Mac that matches the project requirements.
 ## Known Follow-Up
 
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
-- AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
+- AirPods nod/shake classification has manual neutral-pose calibration and adjustable thresholds, but those thresholds still need real walking/noisy-environment tuning.
 - Direct per-device speech routing is not implemented; `AVSpeechSynthesizer` on macOS uses the system output route, and the app only reports that route.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.

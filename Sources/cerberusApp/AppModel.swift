@@ -35,6 +35,16 @@ final class CerberusAppModel: ObservableObject {
             refreshAssistantToolPrompt()
         }
     }
+    @Published var headNodThreshold = 0.35 {
+        didSet {
+            updateHeadGestureThresholds()
+        }
+    }
+    @Published var headShakeThreshold = 0.45 {
+        didSet {
+            updateHeadGestureThresholds()
+        }
+    }
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -258,6 +268,12 @@ final class CerberusAppModel: ObservableObject {
             : "No AirPods motion sample is available yet."
     }
 
+    func resetHeadGestureThresholds() {
+        headNodThreshold = 0.35
+        headShakeThreshold = 0.45
+        updateHeadGestureThresholds()
+    }
+
     func approvePendingConfirmation() {
         stopConfirmationVoiceCapture()
         Task {
@@ -343,6 +359,10 @@ final class CerberusAppModel: ObservableObject {
                 startListening(trigger: .stemTriplePress)
             }
         }
+    }
+
+    private func updateHeadGestureThresholds() {
+        headGestureDetector.updateThresholds(pitch: headNodThreshold, yaw: headShakeThreshold)
     }
 
     private func startVoiceCapture() {

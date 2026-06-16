@@ -25,6 +25,14 @@ public struct HeadGestureClassifier: Sendable {
         neutralYaw = yaw
     }
 
+    public mutating func updateThresholds(pitch: Double, yaw: Double, cooldown: TimeInterval? = nil) {
+        pitchThreshold = pitch
+        yawThreshold = yaw
+        if let cooldown {
+            self.cooldown = cooldown
+        }
+    }
+
     public mutating func classify(pitch: Double, yaw: Double, at date: Date = Date()) -> HeadGesture? {
         guard let neutralPitch, let neutralYaw else {
             calibrate(pitch: pitch, yaw: yaw)
@@ -102,6 +110,10 @@ public final class HeadGestureDetector {
 
         classifier.calibrate(pitch: latestPitch, yaw: latestYaw)
         return true
+    }
+
+    public func updateThresholds(pitch: Double, yaw: Double) {
+        classifier.updateThresholds(pitch: pitch, yaw: yaw)
     }
 
     private func handle(motion: CMDeviceMotion, onGesture: @MainActor @Sendable (HeadGesture) -> Void) {

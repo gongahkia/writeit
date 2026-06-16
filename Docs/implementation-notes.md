@@ -40,7 +40,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
-- AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration.
+- AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration and threshold adjustment.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.

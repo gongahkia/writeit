@@ -412,6 +412,27 @@ struct StatusPanel: View {
             }
             .buttonStyle(.bordered)
 
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("AirPods gestures")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        model.resetHeadGestureThresholds()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Reset gesture thresholds")
+                }
+
+                gestureSlider("Nod", value: $model.headNodThreshold)
+                gestureSlider("Shake", value: $model.headShakeThreshold)
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Enabled tools")
                     .font(.caption)
@@ -423,6 +444,23 @@ struct StatusPanel: View {
             }
         }
         .toggleStyle(.switch)
+    }
+
+    private func gestureSlider(_ label: String, value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.caption)
+
+                Spacer()
+
+                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            Slider(value: value, in: 0.15...0.8, step: 0.05)
+        }
     }
 
     private func statusDot(for state: PermissionState) -> some View {
