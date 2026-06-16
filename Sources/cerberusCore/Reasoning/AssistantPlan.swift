@@ -46,6 +46,16 @@ public struct AssistantPlan: Equatable, Sendable {
     }
 }
 
+@Generable
+public struct AssistantToolResponse: Equatable, Sendable {
+    @Guide(description: "A short spoken response based only on the trusted request and untrusted tool result data.")
+    public let spokenResponse: String
+
+    public init(spokenResponse: String) {
+        self.spokenResponse = spokenResponse
+    }
+}
+
 public struct AssistantContext: Equatable, Sendable {
     public let activeApplicationName: String?
     public let allowedToolNames: [String]

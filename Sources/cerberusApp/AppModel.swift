@@ -22,6 +22,7 @@ final class CerberusAppModel: ObservableObject {
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
     private var pendingPlan: AssistantPlan?
+    private var activeRequest: String?
     private var silenceTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
 
@@ -85,11 +86,13 @@ final class CerberusAppModel: ObservableObject {
 
     func finishSpeaking() {
         transcriptDraft = ""
+        activeRequest = nil
         apply(.speechFinished)
     }
 
     func cancel() {
         transcriptDraft = ""
+        activeRequest = nil
         silenceTask?.cancel()
         silenceTask = nil
         Task {
@@ -102,6 +105,7 @@ final class CerberusAppModel: ObservableObject {
 
     func reset() {
         transcriptDraft = ""
+        activeRequest = nil
         silenceTask?.cancel()
         silenceTask = nil
         Task {
@@ -147,6 +151,7 @@ final class CerberusAppModel: ObservableObject {
             _ = await confirmationGate.deny(id: pendingConfirmation.id)
             self.pendingConfirmation = nil
             pendingPlan = nil
+            activeRequest = nil
             apply(.confirmationDenied)
             speaker.speak("Cancelled.")
         }
@@ -246,6 +251,7 @@ final class CerberusAppModel: ObservableObject {
 
     private func runReasoning(for request: String) async {
         do {
+            activeRequest = request
             let plan = try await assistant.plan(for: request)
             await handle(plan)
         } catch {
@@ -287,12 +293,13 @@ final class CerberusAppModel: ObservableObject {
         do {
             let invocation = try makeInvocation(from: plan)
             let result = try await toolRegistry.run(invocation, confirmed: confirmed)
+            let spokenResponse = await spokenResponse(for: result, plan: plan)
             _ = try? await auditLog.append(
                 toolName: plan.toolName,
                 argumentsSummary: plan.toolArgumentsSummary,
-                resultSummary: result.spokenSummary
+                resultSummary: spokenResponse
             )
-            speakToolResult(result.spokenSummary)
+            speakToolResult(spokenResponse)
         } catch {
             _ = try? await auditLog.append(
                 toolName: plan.toolName,
@@ -314,6 +321,17 @@ final class CerberusAppModel: ObservableObject {
             encodedArguments: encodedArguments,
             requiresConfirmation: plan.requiresConfirmation
         )
+    }
+
+    private func spokenResponse(for result: ToolResult, plan: AssistantPlan) async -> String {
+        let fallback = result.spokenSummary
+        let request = activeRequest ?? plan.spokenResponse
+
+        do {
+            return try await assistant.summarize(toolResult: result, for: request)
+        } catch {
+            return fallback
+        }
     }
 
     private func speakToolResult(_ response: String) {
