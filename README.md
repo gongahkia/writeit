@@ -11,6 +11,7 @@ The project is intentionally scoped as a native macOS utility:
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - encrypted local transcripts and memory records
 - local screen text OCR for "what text is on my screen?" requests
+- default-off MCP stdio bridge for configured local MCP servers
 - shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
 
 ## Requirements
@@ -28,3 +29,4 @@ This repository uses Swift Package Manager for source organization. `Scripts/bui
 Primary validation is `swift test` on macOS with Xcode 26.
 
 See `Docs/macos-validation.md` for the current validation checklist.
+See `Docs/mcp.md` for the MCP stdio config format.

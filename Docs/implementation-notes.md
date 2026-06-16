@@ -27,6 +27,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR. FoundationModels is text-only in this SDK, so this covers screen text, not full visual reasoning.
+- `mcp.call` is default-off, confirmation-gated, and supports configured local MCP stdio servers via `initialize`, `tools/list`, and `tools/call`.
 - `shell.run` is default-off in the app, requires confirmation when enabled, and routes live commands through `ShellExecService.xpc`.
 
 ## Current Platform Assumptions
@@ -37,3 +38,4 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
+- MCP support is a minimal stdio bridge; Streamable HTTP, resources, prompts, sampling, and dynamic native tool schemas are not implemented.

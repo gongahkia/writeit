@@ -1,0 +1,312 @@
+import Foundation
+
+public struct MCPToolDescriptor: Equatable, Sendable {
+    public let name: String
+    public let title: String?
+    public let description: String?
+    public let inputSchemaJSON: String
+
+    public init(name: String, title: String?, description: String?, inputSchemaJSON: String) {
+        self.name = name
+        self.title = title
+        self.description = description
+        self.inputSchemaJSON = inputSchemaJSON
+    }
+}
+
+public struct MCPToolCallResult: Equatable, Sendable {
+    public let isError: Bool
+    public let contentText: String
+
+    public init(isError: Bool, contentText: String) {
+        self.isError = isError
+        self.contentText = contentText
+    }
+}
+
+public struct MCPStdioClient: Sendable {
+    public let configuration: MCPServerConfiguration
+    public let timeoutNanoseconds: UInt64
+
+    public init(configuration: MCPServerConfiguration, timeoutNanoseconds: UInt64 = 10_000_000_000) {
+        self.configuration = configuration
+        self.timeoutNanoseconds = timeoutNanoseconds
+    }
+
+    public func listTools() async throws -> [MCPToolDescriptor] {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.listTools()
+    }
+
+    public func callTool(name: String, argumentsJSON: String) async throws -> MCPToolCallResult {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.callTool(name: name, argumentsJSON: argumentsJSON)
+    }
+}
+
+private final class MCPStdioSession: @unchecked Sendable {
+    private let configuration: MCPServerConfiguration
+    private let timeoutNanoseconds: UInt64
+    private let process = Process()
+    private let stdinPipe = Pipe()
+    private let stdoutPipe = Pipe()
+    private let stderrPipe = Pipe()
+    private let readLock = NSLock()
+    private let writeLock = NSLock()
+    private var nextRequestID = 1
+
+    init(configuration: MCPServerConfiguration, timeoutNanoseconds: UInt64) {
+        self.configuration = configuration
+        self.timeoutNanoseconds = timeoutNanoseconds
+    }
+
+    func start() async throws {
+        process.executableURL = Self.executableURL(for: configuration.executable)
+        process.arguments = configuration.arguments
+        if let workingDirectory = configuration.workingDirectory {
+            process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
+        }
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        stderrPipe.fileHandleForReading.readabilityHandler = { handle in
+            _ = handle.availableData
+        }
+        try process.run()
+    }
+
+    func initialize() async throws {
+        _ = try await request(method: "initialize", params: [
+            "protocolVersion": "2025-06-18",
+            "capabilities": [:],
+            "clientInfo": [
+                "name": "cerberus",
+                "version": "0.1.0"
+            ]
+        ])
+        try sendNotification(method: "notifications/initialized", params: nil)
+    }
+
+    func listTools() async throws -> [MCPToolDescriptor] {
+        var tools: [MCPToolDescriptor] = []
+        var cursor: String?
+
+        repeat {
+            let params: [String: Any]? = cursor.map { ["cursor": $0] }
+            let result = try await request(method: "tools/list", params: params)
+            let pageTools = result["tools"] as? [[String: Any]] ?? []
+            tools += pageTools.compactMap(Self.toolDescriptor(from:))
+            cursor = result["nextCursor"] as? String
+        } while cursor != nil
+
+        return tools
+    }
+
+    func callTool(name: String, argumentsJSON: String) async throws -> MCPToolCallResult {
+        let arguments = try Self.jsonObject(from: argumentsJSON)
+        let result = try await request(method: "tools/call", params: [
+            "name": name,
+            "arguments": arguments
+        ])
+        let isError = result["isError"] as? Bool ?? false
+        let content = result["content"] as? [[String: Any]] ?? []
+        let structuredContent = result["structuredContent"].map(Self.stableJSONString) ?? ""
+        let text = (content.map(Self.contentText(from:)) + [structuredContent])
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+        return MCPToolCallResult(isError: isError, contentText: text)
+    }
+
+    func close() {
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        try? stdinPipe.fileHandleForWriting.close()
+        if process.isRunning {
+            process.terminate()
+        }
+    }
+
+    private func request(method: String, params: [String: Any]?) async throws -> [String: Any] {
+        let requestID = nextRequestID
+        nextRequestID += 1
+
+        var message: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": requestID,
+            "method": method
+        ]
+        if let params {
+            message["params"] = params
+        }
+
+        try send(message)
+
+        while true {
+            let response = try await readMessage()
+            guard response["id"] as? Int == requestID else {
+                continue
+            }
+
+            if let error = response["error"] as? [String: Any] {
+                let message = error["message"] as? String ?? "MCP request failed."
+                throw ToolExecutionError.denied(message)
+            }
+
+            return response["result"] as? [String: Any] ?? [:]
+        }
+    }
+
+    private func sendNotification(method: String, params: [String: Any]?) throws {
+        var message: [String: Any] = [
+            "jsonrpc": "2.0",
+            "method": method
+        ]
+        if let params {
+            message["params"] = params
+        }
+        try send(message)
+    }
+
+    private func send(_ message: [String: Any]) throws {
+        let data = try JSONSerialization.data(withJSONObject: message, options: [.sortedKeys])
+        var line = data
+        line.append(0x0A)
+
+        writeLock.lock()
+        defer {
+            writeLock.unlock()
+        }
+        try stdinPipe.fileHandleForWriting.write(contentsOf: line)
+    }
+
+    private func readMessage() async throws -> [String: Any] {
+        let line = try await readLine()
+        let object = try JSONSerialization.jsonObject(with: line)
+        guard let message = object as? [String: Any] else {
+            throw ToolExecutionError.invalidArguments("MCP server returned non-object JSON.")
+        }
+        return message
+    }
+
+    private func readLine() async throws -> Data {
+        let timeout = timeoutNanoseconds
+
+        return try await withThrowingTaskGroup(of: Data.self) { group in
+            group.addTask {
+                try self.readLineBlocking()
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeout)
+                self.close()
+                throw ToolExecutionError.denied("MCP request timed out.")
+            }
+
+            let line = try await group.next() ?? Data()
+            group.cancelAll()
+            return line
+        }
+    }
+
+    private func readLineBlocking() throws -> Data {
+        readLock.lock()
+        defer {
+            readLock.unlock()
+        }
+
+        var line = Data()
+        while true {
+            guard let byte = try stdoutPipe.fileHandleForReading.read(upToCount: 1),
+                  !byte.isEmpty else {
+                throw ToolExecutionError.denied("MCP server closed stdout.")
+            }
+
+            if byte == Data([0x0A]) {
+                return line
+            }
+            line.append(byte)
+        }
+    }
+
+    private static func toolDescriptor(from object: [String: Any]) -> MCPToolDescriptor? {
+        guard let name = object["name"] as? String else {
+            return nil
+        }
+
+        return MCPToolDescriptor(
+            name: name,
+            title: object["title"] as? String,
+            description: object["description"] as? String,
+            inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:])
+        )
+    }
+
+    private static func contentText(from object: [String: Any]) -> String {
+        switch object["type"] as? String {
+        case "text":
+            return object["text"] as? String ?? ""
+        case "image":
+            let mimeType = object["mimeType"] as? String ?? "image"
+            return "[image: \(mimeType)]"
+        case "audio":
+            let mimeType = object["mimeType"] as? String ?? "audio"
+            return "[audio: \(mimeType)]"
+        case "resource_link":
+            return object["uri"] as? String ?? stableJSONString(object)
+        case "resource":
+            return stableJSONString(object["resource"] ?? object)
+        default:
+            return stableJSONString(object)
+        }
+    }
+
+    private static func jsonObject(from string: String) throws -> [String: Any] {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return [:]
+        }
+
+        let data = Data(trimmed.utf8)
+        let object = try JSONSerialization.jsonObject(with: data)
+        guard let object = object as? [String: Any],
+              JSONSerialization.isValidJSONObject(object) else {
+            throw ToolExecutionError.invalidArguments("MCP arguments must be a JSON object.")
+        }
+        return object
+    }
+
+    private static func executableURL(for executable: String) -> URL {
+        if executable.hasPrefix("/") {
+            return URL(fileURLWithPath: executable)
+        }
+
+        let path = ProcessInfo.processInfo.environment["PATH"] ?? "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        for directory in path.split(separator: ":") {
+            let candidate = URL(fileURLWithPath: String(directory)).appendingPathComponent(executable)
+            if FileManager.default.isExecutableFile(atPath: candidate.path) {
+                return candidate
+            }
+        }
+
+        return URL(fileURLWithPath: executable)
+    }
+
+    private static func stableJSONString(_ object: Any) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+        return string
+    }
+}

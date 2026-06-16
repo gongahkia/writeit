@@ -12,6 +12,11 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var isMCPToolEnabled = false {
+        didSet {
+            refreshAssistantToolPrompt()
+        }
+    }
     @Published var isShellToolEnabled = false {
         didSet {
             refreshAssistantToolPrompt()
@@ -38,12 +43,12 @@ final class CerberusAppModel: ObservableObject {
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
+    private static let mcpToolSummary = MCPTool().summary
     private static let shellToolSummary = ShellTool().summary
-    private static let allToolSummaries = (ambientToolSummaries + [shellToolSummary]).sorted { $0.name < $1.name }
 
     init() {
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
-        let tools = DefaultToolCatalog.tools + [AnyAssistantTool(shellTool)]
+        let tools = DefaultToolCatalog.tools + [AnyAssistantTool(MCPTool()), AnyAssistantTool(shellTool)]
         toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
         assistant = Assistant(
             toolSummaries: Self.ambientToolSummaries,
@@ -70,9 +75,14 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var enabledToolDisplayText: String {
-        isShellToolEnabled
-            ? "Apps, Calendar, Files, Memory, Music, Reminders, Screen, Shell, Web"
-            : "Apps, Calendar, Files, Memory, Music, Reminders, Screen, Web"
+        var labels = ["Apps", "Calendar", "Files", "Memory", "Music", "Reminders", "Screen", "Web"]
+        if isMCPToolEnabled {
+            labels.append("MCP")
+        }
+        if isShellToolEnabled {
+            labels.append("Shell")
+        }
+        return labels.sorted().joined(separator: ", ")
     }
 
     var menuBarSystemImage: String {
@@ -567,9 +577,13 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private var enabledToolSummaries: [ToolSummary] {
-        let summaries = isShellToolEnabled
-            ? Self.allToolSummaries
-            : Self.ambientToolSummaries
+        var summaries = Self.ambientToolSummaries
+        if isMCPToolEnabled {
+            summaries.append(Self.mcpToolSummary)
+        }
+        if isShellToolEnabled {
+            summaries.append(Self.shellToolSummary)
+        }
         return summaries.sorted { $0.name < $1.name }
     }
 

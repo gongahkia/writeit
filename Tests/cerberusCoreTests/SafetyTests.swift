@@ -114,6 +114,22 @@ import Testing
     #expect(result.untrustedPayload == "stubbed ls")
 }
 
+@Test func mcpToolUsesConfiguredRunner() async throws {
+    struct StubRunner: MCPToolRunning {
+        func call(serverName: String, toolName: String, argumentsJSON: String) async throws -> MCPToolCallResult {
+            MCPToolCallResult(isError: false, contentText: "\(serverName).\(toolName):\(argumentsJSON)")
+        }
+    }
+
+    let tool = MCPTool(runner: StubRunner())
+    let result = try await tool.run(
+        arguments: MCPTool.Arguments(serverName: "local", toolName: "echo", argumentsJSON: #"{"text":"hello"}"#)
+    )
+
+    #expect(result.succeeded)
+    #expect(result.untrustedPayload == #"local.echo:{"text":"hello"}"#)
+}
+
 @Test func shellExecServiceRevalidatesDeniedRequests() async {
     let service = ShellExecService()
     let request = ShellExecRequest(executable: "rm", arguments: ["-rf", "/"], workingDirectory: nil)
