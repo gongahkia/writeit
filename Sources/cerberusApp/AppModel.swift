@@ -16,6 +16,11 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusAppModel.wakePhraseDefaultsKey) ?? "hey cerberus" {
+        didSet {
+            UserDefaults.standard.set(wakePhrase, forKey: Self.wakePhraseDefaultsKey)
+        }
+    }
     @Published var isWakeWordEnabled = false {
         didSet {
             if isWakeWordEnabled {
@@ -55,7 +60,6 @@ final class CerberusAppModel: ObservableObject {
     private let hotKeyMonitor = GlobalHotKeyMonitor()
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
-    private let wakeWordDetector = WakeWordDetector()
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
@@ -83,6 +87,7 @@ final class CerberusAppModel: ObservableObject {
     ]
     private static let mcpToolSummaries = mcpTools.map(\.summary)
     private static let shellToolSummary = ShellTool().summary
+    private static let wakePhraseDefaultsKey = "wakePhrase"
 
     init() {
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
@@ -422,7 +427,7 @@ final class CerberusAppModel: ObservableObject {
     private func handleWakeWordUpdate(_ update: TranscriptionUpdate) {
         guard isWakeWordMonitoring,
               state == .idle,
-              wakeWordDetector.detectsWakeWord(in: update.text) else {
+              WakeWordDetector(phrases: [wakePhrase]).detectsWakeWord(in: update.text) else {
             return
         }
 

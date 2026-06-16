@@ -71,6 +71,15 @@ import Testing
     #expect(!detector.detectsWakeWord(in: "hello service"))
 }
 
+@Test func wakeWordDetectorSupportsCustomPhrases() {
+    let detector = WakeWordDetector(phrases: ["computer activate"])
+    let emptyDetector = WakeWordDetector(phrases: [""])
+
+    #expect(detector.detectsWakeWord(in: "Computer, activate."))
+    #expect(!detector.detectsWakeWord(in: "hey cerberus"))
+    #expect(!emptyDetector.detectsWakeWord(in: "anything"))
+}
+
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)

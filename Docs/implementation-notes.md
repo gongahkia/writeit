@@ -19,7 +19,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 
 - SwiftPM builds `cerberus`, `CerberusCore`, and `ShellExecService`.
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
-- `Wake phrase` is a default-off SpeechAnalyzer phrase monitor for "hey cerberus"; it is not a dedicated keyword-spotting model.
+- `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer` and the current macOS output device; Settings reports the current route through CoreAudio.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
@@ -43,7 +43,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration and threshold adjustment.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
-- Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
+- Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
 - MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, and refresh-token rotation; stdio sampling/elicitation requests fail closed with JSON-RPC errors, and full sampling/elicitation UI plus dynamic native tool schemas are not implemented.
 - I cannot verify a local FoundationModels adapter training API in this SDK; only adapter loading/compilation is wired.

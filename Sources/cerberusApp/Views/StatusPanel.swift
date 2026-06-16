@@ -369,6 +369,9 @@ struct StatusPanel: View {
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
             Toggle("Wake phrase", isOn: $model.isWakeWordEnabled)
+            TextField("Wake phrase", text: $model.wakePhrase)
+                .textFieldStyle(.roundedBorder)
+                .disabled(model.isWakeWordMonitoring)
             Toggle("MCP tool", isOn: $model.isMCPToolEnabled)
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
 
