@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import FoundationModels
 import cerberusCore
@@ -974,7 +975,10 @@ final class CerberusAppModel: ObservableObject {
             if await answerAuditQuestionIfNeeded(request) {
                 return
             }
-            let context = AssistantContext(allowedToolNames: enabledToolNames)
+            let context = AssistantContext(
+                activeApplicationName: currentActiveApplicationName(),
+                allowedToolNames: enabledToolNames
+            )
             let plan = try await assistant.plan(for: request, context: context)
             await handle(plan)
         } catch {
@@ -1023,7 +1027,10 @@ final class CerberusAppModel: ObservableObject {
         do {
             let request = activeRequest ?? plan.spokenResponse
             let readOnlyNames = DefaultToolCatalog.readOnlyToolNames.intersection(Set(enabledToolNames))
-            let context = AssistantContext(allowedToolNames: Array(readOnlyNames).sorted())
+            let context = AssistantContext(
+                activeApplicationName: currentActiveApplicationName(),
+                allowedToolNames: Array(readOnlyNames).sorted()
+            )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordTranscript(
                 response: response,
@@ -1176,6 +1183,10 @@ final class CerberusAppModel: ObservableObject {
 
     private var enabledToolNames: [String] {
         enabledToolSummaries.map(\.name)
+    }
+
+    private func currentActiveApplicationName() -> String? {
+        NSWorkspace.shared.frontmostApplication?.localizedName
     }
 
     private var enabledToolSummaries: [ToolSummary] {

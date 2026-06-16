@@ -14,6 +14,7 @@ The project is intentionally scoped as a native macOS utility:
 - speech replies can follow the current macOS output route or route directly to detected AirPods
 - Foundation Models for on-device planning and native read-only typed tool calls
 - Foundation Models latency benchmark CLI for plan/tool-loop checks
+- active macOS application context is included in planning prompts
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
 - per-session tool allowlist settings for the ambient tool surface

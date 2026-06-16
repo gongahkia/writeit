@@ -61,6 +61,13 @@ import Testing
     #expect(allowlist.filter(summaries).map(\.name) == ["calendar.read", "web.search"])
 }
 
+@Test func assistantContextIncludesActiveApplicationName() {
+    let context = AssistantContext(activeApplicationName: "Xcode", allowedToolNames: ["files.search"])
+
+    #expect(context.promptFragment.contains("Active app: Xcode"))
+    #expect(context.promptFragment.contains("Allowed tools: files.search"))
+}
+
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {
     var classifier = HeadGestureClassifier(pitchThreshold: 0.3, yawThreshold: 0.4, cooldown: 1.0)
     let start = Date(timeIntervalSince1970: 1_000)
