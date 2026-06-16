@@ -37,7 +37,7 @@ Validate the implementation on a Mac that matches the project requirements.
 16. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
 17. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
 18. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
-19. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
+19. Confirm screen OCR emits only local Vision text results with bounding boxes and fails closed when Screen Recording is denied.
 20. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
 21. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
 22. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
@@ -58,6 +58,6 @@ Validate the implementation on a Mac that matches the project requirements.
 - Direct per-device speech routing is not implemented; `AVSpeechSynthesizer` on macOS uses the system output route, and the app only reports that route.
 - Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
-- Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.
+- Screen understanding is OCR-only with text bounding boxes because this SDK's FoundationModels prompt surface is text-only.
 - MCP support is limited to stdio and Streamable HTTP tools/resources/prompts plus OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, stdio or Streamable HTTP POST/GET-SSE sampling/elicitation review, GET SSE resume through `Last-Event-ID`, and opt-in native read-only tools for flat primitive schemas.
 - Adapter training requires Apple's separate toolkit assets; prebuilt adapter loading, transcript-to-JSONL dataset export, exact-match eval, and toolkit orchestration are supported.

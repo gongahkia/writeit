@@ -29,17 +29,32 @@ public struct ScreenOCRTool: AssistantTool {
         let image = try await captureMainDisplayImage()
         let limit = ToolArgumentSupport.clampLimit(arguments.limit, default: 20, maximum: 50)
         let observations = try recognizeText(in: image, limit: limit)
-        let payload = observations
-            .map { "- \($0.text) [confidence: \(String(format: "%.2f", $0.confidence))]" }
-            .joined(separator: "\n")
+        let imageSize = CGSize(width: image.width, height: image.height)
+        let payload = Self.payload(for: observations, imageSize: imageSize)
 
         return ToolResult(
             toolName: name,
             succeeded: true,
             spokenSummary: observations.count == 1 ? "Found 1 text item on screen." : "Found \(observations.count) text items on screen.",
             untrustedPayload: payload,
-            metadata: ["count": "\(observations.count)"]
+            metadata: [
+                "count": "\(observations.count)",
+                "imageWidth": "\(image.width)",
+                "imageHeight": "\(image.height)"
+            ]
         )
+    }
+
+    static func payload(for observations: [ScreenTextObservation], imageSize: CGSize) -> String {
+        let header = "Image: \(Int(imageSize.width))x\(Int(imageSize.height)); boxes use Vision normalized origin bottom-left and pixel origin top-left."
+        guard !observations.isEmpty else {
+            return "\(header)\nNo text recognized."
+        }
+
+        return ([header] + observations.map { observation in
+            let pixelRect = observation.pixelRect(in: imageSize)
+            return "- \(observation.text) [confidence: \(format(observation.confidence)), normalizedBox: \(format(observation.boundingBox)), pixelBox: \(format(pixelRect))]"
+        }).joined(separator: "\n")
     }
 
     private func captureMainDisplayImage() async throws -> CGImage {
@@ -71,14 +86,36 @@ public struct ScreenOCRTool: AssistantTool {
                 guard let candidate = observation.topCandidates(1).first else {
                     return nil
                 }
-                return ScreenTextObservation(text: candidate.string, confidence: candidate.confidence)
+                return ScreenTextObservation(
+                    text: candidate.string,
+                    confidence: candidate.confidence,
+                    boundingBox: observation.boundingBox
+                )
             }
             .prefix(limit)
             .map { $0 }
     }
+
+    private static func format(_ value: Float) -> String {
+        String(format: "%.2f", value)
+    }
+
+    private static func format(_ rect: CGRect) -> String {
+        "x=\(String(format: "%.2f", rect.minX)) y=\(String(format: "%.2f", rect.minY)) w=\(String(format: "%.2f", rect.width)) h=\(String(format: "%.2f", rect.height))"
+    }
 }
 
-private struct ScreenTextObservation: Sendable {
+struct ScreenTextObservation: Sendable {
     let text: String
     let confidence: Float
+    let boundingBox: CGRect
+
+    func pixelRect(in imageSize: CGSize) -> CGRect {
+        CGRect(
+            x: boundingBox.minX * imageSize.width,
+            y: (1 - boundingBox.maxY) * imageSize.height,
+            width: boundingBox.width * imageSize.width,
+            height: boundingBox.height * imageSize.height
+        )
+    }
 }

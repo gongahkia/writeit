@@ -1,5 +1,6 @@
 import Foundation
 import CoreAudio
+import CoreGraphics
 import Testing
 @testable import cerberusCore
 
@@ -91,6 +92,23 @@ import Testing
 
     #expect(address.mSelector == kAudioHardwarePropertyDefaultOutputDevice)
     #expect(address.mScope == kAudioObjectPropertyScopeGlobal)
+}
+
+@Test func screenOCRPayloadIncludesNormalizedAndPixelBoxes() {
+    let payload = ScreenOCRTool.payload(
+        for: [
+            ScreenTextObservation(
+                text: "OK",
+                confidence: 0.93,
+                boundingBox: CGRect(x: 0.25, y: 0.50, width: 0.50, height: 0.25)
+            )
+        ],
+        imageSize: CGSize(width: 400, height: 200)
+    )
+
+    #expect(payload.contains("Image: 400x200"))
+    #expect(payload.contains("normalizedBox: x=0.25 y=0.50 w=0.50 h=0.25"))
+    #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
 }
 
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
