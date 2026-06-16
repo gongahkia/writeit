@@ -35,3 +35,4 @@ Primary validation is `swift test` on macOS with Xcode 26.
 See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/mcp.md` for the MCP stdio config format.
 See `Docs/adapters.md` for optional FoundationModels adapter loading.
+See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
