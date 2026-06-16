@@ -25,6 +25,7 @@ Validate the implementation on a Mac that matches the project requirements.
 4. Press `Listen`, speak a short request, then wait 1.5 seconds or press `Run`.
 5. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
 6. Set a custom `Wake phrase`, enable it, say that phrase, and confirm the app starts active listening; then disable it and confirm the mic indicator clears.
+7. Run `Scripts/record_wake_samples.sh --label hey_cerberus --count 2 --seconds 1.0 --no-prompt` and confirm WAV files plus `manifest.jsonl` are written under `~/Library/Application Support/cerberus/wake-word-samples/`.
 8. After collecting a two-class wake/background dataset, run `Scripts/train_wake_word_model.sh --target-label hey_cerberus --write-config` and confirm it writes `~/Library/Application Support/cerberus/wake-word-models/CerberusWakeWord.mlmodel` plus `wake-word-sound-classifier.json`.
 9. Enable `Use sound wake model` and confirm matching model labels start listening; remove the config and confirm Settings reports fallback to speech phrase.
 10. Confirm Control-Option-Space starts listening while the app is not focused.
