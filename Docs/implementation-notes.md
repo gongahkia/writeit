@@ -21,7 +21,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
 - First launch opens the Access panel while required permissions remain ungranted, with skip and reset controls persisted in UserDefaults.
 - AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv`; `Scripts/evaluate_head_gestures.sh` summarizes quiet motion, detections, and conservative threshold suggestions.
-- `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
+- `Wake phrase` is default-off. It can use SpeechAnalyzer phrase matching or an optional SoundAnalysis/Core ML sound classifier configured in `~/Library/Application Support/cerberus/wake-word-sound-classifier.json`.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
@@ -45,7 +45,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection still needs real-device false-positive testing with validation logs after neutral-pose calibration and threshold adjustment.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
-- Wake phrase uses live speech transcription with a configurable phrase, not a dedicated low-power keyword-spotting model.
+- Wake phrase has an optional custom SoundAnalysis/Core ML classifier path; no wake model is bundled.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
 - MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, POST-SSE server requests, background Streamable HTTP GET listening, GET SSE resume through `Last-Event-ID`, and opt-in dynamic native read-only tool schemas for flat primitive inputs. Sampling/elicitation requests are routed through in-app review when MCP tools are enabled and otherwise fail closed with JSON-RPC errors.
 - I cannot verify a local FoundationModels adapter training API in this SDK; adapter loading/compilation, transcript-to-JSONL dataset export, exact-match eval, and Apple toolkit orchestration are wired.

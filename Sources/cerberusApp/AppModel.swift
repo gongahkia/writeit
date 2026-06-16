@@ -105,6 +105,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
+    @Published private(set) var wakeWordMonitorLine = "Wake phrase uses speech transcription"
     @Published private(set) var audioOutputRouteLine = "Output route unknown"
     @Published private(set) var speechOutputRoutingLine = "Speech follows system output"
     @Published private(set) var isAudioOutputLikelyAirPods = false
@@ -114,6 +115,16 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusAppModel.prefersSoundWakeWordClassifierDefaultsKey) {
+        didSet {
+            UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: Self.prefersSoundWakeWordClassifierDefaultsKey)
+            if isWakeWordEnabled {
+                restartWakeWordMonitoring()
+            } else {
+                refreshWakeWordMonitorLine()
+            }
+        }
+    }
     @Published var routesSpeechDirectlyToAirPods = UserDefaults.standard.bool(forKey: CerberusAppModel.directAirPodsSpeechDefaultsKey) {
         didSet {
             UserDefaults.standard.set(routesSpeechDirectlyToAirPods, forKey: Self.directAirPodsSpeechDefaultsKey)
@@ -167,6 +178,7 @@ final class CerberusAppModel: ObservableObject {
     private let permissionCenter = PermissionCenter()
     private let transcriber = Transcriber()
     private let wakeWordTranscriber = Transcriber()
+    private let wakeWordSoundClassifier = WakeWordSoundClassifier()
     private let speaker = Speaker()
     private let earconPlayer = EarconPlayer()
     private let hotKeyMonitor = GlobalHotKeyMonitor()
@@ -198,6 +210,7 @@ final class CerberusAppModel: ObservableObject {
     private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
     private static let shellToolSummary = ShellTool().summary
     private static let wakePhraseDefaultsKey = "wakePhrase"
+    private static let prefersSoundWakeWordClassifierDefaultsKey = "prefersSoundWakeWordClassifier"
     private static let directAirPodsSpeechDefaultsKey = "routesSpeechDirectlyToAirPods"
     private static let onboardingSkippedDefaultsKey = "onboardingSkipped"
 
@@ -239,6 +252,7 @@ final class CerberusAppModel: ObservableObject {
         mcpClientRequestBroker.model = self
         refreshPermissions()
         refreshAudioOutputRoute()
+        refreshWakeWordMonitorLine()
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         startTriggers()
@@ -701,11 +715,22 @@ final class CerberusAppModel: ObservableObject {
               state == .idle,
               !isWakeWordMonitoring,
               !transcriber.isRunning,
-              !wakeWordTranscriber.isRunning else {
+              !wakeWordTranscriber.isRunning,
+              !wakeWordSoundClassifier.isRunning else {
             return
         }
 
+        if prefersSoundWakeWordClassifier, startSoundWakeWordMonitoringIfConfigured() {
+            return
+        }
+
+        startSpeechWakeWordMonitoring()
+    }
+
+    private func startSpeechWakeWordMonitoring() {
         isWakeWordMonitoring = true
+        wakeWordMonitorLine = "Wake phrase uses speech transcription"
+        statusLine = "Wake phrase armed."
         Task {
             do {
                 try await wakeWordTranscriber.start { [weak self] update in
@@ -713,9 +738,40 @@ final class CerberusAppModel: ObservableObject {
                 }
             } catch {
                 isWakeWordMonitoring = false
+                refreshWakeWordMonitorLine()
                 statusLine = error.localizedDescription
             }
         }
+    }
+
+    private func startSoundWakeWordMonitoringIfConfigured() -> Bool {
+        let configuration: WakeWordSoundClassifierConfiguration
+        do {
+            guard let loadedConfiguration = try WakeWordSoundClassifierConfigurationLoader.loadIfPresent() else {
+                wakeWordMonitorLine = "Sound wake model config not found; using speech phrase"
+                return false
+            }
+            configuration = loadedConfiguration
+        } catch {
+            wakeWordMonitorLine = error.localizedDescription
+            return false
+        }
+
+        isWakeWordMonitoring = true
+        wakeWordMonitorLine = "Sound wake model armed"
+        statusLine = "Wake sound model armed."
+        Task {
+            do {
+                try await wakeWordSoundClassifier.start(configuration: configuration) { [weak self] classifications in
+                    self?.handleWakeWordSoundDetection(classifications)
+                }
+            } catch {
+                isWakeWordMonitoring = false
+                wakeWordMonitorLine = error.localizedDescription
+                startSpeechWakeWordMonitoring()
+            }
+        }
+        return true
     }
 
     private func handleWakeWordUpdate(_ update: TranscriptionUpdate) {
@@ -731,24 +787,64 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
+    private func handleWakeWordSoundDetection(_ classifications: [WakeWordSoundClassification]) {
+        guard isWakeWordMonitoring, state == .idle else {
+            return
+        }
+
+        let topClassification = classifications.max { $0.confidence < $1.confidence }
+        wakeWordMonitorLine = topClassification.map {
+            "Sound wake matched \($0.identifier) \(Int($0.confidence * 100))%"
+        } ?? "Sound wake matched"
+
+        Task {
+            await stopWakeWordMonitoringAndWait()
+            startListening(trigger: .wakeWord)
+        }
+    }
+
     private func stopWakeWordMonitoring() {
-        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning else {
+        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning || wakeWordSoundClassifier.isRunning else {
             return
         }
 
         isWakeWordMonitoring = false
         Task {
             await wakeWordTranscriber.cancel()
+            wakeWordSoundClassifier.cancel()
+            refreshWakeWordMonitorLine()
         }
     }
 
     private func stopWakeWordMonitoringAndWait() async {
-        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning else {
+        guard isWakeWordMonitoring || wakeWordTranscriber.isRunning || wakeWordSoundClassifier.isRunning else {
             return
         }
 
         isWakeWordMonitoring = false
         await wakeWordTranscriber.cancel()
+        wakeWordSoundClassifier.cancel()
+        refreshWakeWordMonitorLine()
+    }
+
+    private func restartWakeWordMonitoring() {
+        Task {
+            await stopWakeWordMonitoringAndWait()
+            startWakeWordMonitoringIfNeeded()
+        }
+    }
+
+    private func refreshWakeWordMonitorLine() {
+        if prefersSoundWakeWordClassifier {
+            let configURL = WakeWordSoundClassifierConfigurationLoader.defaultFileURL()
+            if FileManager.default.fileExists(atPath: configURL.path) {
+                wakeWordMonitorLine = "Sound wake model configured"
+            } else {
+                wakeWordMonitorLine = "Sound wake model config missing"
+            }
+        } else {
+            wakeWordMonitorLine = "Wake phrase uses speech transcription"
+        }
     }
 
     private func scheduleSilenceTimeoutIfNeeded() {

@@ -49,6 +49,7 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreML"),
                 .linkedFramework("CoreMotion"),
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
@@ -56,6 +57,7 @@ let package = Package(
                 .linkedFramework("Network"),
                 .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("Security"),
+                .linkedFramework("SoundAnalysis"),
                 .linkedFramework("Speech"),
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("Vision")
@@ -73,6 +75,7 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("CoreGraphics"),
+                .linkedFramework("CoreML"),
                 .linkedFramework("CoreMotion"),
                 .linkedFramework("EventKit"),
                 .linkedFramework("FoundationModels"),
@@ -80,6 +83,7 @@ let package = Package(
                 .linkedFramework("Network"),
                 .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("Security"),
+                .linkedFramework("SoundAnalysis"),
                 .linkedFramework("Speech"),
                 .linkedFramework("Vision")
             ]

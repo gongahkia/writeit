@@ -530,6 +530,12 @@ struct StatusPanel: View {
             TextField("Wake phrase", text: $model.wakePhrase)
                 .textFieldStyle(.roundedBorder)
                 .disabled(model.isWakeWordMonitoring)
+            Toggle("Use sound wake model", isOn: $model.prefersSoundWakeWordClassifier)
+                .disabled(model.isWakeWordMonitoring)
+            Text(model.wakeWordMonitorLine)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
             Button {
                 selectedSection = .permissions
                 model.resetOnboarding()

@@ -126,6 +126,31 @@ import Testing
     #expect(!emptyDetector.detectsWakeWord(in: "anything"))
 }
 
+@Test func wakeWordSoundClassifierConfigurationValidatesModelAndLabels() throws {
+    let valid = WakeWordSoundClassifierConfiguration(
+        modelPath: "/tmp/wake.mlmodelc",
+        targetLabels: ["Hey Cerberus"],
+        confidenceThreshold: 0.9
+    )
+
+    try valid.validate()
+    #expect(valid.normalizedTargetLabels == ["hey cerberus"])
+
+    #expect(throws: WakeWordSoundClassifierError.self) {
+        try WakeWordSoundClassifierConfiguration(modelPath: "", targetLabels: ["wake"]).validate()
+    }
+    #expect(throws: WakeWordSoundClassifierError.self) {
+        try WakeWordSoundClassifierConfiguration(modelPath: "/tmp/wake.mlmodelc", targetLabels: []).validate()
+    }
+    #expect(throws: WakeWordSoundClassifierError.self) {
+        try WakeWordSoundClassifierConfiguration(
+            modelPath: "/tmp/wake.mlmodelc",
+            targetLabels: ["wake"],
+            confidenceThreshold: 1.2
+        ).validate()
+    }
+}
+
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
