@@ -19,6 +19,7 @@ final class CerberusAppModel: ObservableObject {
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry: ToolRegistry
+    private let enabledToolNames = DefaultToolCatalog.summaries.map(\.name)
     private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
@@ -335,7 +336,8 @@ final class CerberusAppModel: ObservableObject {
     private func runReasoning(for request: String) async {
         do {
             activeRequest = request
-            let plan = try await assistant.plan(for: request)
+            let context = AssistantContext(allowedToolNames: enabledToolNames)
+            let plan = try await assistant.plan(for: request, context: context)
             await handle(plan)
         } catch {
             speak(error.localizedDescription)
