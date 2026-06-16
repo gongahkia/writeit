@@ -26,6 +26,12 @@ Scripts/record_demo.sh
 
 The script builds `.dist/cerberus.app` if needed, opens it, and writes `.dist/demo/cerberus-demo.mov`.
 
+Preflight without starting screen recording:
+
+```sh
+Scripts/record_demo.sh --check
+```
+
 For a timed full-display capture:
 
 ```sh

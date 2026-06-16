@@ -8,9 +8,10 @@ OUT_FILE="${1:-$OUT_DIR/cerberus-demo.mov}"
 DURATION="${DEMO_SECONDS:-45}"
 MODE="${DEMO_CAPTURE_MODE:-interactive}"
 OPEN_APP="${DEMO_OPEN_APP:-1}"
+CHECK_ONLY=0
 
 usage() {
-  print "usage: Scripts/record_demo.sh [output.mov]"
+  print "usage: Scripts/record_demo.sh [--check|output.mov]"
   print ""
   print "env:"
   print "  DEMO_SECONDS=45"
@@ -24,7 +25,15 @@ case "${1:-}" in
     usage
     exit 0
     ;;
+  --check)
+    CHECK_ONLY=1
+    ;;
 esac
+
+if ! command -v screencapture >/dev/null 2>&1; then
+  print -u2 "screencapture is not installed or not on PATH."
+  exit 69
+fi
 
 if ! screencapture -h 2>&1 | grep -q -- "-v"; then
   print -u2 "screencapture video mode is unavailable on this macOS install."
@@ -36,8 +45,27 @@ if [[ ! "$DURATION" == <-> || "$DURATION" -lt 1 ]]; then
   exit 64
 fi
 
+case "$MODE" in
+  interactive|display)
+    ;;
+  *)
+    print -u2 "DEMO_CAPTURE_MODE must be interactive or display."
+    exit 64
+    ;;
+esac
+
 if [[ "$OUT_FILE" != /* ]]; then
   OUT_FILE="$PWD/$OUT_FILE"
+fi
+
+if [[ "$CHECK_ONLY" == "1" ]]; then
+  if [[ -d "$APP_BUNDLE" ]]; then
+    print "app bundle ok: $APP_BUNDLE"
+  else
+    print "app bundle missing; record_demo will build it: $APP_BUNDLE"
+  fi
+  print "demo recorder ok"
+  exit 0
 fi
 
 if [[ ! -d "$APP_BUNDLE" ]]; then
@@ -60,10 +88,6 @@ case "$MODE" in
     ;;
   display)
     screencapture -D1 -v -V"$DURATION" "$OUT_FILE"
-    ;;
-  *)
-    print -u2 "DEMO_CAPTURE_MODE must be interactive or display."
-    exit 64
     ;;
 esac
 
