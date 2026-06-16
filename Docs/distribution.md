@@ -47,3 +47,29 @@ NOTARY_PROFILE=cerberus-notary Scripts/notarize_app.sh
 ```
 
 Notarization requires a Developer ID signature. Ad-hoc signed bundles are only for local bundle validation.
+
+## Release Readiness
+
+Run the full pre-release gate:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/release_check.sh
+```
+
+The script fails fast unless all release requirements are true:
+
+- `.dist/cerberus.app` is signed with an installed Developer ID Application identity and passes Gatekeeper assessment
+- `NOTARY_PROFILE` points to a usable `notarytool` keychain profile and the bundle has a stapled ticket
+- `.dist/demo/cerberus-demo.mov` exists and is a video file
+- the repository has a license file and GitHub reports public visibility
+
+Target one gate while preparing release:
+
+```sh
+Scripts/release_check.sh dev-id
+Scripts/release_check.sh notary
+Scripts/release_check.sh demo
+Scripts/release_check.sh oss
+```

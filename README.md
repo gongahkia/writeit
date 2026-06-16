@@ -27,6 +27,7 @@ The project is intentionally scoped as a native macOS utility:
 - Microphone, Speech Recognition, Calendar, Reminders, Accessibility, Input Monitoring, and Screen Recording permissions as features are enabled
 
 This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app`, applies `Config/cerberus.entitlements`, and embeds `ShellExecService` in `Contents/XPCServices`.
+`Scripts/release_check.sh` verifies Developer ID signing, notarization, demo-video, and open-source release gates.
 
 ## Development Notes
 
