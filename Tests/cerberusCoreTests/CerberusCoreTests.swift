@@ -138,6 +138,18 @@ import Testing
     #expect(SpeechBenchmarkScorer.wordErrorRate(expected: "", actual: "extra") == 1)
 }
 
+@Test func latencyBenchmarkSummaryComputesPercentiles() {
+    let summary = LatencyBenchmarkSummary(samples: [0.4, 0.1, 0.2, 0.3])
+
+    #expect(summary.count == 4)
+    #expect(summary.minimum == 0.1)
+    #expect(summary.median == 0.25)
+    #expect(summary.p95 == 0.385)
+    #expect(summary.maximum == 0.4)
+    #expect(summary.average == 0.25)
+    #expect(summary.line(label: "plan").contains("plan: count=4"))
+}
+
 @Test func wakeWordSoundClassifierConfigurationValidatesModelAndLabels() throws {
     let valid = WakeWordSoundClassifierConfiguration(
         modelPath: "/tmp/wake.mlmodelc",

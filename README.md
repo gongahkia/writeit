@@ -13,6 +13,7 @@ The project is intentionally scoped as a native macOS utility:
 - wake-word WAV sample collector and CreateML trainer for local classifier training data
 - speech replies can follow the current macOS output route or route directly to detected AirPods
 - Foundation Models for on-device planning and native read-only typed tool calls
+- Foundation Models latency benchmark CLI for plan/tool-loop checks
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
@@ -41,6 +42,7 @@ Primary validation is `swift test` on macOS with Xcode 26.
 See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/mcp.md` for the MCP stdio config format.
 See `Docs/adapters.md` for optional FoundationModels adapter loading.
+See `Docs/model-benchmark.md` for Foundation Models planning/tool-loop latency checks.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.

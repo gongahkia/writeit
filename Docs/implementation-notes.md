@@ -27,6 +27,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
+- `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Explicit file search scopes must be existing directories inside the user's home directory.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
@@ -44,6 +45,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 ## Current Platform Assumptions
 
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
+- Foundation Models latency is measurable through `Scripts/benchmark_model.sh`; target-hardware results are not bundled.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription; AirPods/noisy-room quality is measured through the local benchmark script and still needs target-hardware runs.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection still needs real-device false-positive testing with validation logs after neutral-pose calibration and threshold adjustment.

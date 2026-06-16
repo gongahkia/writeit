@@ -41,6 +41,10 @@ let package = Package(
             name: "cerberus-speech-benchmark",
             targets: ["SpeechBenchmark"]
         ),
+        .executable(
+            name: "cerberus-model-benchmark",
+            targets: ["ModelBenchmark"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -171,6 +175,17 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("Speech")
+            ]
+        ),
+        .executableTarget(
+            name: "ModelBenchmark",
+            dependencies: ["cerberusCore"],
+            path: "Sources/ModelBenchmark",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("FoundationModels")
             ]
         ),
         .testTarget(
