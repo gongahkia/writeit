@@ -52,7 +52,7 @@ public struct AppControlTool: AssistantTool {
     @MainActor
     private func open(_ arguments: Arguments) throws -> ToolResult {
         if let runningApp = findRunningApplication(arguments) {
-            runningApp.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            runningApp.activate(options: [.activateAllWindows])
             return result("Focused \(displayName(arguments)).")
         }
 
@@ -70,7 +70,7 @@ public struct AppControlTool: AssistantTool {
             throw ToolExecutionError.denied("\(displayName(arguments)) is not running.")
         }
 
-        runningApp.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+        runningApp.activate(options: [.activateAllWindows])
         return result("Focused \(displayName(arguments)).")
     }
 

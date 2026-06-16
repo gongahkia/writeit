@@ -35,18 +35,18 @@ public enum AudioBufferConverter {
             throw AudioBufferConversionError.cannotCreateOutputBuffer
         }
 
-        var didProvideInput = false
+        let inputState = AudioConverterInputState(buffer: buffer)
         var conversionError: NSError?
 
         let status = converter.convert(to: convertedBuffer, error: &conversionError) { _, outStatus in
-            if didProvideInput {
+            if inputState.didProvideInput {
                 outStatus.pointee = .noDataNow
                 return nil
             }
 
-            didProvideInput = true
+            inputState.didProvideInput = true
             outStatus.pointee = .haveData
-            return buffer
+            return inputState.buffer
         }
 
         if status == .error {
@@ -56,5 +56,14 @@ public enum AudioBufferConverter {
         }
 
         return convertedBuffer
+    }
+}
+
+private final class AudioConverterInputState: @unchecked Sendable {
+    let buffer: AVAudioPCMBuffer
+    var didProvideInput = false
+
+    init(buffer: AVAudioPCMBuffer) {
+        self.buffer = buffer
     }
 }
