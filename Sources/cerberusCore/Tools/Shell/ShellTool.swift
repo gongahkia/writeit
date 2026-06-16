@@ -1,6 +1,8 @@
 import Foundation
+import FoundationModels
 
 public struct ShellTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let command: ShellCommand
         public let dryRun: Bool

@@ -69,6 +69,14 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.create"))
 }
 
+@Test func mutatingToolArgumentsAreGenerableButNotNativeByDefault() {
+    _ = FoundationModelToolAdapter(AppControlTool())
+    _ = FoundationModelToolAdapter(ShellTool())
+
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
+}
+
 @Test func calendarCreateToolRequiresConfirmationAndValidatesArguments() async throws {
     let tool = CalendarCreateTool()
     let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])

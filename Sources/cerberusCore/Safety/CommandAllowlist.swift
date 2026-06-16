@@ -1,5 +1,7 @@
 import Foundation
+import FoundationModels
 
+@Generable
 public struct ShellCommand: Codable, Equatable, Sendable {
     public let executable: String
     public let arguments: [String]

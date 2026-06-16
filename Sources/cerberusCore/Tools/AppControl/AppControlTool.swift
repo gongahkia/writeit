@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
+import FoundationModels
 
+@Generable
 public enum AppControlAction: String, Codable, Sendable {
     case open
     case focus
@@ -8,6 +10,7 @@ public enum AppControlAction: String, Codable, Sendable {
 }
 
 public struct AppControlTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let action: AppControlAction
         public let applicationName: String
