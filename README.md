@@ -9,6 +9,7 @@ The project is intentionally scoped as a native macOS utility:
 - microphone activates only after an explicit trigger unless `Wake phrase` is enabled
 - SpeechAnalyzer for on-device speech-to-text
 - default-off wake phrase monitor with SpeechAnalyzer fallback or a configured SoundAnalysis/Core ML wake model
+- wake-word WAV sample collector for local classifier training data
 - speech replies can follow the current macOS output route or route directly to detected AirPods
 - Foundation Models for on-device planning and native read-only typed tool calls
 - optional AirPods gesture validation CSV logging for threshold tuning

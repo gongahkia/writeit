@@ -27,6 +27,25 @@ The model must be a Core ML sound classifier accepted by `SNClassifySoundRequest
 
 If the config or model fails to load, cerberus falls back to SpeechAnalyzer phrase matching and reports the error in Settings.
 
+## Collect Samples
+
+Use the sample collector to build a local dataset before training a SoundAnalysis/Core ML classifier:
+
+```sh
+Scripts/record_wake_samples.sh --label hey_cerberus --count 40 --seconds 1.5 --note quiet
+Scripts/record_wake_samples.sh --label background --count 40 --seconds 1.5 --note room_noise
+```
+
+The collector writes mono 16 kHz WAV files and a `manifest.jsonl` file under:
+
+```sh
+~/Library/Application Support/cerberus/wake-word-samples/
+```
+
+Labels become directory names, which matches the class-folder layout expected by common audio-classifier training workflows. Capture positive wake phrase samples and negative classes such as `background`, `music`, `keyboard`, `walking`, and `noisy_room`, including AirPods microphone samples if that is the target runtime.
+
+After training/exporting a Core ML sound classifier, point `wake-word-sound-classifier.json` at the resulting `.mlmodelc` or `.mlmodel`.
+
 Official API surface used:
 
 - `SNAudioStreamAnalyzer`
@@ -34,3 +53,4 @@ Official API surface used:
 - `SNClassificationResult`
 - `MLModel.load(contentsOf:)`
 - `MLModel.compileModel(at:)`
+- `AVAudioRecorder`

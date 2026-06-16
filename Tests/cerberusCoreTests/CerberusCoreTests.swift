@@ -151,6 +151,48 @@ import Testing
     }
 }
 
+@Test func wakeWordSampleDatasetNormalizesLabelsAndPaths() throws {
+    let baseURL = URL(fileURLWithPath: "/tmp/wake-samples")
+    let id = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000123"))
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let fileURL = try WakeWordSampleDataset.sampleFileURL(
+        baseDirectoryURL: baseURL,
+        label: "Hey, Cerberus!",
+        index: 3,
+        date: date,
+        id: id
+    )
+
+    #expect(try WakeWordSampleDataset.normalizedLabel("Hey, Cerberus!") == "hey_cerberus")
+    #expect(fileURL.path.contains("/hey_cerberus/hey_cerberus-1700000000-003-00000000-0000-0000-0000-000000000123.wav"))
+    #expect(WakeWordSampleDataset.relativePath(for: fileURL, baseDirectoryURL: baseURL).hasPrefix("hey_cerberus/"))
+    #expect(throws: ToolExecutionError.self) {
+        try WakeWordSampleDataset.normalizedLabel(" , ")
+    }
+}
+
+@Test func wakeWordSampleDatasetWritesManifestJSONL() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+    let record = WakeWordSampleRecord(
+        label: "hey_cerberus",
+        relativePath: "hey_cerberus/sample.wav",
+        durationSeconds: 1.5,
+        createdAt: Date(timeIntervalSince1970: 0),
+        note: "quiet"
+    )
+
+    try WakeWordSampleDataset.write(record: record, to: directory)
+    try WakeWordSampleDataset.write(record: record, to: directory)
+
+    let manifestURL = directory.appendingPathComponent(WakeWordSampleDataset.manifestFileName)
+    let lines = try String(contentsOf: manifestURL, encoding: .utf8).split(separator: "\n")
+    #expect(lines.count == 2)
+    #expect(lines[0].contains(#""label":"hey_cerberus""#))
+    #expect(lines[0].contains("hey_cerberus"))
+    #expect(lines[0].contains("sample.wav"))
+}
+
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)

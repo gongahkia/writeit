@@ -29,6 +29,10 @@ let package = Package(
             name: "cerberus-head-gesture-eval",
             targets: ["HeadGestureEval"]
         ),
+        .executable(
+            name: "cerberus-wake-samples",
+            targets: ["WakeSampleCapture"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -125,6 +129,17 @@ let package = Package(
             path: "Sources/HeadGestureEval",
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny")
+            ]
+        ),
+        .executableTarget(
+            name: "WakeSampleCapture",
+            dependencies: ["cerberusCore"],
+            path: "Sources/WakeSampleCapture",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("AVFoundation")
             ]
         ),
         .testTarget(
