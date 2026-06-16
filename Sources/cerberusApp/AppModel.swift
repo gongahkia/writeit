@@ -74,7 +74,10 @@ final class CerberusAppModel: ObservableObject {
         AnyAssistantTool(MCPResourceListTool()),
         AnyAssistantTool(MCPResourceReadTool()),
         AnyAssistantTool(MCPPromptListTool()),
-        AnyAssistantTool(MCPPromptGetTool())
+        AnyAssistantTool(MCPPromptGetTool()),
+        AnyAssistantTool(MCPOAuthDiscoverTool()),
+        AnyAssistantTool(MCPOAuthStartTool()),
+        AnyAssistantTool(MCPOAuthExchangeTool())
     ]
     private static let mcpToolSummaries = mcpTools.map(\.summary)
     private static let shellToolSummary = ShellTool().summary

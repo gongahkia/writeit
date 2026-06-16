@@ -18,6 +18,11 @@ Config path:
       "name": "remote-demo",
       "transport": "streamable_http",
       "endpointURL": "https://example.com/mcp",
+      "protectedResourceMetadataURL": "https://example.com/.well-known/oauth-protected-resource",
+      "oauthClientID": "optional-client-id",
+      "oauthRedirectURI": "http://127.0.0.1:8765/callback",
+      "oauthScopes": ["read"],
+      "accessTokenKeychainAccount": "mcp.oauth.access.remote-demo",
       "headers": {
         "Authorization": "Bearer token"
       }
@@ -32,6 +37,8 @@ Current scope:
 
 - stdio and Streamable HTTP transports
 - `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`
+- OAuth discovery, dynamic client registration, PKCE authorization URL generation, and authorization-code token exchange for Streamable HTTP servers
+- OAuth access tokens are stored in Keychain and attached as `Authorization: Bearer ...`; explicit config headers override Keychain tokens
 - each `mcp.call` is confirmation-gated
 - tool/resource/prompt output is treated as untrusted payload
 
@@ -40,4 +47,5 @@ Not implemented:
 - sampling
 - elicitation
 - dynamic FoundationModels native tool schemas
-- OAuth discovery/PKCE
+- automatic localhost redirect capture
+- refresh-token rotation

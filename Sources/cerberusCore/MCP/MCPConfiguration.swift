@@ -13,6 +13,11 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
     public let workingDirectory: String?
     public let endpointURL: URL?
     public let headers: [String: String]
+    public let protectedResourceMetadataURL: URL?
+    public let oauthClientID: String?
+    public let oauthRedirectURI: String?
+    public let oauthScopes: [String]
+    public let accessTokenKeychainAccount: String?
 
     public init(
         name: String,
@@ -21,7 +26,12 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         arguments: [String] = [],
         workingDirectory: String? = nil,
         endpointURL: URL? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        protectedResourceMetadataURL: URL? = nil,
+        oauthClientID: String? = nil,
+        oauthRedirectURI: String? = nil,
+        oauthScopes: [String] = [],
+        accessTokenKeychainAccount: String? = nil
     ) {
         self.name = name
         self.transport = transport
@@ -30,6 +40,11 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         self.workingDirectory = workingDirectory
         self.endpointURL = endpointURL
         self.headers = headers
+        self.protectedResourceMetadataURL = protectedResourceMetadataURL
+        self.oauthClientID = oauthClientID
+        self.oauthRedirectURI = oauthRedirectURI
+        self.oauthScopes = oauthScopes
+        self.accessTokenKeychainAccount = accessTokenKeychainAccount
     }
 
     enum CodingKeys: String, CodingKey {
@@ -40,6 +55,11 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         case workingDirectory
         case endpointURL
         case headers
+        case protectedResourceMetadataURL
+        case oauthClientID
+        case oauthRedirectURI
+        case oauthScopes
+        case accessTokenKeychainAccount
     }
 
     public init(from decoder: any Decoder) throws {
@@ -51,6 +71,11 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         workingDirectory = try container.decodeIfPresent(String.self, forKey: .workingDirectory)
         endpointURL = try container.decodeIfPresent(URL.self, forKey: .endpointURL)
         headers = try container.decodeIfPresent([String: String].self, forKey: .headers) ?? [:]
+        protectedResourceMetadataURL = try container.decodeIfPresent(URL.self, forKey: .protectedResourceMetadataURL)
+        oauthClientID = try container.decodeIfPresent(String.self, forKey: .oauthClientID)
+        oauthRedirectURI = try container.decodeIfPresent(String.self, forKey: .oauthRedirectURI)
+        oauthScopes = try container.decodeIfPresent([String].self, forKey: .oauthScopes) ?? []
+        accessTokenKeychainAccount = try container.decodeIfPresent(String.self, forKey: .accessTokenKeychainAccount)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -62,6 +87,11 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         try container.encodeIfPresent(workingDirectory, forKey: .workingDirectory)
         try container.encodeIfPresent(endpointURL, forKey: .endpointURL)
         try container.encode(headers, forKey: .headers)
+        try container.encodeIfPresent(protectedResourceMetadataURL, forKey: .protectedResourceMetadataURL)
+        try container.encodeIfPresent(oauthClientID, forKey: .oauthClientID)
+        try container.encodeIfPresent(oauthRedirectURI, forKey: .oauthRedirectURI)
+        try container.encode(oauthScopes, forKey: .oauthScopes)
+        try container.encodeIfPresent(accessTokenKeychainAccount, forKey: .accessTokenKeychainAccount)
     }
 }
 

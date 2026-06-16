@@ -269,6 +269,77 @@ import Testing
     #expect(getResult.untrustedPayload == "[user] Review this")
 }
 
+@Test func mcpOAuthToolsUseConfiguredRunner() async throws {
+    struct StubRunner: MCPOAuthRunning {
+        func discover(serverName: String) async throws -> MCPOAuthDiscoveryResult {
+            MCPOAuthDiscoveryResult(
+                resourceMetadataURL: URL(string: "https://example.com/.well-known/oauth-protected-resource")!,
+                protectedResource: MCPOAuthProtectedResourceMetadata(
+                    resource: "https://example.com/mcp",
+                    authorizationServers: [URL(string: "https://auth.example.com")!],
+                    scopesSupported: ["read"],
+                    rawJSON: "{}"
+                ),
+                authorizationServer: MCPOAuthAuthorizationServerMetadata(
+                    issuer: URL(string: "https://auth.example.com"),
+                    authorizationEndpoint: URL(string: "https://auth.example.com/authorize")!,
+                    tokenEndpoint: URL(string: "https://auth.example.com/token")!,
+                    registrationEndpoint: URL(string: "https://auth.example.com/register")!,
+                    scopesSupported: ["read"],
+                    codeChallengeMethodsSupported: ["S256"],
+                    rawJSON: "{}"
+                )
+            )
+        }
+
+        func start(serverName: String, scopesCSV: String) async throws -> MCPOAuthStartResult {
+            MCPOAuthStartResult(
+                authorizationURL: URL(string: "https://auth.example.com/authorize?state=state-1")!,
+                state: "state-1",
+                clientID: "client-1"
+            )
+        }
+
+        func exchange(serverName: String, state: String, code: String) async throws -> MCPOAuthTokenResult {
+            MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read")
+        }
+    }
+
+    let runner = StubRunner()
+    let discover = try await MCPOAuthDiscoverTool(runner: runner).run(
+        arguments: MCPOAuthDiscoverTool.Arguments(serverName: "remote")
+    )
+    let start = try await MCPOAuthStartTool(runner: runner).run(
+        arguments: MCPOAuthStartTool.Arguments(serverName: "remote", scopesCSV: "read")
+    )
+    let exchange = try await MCPOAuthExchangeTool(runner: runner).run(
+        arguments: MCPOAuthExchangeTool.Arguments(serverName: "remote", state: "state-1", code: "code-1")
+    )
+
+    #expect(discover.untrustedPayload.contains("authorizationEndpoint"))
+    #expect(start.untrustedPayload.contains("authorizationURL"))
+    #expect(exchange.spokenSummary == "MCP OAuth token stored.")
+}
+
+@Test func mcpOAuthBuildsPKCEAuthorizationURL() throws {
+    let challenge = MCPOAuthClient.codeChallenge(
+        for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+    )
+    let url = try MCPOAuthClient.authorizationURL(
+        endpoint: URL(string: "https://auth.example.com/authorize")!,
+        clientID: "client-1",
+        redirectURI: "http://127.0.0.1:8765/callback",
+        resource: "https://example.com/mcp",
+        scopes: ["read", "write"],
+        codeChallenge: challenge,
+        state: "state-1"
+    )
+
+    #expect(challenge == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    #expect(url.absoluteString.contains("code_challenge_method=S256"))
+    #expect(url.absoluteString.contains("scope=read%20write"))
+}
+
 @Test func mcpStreamableHTTPClientCallsTools() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var requestBodies: [String] = []
@@ -475,12 +546,185 @@ import Testing
     #expect(StubURLProtocol.requestBodies[2].contains(#""code":"print(1)""#))
 }
 
+@Test func mcpOAuthClientDiscoversMetadataFromWWWAuthenticate() async throws {
+    final class StubURLProtocol: URLProtocol {
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            let url = request.url!
+            let statusCode: Int
+            let headers: [String: String]
+            let responseBody: Data
+
+            if url.host == "example.com", url.path == "/mcp" {
+                statusCode = 401
+                headers = [
+                    "WWW-Authenticate": #"Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource""#
+                ]
+                responseBody = Data()
+            } else if url.host == "example.com" {
+                statusCode = 200
+                headers = ["Content-Type": "application/json"]
+                responseBody = Data(#"{"resource":"https://example.com/mcp","authorization_servers":["https://auth.example.com/tenant"],"scopes_supported":["read"]}"#.utf8)
+            } else {
+                statusCode = 200
+                headers = ["Content-Type": "application/json"]
+                responseBody = Data(#"{"issuer":"https://auth.example.com/tenant","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token","registration_endpoint":"https://auth.example.com/register","scopes_supported":["read"],"code_challenge_methods_supported":["S256"]}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+    }
+
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp")
+    )
+
+    let discovery = try await MCPOAuthClient(urlSession: urlSession).discover(configuration: configuration)
+
+    #expect(discovery.resourceMetadataURL.absoluteString == "https://example.com/.well-known/oauth-protected-resource")
+    #expect(discovery.authorizationServer.authorizationEndpoint.absoluteString == "https://auth.example.com/authorize")
+    #expect(discovery.authorizationServer.registrationEndpoint?.absoluteString == "https://auth.example.com/register")
+}
+
+@Test func mcpStreamableHTTPClientAttachesStoredBearerToken() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var authorizationHeaders: [String] = []
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            Self.authorizationHeaders.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
+            let body = bodyString(from: request)
+            let statusCode: Int
+            let headers: [String: String]
+            let responseBody: Data
+
+            if body.contains(#""method":"initialize""#) {
+                statusCode = 200
+                headers = [
+                    "Content-Type": "application/json",
+                    "Mcp-Session-Id": "session-1"
+                ]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"stub","version":"1"}}}"#.utf8)
+            } else if body.contains(#""notifications/initialized""#) {
+                statusCode = 202
+                headers = [:]
+                responseBody = Data()
+            } else {
+                statusCode = 200
+                headers = ["Content-Type": "application/json"]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}],"isError":false}}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    let account = "mcp.oauth.test.\(UUID().uuidString)"
+    let store = KeychainSecretStore(account: account)
+    try? store.delete()
+    try store.save(Data("token-1".utf8))
+    defer {
+        try? store.delete()
+    }
+
+    StubURLProtocol.authorizationHeaders = []
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp"),
+        accessTokenKeychainAccount: account
+    )
+
+    _ = try await MCPStreamableHTTPClient(configuration: configuration, urlSession: urlSession)
+        .callTool(name: "echo", argumentsJSON: "{}")
+
+    #expect(StubURLProtocol.authorizationHeaders.count == 3)
+    #expect(StubURLProtocol.authorizationHeaders.allSatisfy { $0 == "Bearer token-1" })
+}
+
 @Test func mcpConfigurationDefaultsToStdioTransport() throws {
     let data = Data(#"{"servers":[{"name":"local","executable":"node","arguments":["server.js"],"workingDirectory":null}]}"#.utf8)
     let file = try JSONDecoder().decode(MCPConfigurationFile.self, from: data)
 
     #expect(file.servers.first?.transport == .stdio)
     #expect(file.servers.first?.executable == "node")
+    #expect(file.servers.first?.oauthScopes == [])
+    #expect(file.servers.first?.accessTokenKeychainAccount == nil)
 }
 
 @Test func shellExecServiceRevalidatesDeniedRequests() async {

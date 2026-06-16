@@ -236,6 +236,10 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         if let sessionID {
             request.setValue(sessionID, forHTTPHeaderField: "Mcp-Session-Id")
         }
+        if !configuration.headers.keys.contains(where: { $0.localizedCaseInsensitiveCompare("Authorization") == .orderedSame }),
+           let accessToken = try Self.accessToken(for: configuration) {
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        }
         for (header, value) in configuration.headers {
             request.setValue(value, forHTTPHeaderField: header)
         }
@@ -319,6 +323,16 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             return message
         }
         return message["id"] as? Int == responseID ? message : nil
+    }
+
+    private static func accessToken(for configuration: MCPServerConfiguration) throws -> String? {
+        let account = configuration.accessTokenKeychainAccount ?? MCPOAuthKeychainAccount.accessToken(serverName: configuration.name)
+        guard let data = try KeychainSecretStore(account: account).data(),
+              let token = String(data: data, encoding: .utf8),
+              !token.isEmpty else {
+            return nil
+        }
+        return token
     }
 
     private static func toolDescriptor(from object: [String: Any]) -> MCPToolDescriptor? {

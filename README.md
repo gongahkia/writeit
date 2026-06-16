@@ -14,7 +14,7 @@ The project is intentionally scoped as a native macOS utility:
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation
 - local screen text OCR for "what text is on my screen?" requests
-- default-off MCP bridge for configured stdio or Streamable HTTP servers
+- default-off MCP bridge for configured stdio or Streamable HTTP servers, including OAuth PKCE browser handoff
 - optional prebuilt FoundationModels adapter loading
 - shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
 

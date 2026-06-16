@@ -62,6 +62,13 @@ public struct KeychainSecretStore: Sendable {
         }
     }
 
+    public func delete() throws {
+        let status = SecItemDelete(baseQuery() as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainSecretStoreError.osStatus(status)
+        }
+    }
+
     private func baseQuery() -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
