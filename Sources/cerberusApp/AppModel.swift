@@ -14,6 +14,7 @@ final class CerberusAppModel: ObservableObject {
     private let transcriber = Transcriber()
     private let speaker = Speaker()
     private let earconPlayer = EarconPlayer()
+    private let hotKeyMonitor = GlobalHotKeyMonitor()
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry: ToolRegistry
@@ -165,6 +166,10 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private func startTriggers() {
+        hotKeyMonitor.start { [weak self] in
+            self?.startListening(trigger: .hotKey)
+        }
+
         headGestureDetector.start { [weak self] gesture in
             guard let self else {
                 return
