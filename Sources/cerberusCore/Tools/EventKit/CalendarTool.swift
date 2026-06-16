@@ -1,7 +1,9 @@
 @preconcurrency import EventKit
 import Foundation
+import FoundationModels
 
 public struct CalendarTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let startDateISO8601: String?
         public let endDateISO8601: String?

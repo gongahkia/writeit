@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 
 public enum DefaultToolCatalog {
     public static var tools: [AnyAssistantTool] {
@@ -16,5 +17,19 @@ public enum DefaultToolCatalog {
         tools
             .map(\.summary)
             .sorted { $0.name < $1.name }
+    }
+
+    public static func readOnlyFoundationModelTools(auditLog: AuditLog? = nil) -> [any FoundationModels.Tool] {
+        [
+            FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(FileSearchTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(RemindersTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(WebSearchTool(), auditLog: auditLog)
+        ]
+    }
+
+    public static var readOnlyToolNames: Set<String> {
+        Set(summaries.filter { !$0.mutatesState }.map(\.name))
     }
 }

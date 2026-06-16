@@ -3,13 +3,20 @@ import FoundationModels
 
 public actor Assistant {
     private var session: LanguageModelSession
+    private var readOnlyToolSession: LanguageModelSession?
     private var toolSummaries: [ToolSummary]
 
-    public init(toolSummaries: [ToolSummary] = []) {
+    public init(toolSummaries: [ToolSummary] = [], readOnlyNativeTools: [any FoundationModels.Tool] = []) {
         self.toolSummaries = toolSummaries
         session = LanguageModelSession(
             instructions: SystemPrompt.render(toolSummaries: toolSummaries)
         )
+        if !readOnlyNativeTools.isEmpty {
+            readOnlyToolSession = LanguageModelSession(
+                tools: readOnlyNativeTools,
+                instructions: SystemPrompt.renderReadOnlyToolInstructions(toolSummaries: toolSummaries)
+            )
+        }
     }
 
     public func updateTools(_ toolSummaries: [ToolSummary]) {
@@ -36,6 +43,28 @@ public actor Assistant {
             to: prompt,
             generating: AssistantPlan.self
         )
+        return response.content
+    }
+
+    public func answerWithReadOnlyTools(
+        for request: String,
+        context: AssistantContext = AssistantContext()
+    ) async throws -> String {
+        guard let readOnlyToolSession else {
+            throw ToolExecutionError.denied("No native read-only FoundationModels tools are enabled.")
+        }
+
+        let prompt = """
+        Context:
+        \(context.promptFragment)
+
+        User request:
+        \(request)
+
+        Answer concisely. Use the provided read-only tools when current local data is needed.
+        """
+
+        let response = try await readOnlyToolSession.respond(to: prompt)
         return response.content
     }
 

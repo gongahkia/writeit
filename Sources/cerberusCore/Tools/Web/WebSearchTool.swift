@@ -1,6 +1,8 @@
 import Foundation
+import FoundationModels
 
 public struct WebSearchTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let query: String
         public let site: String?

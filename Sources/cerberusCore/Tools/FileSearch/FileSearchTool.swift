@@ -1,6 +1,8 @@
 import Foundation
+import FoundationModels
 
 public struct FileSearchTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let query: String
         public let scopePath: String?

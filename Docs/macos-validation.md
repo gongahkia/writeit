@@ -39,4 +39,4 @@ Validate the implementation on a Mac that matches the project requirements.
 - Shell execution defaults to dry-run and is not registered in the ambient tool catalog.
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
 - AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
-- FoundationModels native `Tool` protocol integration is not wired; cerberus currently uses guided planning plus app-owned tool execution.
+- Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.

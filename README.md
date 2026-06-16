@@ -7,7 +7,7 @@ The project is intentionally scoped as a native macOS utility:
 - menu bar first, no main window by default
 - microphone activates only after an explicit trigger
 - SpeechAnalyzer for on-device speech-to-text
-- Foundation Models for on-device planning and typed tool calls
+- Foundation Models for on-device planning and native read-only typed tool calls
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - shell execution has an allowlisted service target, with app-bundle embedding still required for runtime XPC isolation
 

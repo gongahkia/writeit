@@ -1,7 +1,9 @@
 @preconcurrency import EventKit
 import Foundation
+import FoundationModels
 
 public struct RemindersTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public let listName: String?
         public let includeCompleted: Bool

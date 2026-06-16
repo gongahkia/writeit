@@ -23,9 +23,9 @@ final class CerberusAppModel: ObservableObject {
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry: ToolRegistry
     private let enabledToolNames = DefaultToolCatalog.summaries.map(\.name)
-    private let assistant = Assistant(toolSummaries: DefaultToolCatalog.summaries)
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
+    private let assistant: Assistant
     private let transcriptStore = EncryptedTranscriptStore()
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
@@ -36,6 +36,10 @@ final class CerberusAppModel: ObservableObject {
 
     init() {
         toolRegistry = (try? ToolRegistry(tools: DefaultToolCatalog.tools)) ?? ToolRegistry()
+        assistant = Assistant(
+            toolSummaries: DefaultToolCatalog.summaries,
+            readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
+        )
         refreshPermissions()
         startTriggers()
     }
@@ -390,6 +394,8 @@ final class CerberusAppModel: ObservableObject {
 
             if plan.requiresConfirmation {
                 await requestConfirmation(for: plan)
+            } else if DefaultToolCatalog.readOnlyToolNames.contains(plan.toolName) {
+                await answerWithNativeReadOnlyTools(for: plan)
             } else {
                 await execute(plan, confirmed: false, transitionToExecuting: true)
             }
@@ -406,6 +412,29 @@ final class CerberusAppModel: ObservableObject {
         apply(.confirmationRequired(summary))
         speaker.speak(plan.spokenResponse) { [weak self] in
             self?.startConfirmationVoiceCapture()
+        }
+    }
+
+    private func answerWithNativeReadOnlyTools(for plan: AssistantPlan) async {
+        apply(.executionStarted(plan.toolName))
+
+        do {
+            let request = activeRequest ?? plan.spokenResponse
+            let context = AssistantContext(allowedToolNames: Array(DefaultToolCatalog.readOnlyToolNames).sorted())
+            let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
+            recordTranscript(
+                response: response,
+                toolName: plan.toolName,
+                argumentsSummary: "native FoundationModels read-only tools"
+            )
+            speakToolResult(response)
+        } catch {
+            _ = try? await auditLog.append(
+                toolName: plan.toolName,
+                argumentsSummary: "native FoundationModels read-only tools",
+                resultSummary: "error: \(error.localizedDescription)"
+            )
+            await execute(plan, confirmed: false, transitionToExecuting: false)
         }
     }
 

@@ -1,7 +1,9 @@
 import AppKit
 import Foundation
+import FoundationModels
 
 public struct MusicNowPlayingTool: AssistantTool {
+    @Generable
     public struct Arguments: Codable, Sendable {
         public init() {}
     }

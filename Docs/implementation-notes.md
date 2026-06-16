@@ -20,7 +20,8 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - SwiftPM builds `cerberus`, `CerberusCore`, and `ShellExecService`.
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
-- Tool results with payloads are passed through a second Foundation Models summary prompt before speech.
+- Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
+- App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
 - Audit logs are hash-chained at `~/Library/Application Support/cerberus/audit.log`.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
@@ -33,4 +34,4 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
-- FoundationModels native `Tool` protocol integration needs a separate pass; the current implementation uses guided generation into `AssistantPlan`.
+- FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.

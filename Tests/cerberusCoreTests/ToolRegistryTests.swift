@@ -1,8 +1,10 @@
 import Foundation
+import FoundationModels
 import Testing
 @testable import cerberusCore
 
 private struct EchoTool: AssistantTool {
+    @Generable
     struct Arguments: Codable, Sendable {
         let text: String
     }
@@ -33,6 +35,20 @@ private struct EchoTool: AssistantTool {
 
     #expect(result.succeeded)
     #expect(result.spokenSummary == "hello")
+}
+
+@Test func foundationModelToolAdapterRunsAssistantTool() async throws {
+    let adapter = FoundationModelToolAdapter(EchoTool())
+
+    let output = try await adapter.call(arguments: EchoTool.Arguments(text: "hello"))
+
+    #expect(output.contains("hello"))
+}
+
+@Test func defaultNativeToolCatalogIsReadOnly() {
+    #expect(DefaultToolCatalog.readOnlyToolNames.contains("calendar.read"))
+    #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
 }
 
 @Test func registryRequiresConfirmationForMutatingTools() async throws {
