@@ -24,13 +24,13 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
 - Audit logs are hash-chained at `~/Library/Application Support/cerberus/audit.log`.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
-- The shell service target revalidates allowlisted commands; embedding/signing is still needed before it provides runtime privilege separation.
+- The shell service target revalidates allowlisted commands; `Scripts/build_app.sh` embeds and signs it inside the app bundle.
 
 ## Current Platform Assumptions
 
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
-- AirPods head gestures are also used by Siri/system features, so custom nod detection needs calibration and false-positive testing.
+- AirPods head gestures are also used by Siri/system features, so custom nod detection needs real-device false-positive testing after neutral-pose calibration.
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - FoundationModels native `Tool` protocol integration needs a separate pass; the current implementation uses guided generation into `AssistantPlan`.

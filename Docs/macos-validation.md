@@ -37,6 +37,6 @@ Validate the implementation on a Mac that matches the project requirements.
 
 - Package Manager organizes source, but shipping a notarized menu bar `.app` needs an Xcode app target or equivalent packaging step.
 - Shell execution defaults to dry-run and is not registered in the ambient tool catalog.
-- The shell XPC service target builds, but runtime isolation still requires embedding it in a signed app bundle at `Contents/XPCServices`.
-- AirPods nod/shake thresholds are initial values and need real walking/noisy-environment calibration.
+- `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
+- AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
 - FoundationModels native `Tool` protocol integration is not wired; cerberus currently uses guided planning plus app-owned tool execution.
