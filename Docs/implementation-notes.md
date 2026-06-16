@@ -21,6 +21,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
 - First launch opens the Access panel while required permissions remain ungranted, with skip and reset controls persisted in UserDefaults.
 - AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv`; `Scripts/evaluate_head_gestures.sh` summarizes quiet motion, detections, and conservative threshold suggestions.
+- `Scripts/benchmark_speech.sh` runs the app's SpeechAnalyzer transcription path against the current macOS input device and reports latency plus optional word error rate.
 - `Wake phrase` is default-off. It can use SpeechAnalyzer phrase matching or an optional SoundAnalysis/Core ML sound classifier configured in `~/Library/Application Support/cerberus/wake-word-sound-classifier.json`.
 - `Scripts/record_wake_samples.sh` records labeled mono 16 kHz WAV files plus `manifest.jsonl`; `Scripts/train_wake_word_model.sh` trains a local CreateML sound classifier and can write the app config.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
@@ -43,7 +44,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 ## Current Platform Assumptions
 
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
-- SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription.
+- SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription; AirPods/noisy-room quality is measured through the local benchmark script and still needs target-hardware runs.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection still needs real-device false-positive testing with validation logs after neutral-pose calibration and threshold adjustment.
 - Stem press interception is best treated as experimental because it overlaps with media controls.

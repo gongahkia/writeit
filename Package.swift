@@ -37,6 +37,10 @@ let package = Package(
             name: "cerberus-wake-train",
             targets: ["WakeModelTrain"]
         ),
+        .executable(
+            name: "cerberus-speech-benchmark",
+            targets: ["SpeechBenchmark"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -155,6 +159,18 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("CreateML")
+            ]
+        ),
+        .executableTarget(
+            name: "SpeechBenchmark",
+            dependencies: ["cerberusCore"],
+            path: "Sources/SpeechBenchmark",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("Speech")
             ]
         ),
         .testTarget(

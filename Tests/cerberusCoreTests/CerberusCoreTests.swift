@@ -126,6 +126,18 @@ import Testing
     #expect(!emptyDetector.detectsWakeWord(in: "anything"))
 }
 
+@Test func speechBenchmarkScorerNormalizesWords() {
+    #expect(SpeechBenchmarkScorer.normalizedWords("Hey, Cerberus!") == ["hey", "cerberus"])
+    #expect(SpeechBenchmarkScorer.normalizedWords("open  README.md") == ["open", "readme", "md"])
+}
+
+@Test func speechBenchmarkScorerComputesWordErrorRate() {
+    #expect(SpeechBenchmarkScorer.wordErrorRate(expected: "hey cerberus", actual: "hey cerberus") == 0)
+    #expect(SpeechBenchmarkScorer.wordErrorRate(expected: "hey cerberus", actual: "hey service") == 0.5)
+    #expect(SpeechBenchmarkScorer.wordErrorRate(expected: "", actual: "") == 0)
+    #expect(SpeechBenchmarkScorer.wordErrorRate(expected: "", actual: "extra") == 1)
+}
+
 @Test func wakeWordSoundClassifierConfigurationValidatesModelAndLabels() throws {
     let valid = WakeWordSoundClassifierConfiguration(
         modelPath: "/tmp/wake.mlmodelc",

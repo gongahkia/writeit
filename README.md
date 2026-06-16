@@ -8,6 +8,7 @@ The project is intentionally scoped as a native macOS utility:
 - first-run setup banner for required macOS permissions
 - microphone activates only after an explicit trigger unless `Wake phrase` is enabled
 - SpeechAnalyzer for on-device speech-to-text
+- live SpeechAnalyzer benchmark CLI for AirPods/noisy-room checks
 - default-off wake phrase monitor with SpeechAnalyzer fallback or a configured SoundAnalysis/Core ML wake model
 - wake-word WAV sample collector and CreateML trainer for local classifier training data
 - speech replies can follow the current macOS output route or route directly to detected AirPods
@@ -40,6 +41,7 @@ Primary validation is `swift test` on macOS with Xcode 26.
 See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/mcp.md` for the MCP stdio config format.
 See `Docs/adapters.md` for optional FoundationModels adapter loading.
+See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
 See `Docs/open-source.md` for public repository release checks.
