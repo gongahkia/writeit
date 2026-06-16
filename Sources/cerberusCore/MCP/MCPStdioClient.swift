@@ -48,6 +48,42 @@ public struct MCPResourceReadResult: Equatable, Sendable {
     }
 }
 
+public struct MCPPromptArgumentDescriptor: Equatable, Sendable {
+    public let name: String
+    public let description: String?
+    public let required: Bool
+
+    public init(name: String, description: String?, required: Bool) {
+        self.name = name
+        self.description = description
+        self.required = required
+    }
+}
+
+public struct MCPPromptDescriptor: Equatable, Sendable {
+    public let name: String
+    public let title: String?
+    public let description: String?
+    public let arguments: [MCPPromptArgumentDescriptor]
+
+    public init(name: String, title: String?, description: String?, arguments: [MCPPromptArgumentDescriptor]) {
+        self.name = name
+        self.title = title
+        self.description = description
+        self.arguments = arguments
+    }
+}
+
+public struct MCPPromptGetResult: Equatable, Sendable {
+    public let description: String?
+    public let contentText: String
+
+    public init(description: String?, contentText: String) {
+        self.description = description
+        self.contentText = contentText
+    }
+}
+
 public struct MCPStdioClient: Sendable {
     public let configuration: MCPServerConfiguration
     public let timeoutNanoseconds: UInt64
@@ -99,6 +135,28 @@ public struct MCPStdioClient: Sendable {
 
         try await session.initialize()
         return try await session.readResource(uri: uri)
+    }
+
+    public func listPrompts() async throws -> [MCPPromptDescriptor] {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.listPrompts()
+    }
+
+    public func getPrompt(name: String, argumentsJSON: String) async throws -> MCPPromptGetResult {
+        let session = MCPStdioSession(configuration: configuration, timeoutNanoseconds: timeoutNanoseconds)
+        try await session.start()
+        defer {
+            session.close()
+        }
+
+        try await session.initialize()
+        return try await session.getPrompt(name: name, argumentsJSON: argumentsJSON)
     }
 }
 
@@ -195,6 +253,33 @@ private final class MCPStdioSession: @unchecked Sendable {
         let contents = result["contents"] as? [[String: Any]] ?? []
         let text = contents.map(Self.resourceContentText(from:)).filter { !$0.isEmpty }.joined(separator: "\n")
         return MCPResourceReadResult(contentText: text)
+    }
+
+    func listPrompts() async throws -> [MCPPromptDescriptor] {
+        var prompts: [MCPPromptDescriptor] = []
+        var cursor: String?
+
+        repeat {
+            let params: [String: Any]? = cursor.map { ["cursor": $0] }
+            let result = try await request(method: "prompts/list", params: params)
+            let pagePrompts = result["prompts"] as? [[String: Any]] ?? []
+            prompts += pagePrompts.compactMap(Self.promptDescriptor(from:))
+            cursor = result["nextCursor"] as? String
+        } while cursor != nil
+
+        return prompts
+    }
+
+    func getPrompt(name: String, argumentsJSON: String) async throws -> MCPPromptGetResult {
+        let arguments = try Self.jsonObject(from: argumentsJSON)
+        var params: [String: Any] = ["name": name]
+        if !arguments.isEmpty {
+            params["arguments"] = arguments
+        }
+        let result = try await request(method: "prompts/get", params: params)
+        let messages = result["messages"] as? [[String: Any]] ?? []
+        let text = messages.map(Self.promptMessageText(from:)).filter { !$0.isEmpty }.joined(separator: "\n")
+        return MCPPromptGetResult(description: result["description"] as? String, contentText: text)
     }
 
     func close() {
@@ -343,6 +428,68 @@ private final class MCPStdioSession: @unchecked Sendable {
             return "[\(uri)] \(mimeType)\n[blob: \(blob.count) base64 characters]"
         }
         return stableJSONString(object)
+    }
+
+    private static func promptDescriptor(from object: [String: Any]) -> MCPPromptDescriptor? {
+        guard let name = object["name"] as? String else {
+            return nil
+        }
+
+        let arguments = (object["arguments"] as? [[String: Any]] ?? [])
+            .compactMap(Self.promptArgumentDescriptor(from:))
+        return MCPPromptDescriptor(
+            name: name,
+            title: object["title"] as? String,
+            description: object["description"] as? String,
+            arguments: arguments
+        )
+    }
+
+    private static func promptArgumentDescriptor(from object: [String: Any]) -> MCPPromptArgumentDescriptor? {
+        guard let name = object["name"] as? String else {
+            return nil
+        }
+
+        return MCPPromptArgumentDescriptor(
+            name: name,
+            description: object["description"] as? String,
+            required: object["required"] as? Bool ?? false
+        )
+    }
+
+    private static func promptMessageText(from object: [String: Any]) -> String {
+        let role = object["role"] as? String ?? "message"
+        guard let content = object["content"] as? [String: Any] else {
+            return "[\(role)] \(stableJSONString(object))"
+        }
+
+        let text = promptContentText(from: content)
+        guard !text.isEmpty else {
+            return ""
+        }
+        return "[\(role)] \(text)"
+    }
+
+    private static func promptContentText(from object: [String: Any]) -> String {
+        switch object["type"] as? String {
+        case "text":
+            return object["text"] as? String ?? ""
+        case "image":
+            let mimeType = object["mimeType"] as? String ?? "image"
+            let dataCount = (object["data"] as? String)?.count ?? 0
+            return "[image: \(mimeType), \(dataCount) base64 characters]"
+        case "audio":
+            let mimeType = object["mimeType"] as? String ?? "audio"
+            let dataCount = (object["data"] as? String)?.count ?? 0
+            return "[audio: \(mimeType), \(dataCount) base64 characters]"
+        case "resource":
+            if let resource = object["resource"] as? [String: Any] {
+                return resourceContentText(from: resource)
+            }
+            return stableJSONString(object)
+        default:
+            return stableJSONString(object)
+        }
     }
 
     private static func contentText(from object: [String: Any]) -> String {

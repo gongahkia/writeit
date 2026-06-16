@@ -38,7 +38,7 @@ Validate the implementation on a Mac that matches the project requirements.
 17. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
 18. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
 19. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-20. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
+20. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt reads run read-only.
 21. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
 22. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 23. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
@@ -51,5 +51,5 @@ Validate the implementation on a Mac that matches the project requirements.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
 - Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.
-- MCP support is limited to stdio and basic Streamable HTTP tools/resources.
+- MCP support is limited to stdio and basic Streamable HTTP tools/resources/prompts.
 - Adapter training is not implemented; only prebuilt adapter loading is supported.

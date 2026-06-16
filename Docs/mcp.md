@@ -1,6 +1,6 @@
 # MCP
 
-cerberus supports a default-off MCP bridge through the `mcp.call` tool.
+cerberus supports a default-off MCP bridge through the MCP tool set.
 
 Config path:
 
@@ -31,13 +31,12 @@ Save this as `~/Library/Application Support/cerberus/mcp-servers.json`, then ena
 Current scope:
 
 - stdio and Streamable HTTP transports
-- `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, and `resources/read`
+- `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`
 - each `mcp.call` is confirmation-gated
-- tool/resource output is treated as untrusted payload
+- tool/resource/prompt output is treated as untrusted payload
 
 Not implemented:
 
-- prompts
 - sampling
 - elicitation
 - dynamic FoundationModels native tool schemas
