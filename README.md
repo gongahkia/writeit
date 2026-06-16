@@ -11,7 +11,7 @@ The project is intentionally scoped as a native macOS utility:
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - encrypted local transcripts and memory records
 - local screen text OCR for "what text is on my screen?" requests
-- shell execution has an allowlisted service target, with app-bundle embedding still required for runtime XPC isolation
+- shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
 
 ## Requirements
 
@@ -21,7 +21,7 @@ The project is intentionally scoped as a native macOS utility:
 - AirPods with headphone motion support for nod/shake triggers
 - Microphone, Speech Recognition, Calendar, Reminders, Accessibility, Input Monitoring, and Screen Recording permissions as features are enabled
 
-This repository currently uses Swift Package Manager for source organization. Shipping as a notarized `.app` will require an Xcode app target or equivalent packaging step that applies `Config/cerberus.entitlements` and embeds `ShellExecService` in `Contents/XPCServices`.
+This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app`, applies `Config/cerberus.entitlements`, and embeds `ShellExecService` in `Contents/XPCServices`.
 
 ## Development Notes
 

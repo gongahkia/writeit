@@ -294,6 +294,7 @@ struct StatusPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
+            Toggle("Shell tool", isOn: $model.isShellToolEnabled)
 
             Divider()
 
@@ -316,7 +317,7 @@ struct StatusPanel: View {
                 Text("Enabled tools")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Apps, Calendar, Files, Memory, Music, Reminders, Screen, Web")
+                Text(model.enabledToolDisplayText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

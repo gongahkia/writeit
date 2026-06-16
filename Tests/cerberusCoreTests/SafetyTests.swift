@@ -98,6 +98,22 @@ import Testing
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
 }
 
+@Test func shellToolExecutesThroughConfiguredExecutorWhenAllowed() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            "stubbed \(command.executableURL.lastPathComponent)"
+        }
+    }
+
+    let allowlist = CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]])
+    let tool = ShellTool(allowExecution: true, allowlist: allowlist, executor: StubExecutor())
+
+    let result = try await tool.run(arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls"), dryRun: false))
+
+    #expect(result.metadata["dryRun"] == "false")
+    #expect(result.untrustedPayload == "stubbed ls")
+}
+
 @Test func shellExecServiceRevalidatesDeniedRequests() async {
     let service = ShellExecService()
     let request = ShellExecRequest(executable: "rm", arguments: ["-rf", "/"], workingDirectory: nil)

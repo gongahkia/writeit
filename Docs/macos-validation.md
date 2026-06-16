@@ -33,12 +33,12 @@ Validate the implementation on a Mac that matches the project requirements.
 12. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
 13. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
 14. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-15. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+15. Keep `Shell tool` disabled and confirm shell requests are rejected as disabled.
+16. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+17. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 
-- Package Manager organizes source, but shipping a notarized menu bar `.app` needs an Xcode app target or equivalent packaging step.
-- Shell execution defaults to dry-run and is not registered in the ambient tool catalog.
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
 - AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.

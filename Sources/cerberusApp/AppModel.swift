@@ -12,6 +12,11 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var isShellToolEnabled = false {
+        didSet {
+            refreshAssistantToolPrompt()
+        }
+    }
     @Published var transcriptDraft = ""
 
     private let permissionCenter = PermissionCenter()
@@ -22,7 +27,6 @@ final class CerberusAppModel: ObservableObject {
     private let headGestureDetector = HeadGestureDetector()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
     private let toolRegistry: ToolRegistry
-    private let enabledToolNames = DefaultToolCatalog.summaries.map(\.name)
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
     private let assistant: Assistant
@@ -33,11 +37,16 @@ final class CerberusAppModel: ObservableObject {
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
+    private static let ambientToolSummaries = DefaultToolCatalog.summaries
+    private static let shellToolSummary = ShellTool().summary
+    private static let allToolSummaries = (ambientToolSummaries + [shellToolSummary]).sorted { $0.name < $1.name }
 
     init() {
-        toolRegistry = (try? ToolRegistry(tools: DefaultToolCatalog.tools)) ?? ToolRegistry()
+        let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
+        let tools = DefaultToolCatalog.tools + [AnyAssistantTool(shellTool)]
+        toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
         assistant = Assistant(
-            toolSummaries: DefaultToolCatalog.summaries,
+            toolSummaries: Self.ambientToolSummaries,
             readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
         )
         refreshPermissions()
@@ -58,6 +67,12 @@ final class CerberusAppModel: ObservableObject {
 
     var grantedPermissionCount: Int {
         permissionSnapshots.filter { $0.state == .granted }.count
+    }
+
+    var enabledToolDisplayText: String {
+        isShellToolEnabled
+            ? "Apps, Calendar, Files, Memory, Music, Reminders, Screen, Shell, Web"
+            : "Apps, Calendar, Files, Memory, Music, Reminders, Screen, Web"
     }
 
     var menuBarSystemImage: String {
@@ -392,7 +407,12 @@ final class CerberusAppModel: ObservableObject {
                 return
             }
 
-            if plan.requiresConfirmation {
+            guard enabledToolNames.contains(plan.toolName) else {
+                speak("\(plan.toolName) is not enabled.")
+                return
+            }
+
+            if plan.requiresConfirmation || mutatingToolNames.contains(plan.toolName) {
                 await requestConfirmation(for: plan)
             } else if DefaultToolCatalog.readOnlyToolNames.contains(plan.toolName) {
                 await answerWithNativeReadOnlyTools(for: plan)
@@ -420,7 +440,8 @@ final class CerberusAppModel: ObservableObject {
 
         do {
             let request = activeRequest ?? plan.spokenResponse
-            let context = AssistantContext(allowedToolNames: Array(DefaultToolCatalog.readOnlyToolNames).sorted())
+            let readOnlyNames = DefaultToolCatalog.readOnlyToolNames.intersection(Set(enabledToolNames))
+            let context = AssistantContext(allowedToolNames: Array(readOnlyNames).sorted())
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordTranscript(
                 response: response,
@@ -539,5 +560,27 @@ final class CerberusAppModel: ObservableObject {
         }
 
         permissionSnapshots[index] = snapshot
+    }
+
+    private var enabledToolNames: [String] {
+        enabledToolSummaries.map(\.name)
+    }
+
+    private var enabledToolSummaries: [ToolSummary] {
+        let summaries = isShellToolEnabled
+            ? Self.allToolSummaries
+            : Self.ambientToolSummaries
+        return summaries.sorted { $0.name < $1.name }
+    }
+
+    private var mutatingToolNames: Set<String> {
+        Set(enabledToolSummaries.filter { $0.mutatesState }.map(\.name))
+    }
+
+    private func refreshAssistantToolPrompt() {
+        let summaries = enabledToolSummaries
+        Task {
+            await assistant.updateTools(summaries)
+        }
     }
 }
