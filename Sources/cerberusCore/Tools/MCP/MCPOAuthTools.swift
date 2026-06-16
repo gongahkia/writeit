@@ -5,6 +5,7 @@ public protocol MCPOAuthRunning: Sendable {
     func discover(serverName: String) async throws -> MCPOAuthDiscoveryResult
     func start(serverName: String, scopesCSV: String) async throws -> MCPOAuthStartResult
     func exchange(serverName: String, state: String, code: String) async throws -> MCPOAuthTokenResult
+    func refresh(serverName: String) async throws -> MCPOAuthTokenResult
 }
 
 public struct MCPConfiguredOAuthRunner: MCPOAuthRunning {
@@ -38,6 +39,14 @@ public struct MCPConfiguredOAuthRunner: MCPOAuthRunning {
             throw ToolExecutionError.invalidArguments("MCP OAuth is only valid for Streamable HTTP servers.")
         }
         return try await client.exchangeCode(configuration: configuration, state: state, code: code)
+    }
+
+    public func refresh(serverName: String) async throws -> MCPOAuthTokenResult {
+        let configuration = try await registry.configuration(named: serverName)
+        guard configuration.transport == .streamableHTTP else {
+            throw ToolExecutionError.invalidArguments("MCP OAuth is only valid for Streamable HTTP servers.")
+        }
+        return try await client.refreshToken(configuration: configuration)
     }
 
     private static func scopes(from csv: String) -> [String] {
@@ -196,11 +205,60 @@ public struct MCPOAuthExchangeTool: AssistantTool {
             toolName: name,
             succeeded: true,
             spokenSummary: "MCP OAuth token stored.",
-            untrustedPayload: "tokenType: \(result.tokenType)\nexpiresIn: \(result.expiresIn.map(String.init) ?? "")\nscope: \(result.scope ?? "")",
+            untrustedPayload: Self.format(result),
             metadata: [
                 "serverName": arguments.serverName,
                 "tokenType": result.tokenType,
-                "expiresIn": result.expiresIn.map(String.init) ?? ""
+                "expiresIn": result.expiresIn.map(String.init) ?? "",
+                "hasRefreshToken": "\(result.hasRefreshToken)"
+            ]
+        )
+    }
+
+    static func format(_ result: MCPOAuthTokenResult) -> String {
+        "tokenType: \(result.tokenType)\nexpiresIn: \(result.expiresIn.map(String.init) ?? "")\nscope: \(result.scope ?? "")\nhasRefreshToken: \(result.hasRefreshToken)"
+    }
+}
+
+public struct MCPOAuthRefreshTool: AssistantTool {
+    @Generable
+    public struct Arguments: Codable, Sendable {
+        public let serverName: String
+
+        public init(serverName: String) {
+            self.serverName = serverName
+        }
+    }
+
+    public let name = "mcp.oauth.refresh"
+    public let capability = "Refresh a stored MCP OAuth access token and rotate the refresh token when the server returns one."
+    public let mutatesState = true
+    public let argumentSchema = #"{"serverName":"configured-http-server"}"#
+
+    private let runner: any MCPOAuthRunning
+
+    public init(runner: any MCPOAuthRunning = MCPConfiguredOAuthRunner()) {
+        self.runner = runner
+    }
+
+    public func validate(_ arguments: Arguments) throws {
+        guard !arguments.serverName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ToolExecutionError.invalidArguments("MCP serverName is required.")
+        }
+    }
+
+    public func run(arguments: Arguments) async throws -> ToolResult {
+        let result = try await runner.refresh(serverName: arguments.serverName)
+        return ToolResult(
+            toolName: name,
+            succeeded: true,
+            spokenSummary: "MCP OAuth token refreshed.",
+            untrustedPayload: MCPOAuthExchangeTool.format(result),
+            metadata: [
+                "serverName": arguments.serverName,
+                "tokenType": result.tokenType,
+                "expiresIn": result.expiresIn.map(String.init) ?? "",
+                "hasRefreshToken": "\(result.hasRefreshToken)"
             ]
         )
     }

@@ -301,7 +301,11 @@ import Testing
         }
 
         func exchange(serverName: String, state: String, code: String) async throws -> MCPOAuthTokenResult {
-            MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read")
+            MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read", hasRefreshToken: true)
+        }
+
+        func refresh(serverName: String) async throws -> MCPOAuthTokenResult {
+            MCPOAuthTokenResult(tokenType: "Bearer", expiresIn: 3600, scope: "read", hasRefreshToken: true)
         }
     }
 
@@ -315,10 +319,14 @@ import Testing
     let exchange = try await MCPOAuthExchangeTool(runner: runner).run(
         arguments: MCPOAuthExchangeTool.Arguments(serverName: "remote", state: "state-1", code: "code-1")
     )
+    let refresh = try await MCPOAuthRefreshTool(runner: runner).run(
+        arguments: MCPOAuthRefreshTool.Arguments(serverName: "remote")
+    )
 
     #expect(discover.untrustedPayload.contains("authorizationEndpoint"))
     #expect(start.untrustedPayload.contains("authorizationURL"))
     #expect(exchange.spokenSummary == "MCP OAuth token stored.")
+    #expect(refresh.spokenSummary == "MCP OAuth token refreshed.")
 }
 
 @Test func mcpOAuthBuildsPKCEAuthorizationURL() throws {
@@ -715,6 +723,113 @@ import Testing
 
     #expect(StubURLProtocol.authorizationHeaders.count == 3)
     #expect(StubURLProtocol.authorizationHeaders.allSatisfy { $0 == "Bearer token-1" })
+}
+
+@Test func mcpOAuthClientRefreshesAndRotatesStoredToken() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var requestBody = ""
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            Self.requestBody = bodyString(from: request)
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            let responseBody = Data(#"{"access_token":"access-2","refresh_token":"refresh-2","token_type":"Bearer","expires_in":7200,"scope":"read"}"#.utf8)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    let service = "cerberus.tests.\(UUID().uuidString)"
+    let accessAccount = "mcp.oauth.access.\(UUID().uuidString)"
+    let tokenAccount = MCPOAuthKeychainAccount.tokenRecord(serverName: "remote")
+    let accessStore = KeychainSecretStore(service: service, account: accessAccount)
+    let tokenStore = KeychainSecretStore(service: service, account: tokenAccount)
+    defer {
+        try? accessStore.delete()
+        try? tokenStore.delete()
+    }
+
+    let record = MCPOAuthTokenRecord(
+        accessToken: "access-1",
+        refreshToken: "refresh-1",
+        tokenType: "Bearer",
+        expiresAt: nil,
+        scope: "read",
+        clientID: "client-1",
+        tokenEndpoint: URL(string: "https://auth.example.com/token")!,
+        resource: "https://example.com/mcp"
+    )
+    try tokenStore.save(JSONEncoder().encode(record))
+
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp"),
+        accessTokenKeychainAccount: accessAccount
+    )
+
+    let result = try await MCPOAuthClient(urlSession: urlSession, keychainService: service)
+        .refreshToken(configuration: configuration)
+    let refreshedRecord = try JSONDecoder().decode(MCPOAuthTokenRecord.self, from: try tokenStore.data() ?? Data())
+    let storedAccessToken = String(data: try accessStore.data() ?? Data(), encoding: .utf8)
+
+    #expect(result.expiresIn == 7200)
+    #expect(result.hasRefreshToken)
+    #expect(StubURLProtocol.requestBody.contains("grant_type=refresh_token"))
+    #expect(StubURLProtocol.requestBody.contains("refresh_token=refresh-1"))
+    #expect(refreshedRecord.refreshToken == "refresh-2")
+    #expect(storedAccessToken == "access-2")
 }
 
 @Test func mcpConfigurationDefaultsToStdioTransport() throws {

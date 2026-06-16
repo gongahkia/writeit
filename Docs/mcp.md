@@ -37,7 +37,7 @@ Current scope:
 
 - stdio and Streamable HTTP transports
 - `initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`
-- OAuth discovery, dynamic client registration, PKCE authorization URL generation, and authorization-code token exchange for Streamable HTTP servers
+- OAuth discovery, dynamic client registration, PKCE authorization URL generation, authorization-code token exchange, and refresh-token rotation for Streamable HTTP servers
 - OAuth access tokens are stored in Keychain and attached as `Authorization: Bearer ...`; explicit config headers override Keychain tokens
 - each `mcp.call` is confirmation-gated
 - tool/resource/prompt output is treated as untrusted payload
@@ -48,4 +48,3 @@ Not implemented:
 - elicitation
 - dynamic FoundationModels native tool schemas
 - automatic localhost redirect capture
-- refresh-token rotation

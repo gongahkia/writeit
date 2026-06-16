@@ -13,6 +13,10 @@ public enum MCPOAuthKeychainAccount {
     public static func flow(serverName: String, state: String) -> String {
         "mcp.oauth.flow.\(serverName).\(state)"
     }
+
+    public static func tokenRecord(serverName: String) -> String {
+        "mcp.oauth.token.\(serverName)"
+    }
 }
 
 public struct MCPOAuthProtectedResourceMetadata: Codable, Equatable, Sendable {
@@ -128,11 +132,44 @@ public struct MCPOAuthTokenResult: Equatable, Sendable {
     public let tokenType: String
     public let expiresIn: Int?
     public let scope: String?
+    public let hasRefreshToken: Bool
 
-    public init(tokenType: String, expiresIn: Int?, scope: String?) {
+    public init(tokenType: String, expiresIn: Int?, scope: String?, hasRefreshToken: Bool = false) {
         self.tokenType = tokenType
         self.expiresIn = expiresIn
         self.scope = scope
+        self.hasRefreshToken = hasRefreshToken
+    }
+}
+
+public struct MCPOAuthTokenRecord: Codable, Equatable, Sendable {
+    public let accessToken: String
+    public let refreshToken: String?
+    public let tokenType: String
+    public let expiresAt: Date?
+    public let scope: String?
+    public let clientID: String
+    public let tokenEndpoint: URL
+    public let resource: String
+
+    public init(
+        accessToken: String,
+        refreshToken: String?,
+        tokenType: String,
+        expiresAt: Date?,
+        scope: String?,
+        clientID: String,
+        tokenEndpoint: URL,
+        resource: String
+    ) {
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.tokenType = tokenType
+        self.expiresAt = expiresAt
+        self.scope = scope
+        self.clientID = clientID
+        self.tokenEndpoint = tokenEndpoint
+        self.resource = resource
     }
 }
 
@@ -220,13 +257,49 @@ public struct MCPOAuthClient: Sendable {
             throw ToolExecutionError.denied("MCP OAuth token response did not include access_token.")
         }
 
-        let account = configuration.accessTokenKeychainAccount ?? MCPOAuthKeychainAccount.accessToken(serverName: configuration.name)
-        try KeychainSecretStore(service: keychainService, account: account).save(Data(accessToken.utf8))
-        return MCPOAuthTokenResult(
-            tokenType: tokenObject["token_type"] as? String ?? "Bearer",
-            expiresIn: tokenObject["expires_in"] as? Int,
-            scope: tokenObject["scope"] as? String
+        let record = Self.tokenRecord(
+            from: tokenObject,
+            accessToken: accessToken,
+            fallbackRefreshToken: nil,
+            clientID: flow.clientID,
+            tokenEndpoint: flow.tokenEndpoint,
+            resource: flow.resource
         )
+        try saveTokenRecord(record, configuration: configuration)
+        return Self.tokenResult(from: record, expiresIn: tokenObject["expires_in"] as? Int)
+    }
+
+    public func refreshToken(configuration: MCPServerConfiguration) async throws -> MCPOAuthTokenResult {
+        let record: MCPOAuthTokenRecord = try readJSON(
+            account: MCPOAuthKeychainAccount.tokenRecord(serverName: configuration.name)
+        )
+        guard let refreshToken = record.refreshToken, !refreshToken.isEmpty else {
+            throw ToolExecutionError.denied("MCP OAuth token record does not include a refresh_token.")
+        }
+
+        let tokenObject = try await postForm(
+            to: record.tokenEndpoint,
+            fields: [
+                "grant_type": "refresh_token",
+                "refresh_token": refreshToken,
+                "client_id": record.clientID,
+                "resource": record.resource
+            ]
+        )
+        guard let accessToken = tokenObject["access_token"] as? String, !accessToken.isEmpty else {
+            throw ToolExecutionError.denied("MCP OAuth refresh response did not include access_token.")
+        }
+
+        let refreshedRecord = Self.tokenRecord(
+            from: tokenObject,
+            accessToken: accessToken,
+            fallbackRefreshToken: refreshToken,
+            clientID: record.clientID,
+            tokenEndpoint: record.tokenEndpoint,
+            resource: record.resource
+        )
+        try saveTokenRecord(refreshedRecord, configuration: configuration)
+        return Self.tokenResult(from: refreshedRecord, expiresIn: tokenObject["expires_in"] as? Int)
     }
 
     private func resourceMetadataURL(for configuration: MCPServerConfiguration) async throws -> URL {
@@ -374,6 +447,13 @@ public struct MCPOAuthClient: Sendable {
         try KeychainSecretStore(service: keychainService, account: account).save(data)
     }
 
+    private func saveTokenRecord(_ record: MCPOAuthTokenRecord, configuration: MCPServerConfiguration) throws {
+        let accessTokenAccount = configuration.accessTokenKeychainAccount
+            ?? MCPOAuthKeychainAccount.accessToken(serverName: configuration.name)
+        try KeychainSecretStore(service: keychainService, account: accessTokenAccount).save(Data(record.accessToken.utf8))
+        try saveJSON(record, account: MCPOAuthKeychainAccount.tokenRecord(serverName: configuration.name))
+    }
+
     private func readJSON<Value: Decodable>(account: String) throws -> Value {
         guard let data = try KeychainSecretStore(service: keychainService, account: account).data() else {
             throw ToolExecutionError.denied("MCP OAuth flow was not found in Keychain.")
@@ -390,6 +470,36 @@ public struct MCPOAuthClient: Sendable {
         components.query = nil
         components.fragment = nil
         return components.url!
+    }
+
+    private static func tokenRecord(
+        from object: [String: Any],
+        accessToken: String,
+        fallbackRefreshToken: String?,
+        clientID: String,
+        tokenEndpoint: URL,
+        resource: String
+    ) -> MCPOAuthTokenRecord {
+        let expiresIn = object["expires_in"] as? Int
+        return MCPOAuthTokenRecord(
+            accessToken: accessToken,
+            refreshToken: object["refresh_token"] as? String ?? fallbackRefreshToken,
+            tokenType: object["token_type"] as? String ?? "Bearer",
+            expiresAt: expiresIn.map { Date().addingTimeInterval(TimeInterval($0)) },
+            scope: object["scope"] as? String,
+            clientID: clientID,
+            tokenEndpoint: tokenEndpoint,
+            resource: resource
+        )
+    }
+
+    private static func tokenResult(from record: MCPOAuthTokenRecord, expiresIn: Int?) -> MCPOAuthTokenResult {
+        MCPOAuthTokenResult(
+            tokenType: record.tokenType,
+            expiresIn: expiresIn,
+            scope: record.scope,
+            hasRefreshToken: record.refreshToken != nil
+        )
     }
 
     public static func authorizationURL(
