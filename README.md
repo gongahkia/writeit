@@ -16,6 +16,7 @@ The project is intentionally scoped as a native macOS utility:
 - Foundation Models latency benchmark CLI for plan/tool-loop checks
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
+- per-session tool allowlist settings for the ambient tool surface
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - calendar event creation is a separate mutating tool and requires confirmation
 - reminder creation is a separate mutating tool and requires confirmation

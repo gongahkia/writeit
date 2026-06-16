@@ -4,6 +4,7 @@ import cerberusCore
 struct StatusPanel: View {
     @ObservedObject var model: CerberusAppModel
     @State private var selectedSection: PanelSection = .session
+    @State private var isToolAllowlistExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -629,6 +630,38 @@ struct StatusPanel: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            DisclosureGroup(isExpanded: $isToolAllowlistExpanded) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(model.availableAmbientToolSummaries, id: \.name) { summary in
+                        Toggle(isOn: Binding(
+                            get: { model.isAmbientToolEnabled(summary.name) },
+                            set: { model.setAmbientTool(summary.name, enabled: $0) }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(summary.name)
+                                    .font(.caption.monospaced())
+                                Text(summary.capability)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+
+                    Button {
+                        model.resetAmbientToolAllowlist()
+                    } label: {
+                        Label("Reset tool allowlist", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.disabledAmbientToolCount == 0)
+                }
+                .padding(.top, 6)
+            } label: {
+                Label("Tool allowlist", systemImage: "checklist")
+                    .font(.caption)
             }
         }
         .toggleStyle(.switch)

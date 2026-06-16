@@ -113,6 +113,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
+    @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusAppModel.prefersSoundWakeWordClassifierDefaultsKey) {
@@ -284,14 +285,32 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var enabledToolDisplayText: String {
-        var labels = ["Apps", "Calendar", "Files", "Mail", "Memory", "Music", "Reminders", "Screen", "Web"]
-        if isMCPToolEnabled {
-            labels.append("MCP")
-        }
-        if isShellToolEnabled {
-            labels.append("Shell")
-        }
-        return labels.sorted().joined(separator: ", ")
+        let labels = enabledToolSummaries.map(\.name)
+        return labels.isEmpty ? "none" : labels.joined(separator: ", ")
+    }
+
+    var availableAmbientToolSummaries: [ToolSummary] {
+        Self.ambientToolSummaries
+    }
+
+    var disabledAmbientToolCount: Int {
+        ambientToolAllowlist.disabledToolNames.count
+    }
+
+    func isAmbientToolEnabled(_ toolName: String) -> Bool {
+        ambientToolAllowlist.isEnabled(toolName)
+    }
+
+    func setAmbientTool(_ toolName: String, enabled: Bool) {
+        var allowlist = ambientToolAllowlist
+        allowlist.setEnabled(toolName, enabled: enabled)
+        ambientToolAllowlist = allowlist
+        refreshAssistantToolPrompt()
+    }
+
+    func resetAmbientToolAllowlist() {
+        ambientToolAllowlist = ToolSessionAllowlist()
+        refreshAssistantToolPrompt()
     }
 
     var menuBarSystemImage: String {
@@ -1160,7 +1179,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private var enabledToolSummaries: [ToolSummary] {
-        var summaries = Self.ambientToolSummaries
+        var summaries = ambientToolAllowlist.filter(Self.ambientToolSummaries)
         if isMCPToolEnabled {
             summaries += Self.mcpToolSummaries
         }

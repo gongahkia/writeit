@@ -42,6 +42,25 @@ import Testing
     #expect(prompt.contains("read-only"))
 }
 
+@Test func toolSessionAllowlistFiltersDisabledTools() {
+    let summaries = [
+        ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false),
+        ToolSummary(name: "web.search", capability: "Search web.", mutatesState: false)
+    ]
+    var allowlist = ToolSessionAllowlist()
+
+    #expect(allowlist.filter(summaries).map(\.name) == ["calendar.read", "web.search"])
+
+    allowlist.setEnabled("web.search", enabled: false)
+
+    #expect(allowlist.isEnabled("web.search") == false)
+    #expect(allowlist.filter(summaries).map(\.name) == ["calendar.read"])
+
+    allowlist.reset()
+
+    #expect(allowlist.filter(summaries).map(\.name) == ["calendar.read", "web.search"])
+}
+
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {
     var classifier = HeadGestureClassifier(pitchThreshold: 0.3, yawThreshold: 0.4, cooldown: 1.0)
     let start = Date(timeIntervalSince1970: 1_000)
