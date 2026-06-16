@@ -12,6 +12,7 @@ The project is intentionally scoped as a native macOS utility:
 - speech replies can follow the current macOS output route or route directly to detected AirPods
 - Foundation Models for on-device planning and native read-only typed tool calls
 - optional AirPods gesture validation CSV logging for threshold tuning
+- head gesture CSV evaluator for threshold tuning after real-device walks/tests
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation

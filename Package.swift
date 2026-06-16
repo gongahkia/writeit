@@ -25,6 +25,10 @@ let package = Package(
             name: "cerberus-adapter-eval",
             targets: ["AdapterEval"]
         ),
+        .executable(
+            name: "cerberus-head-gesture-eval",
+            targets: ["HeadGestureEval"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -105,6 +109,14 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("FoundationModels")
+            ]
+        ),
+        .executableTarget(
+            name: "HeadGestureEval",
+            dependencies: ["cerberusCore"],
+            path: "Sources/HeadGestureEval",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
             ]
         ),
         .testTarget(

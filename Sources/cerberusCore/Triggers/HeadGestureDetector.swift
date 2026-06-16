@@ -10,6 +10,10 @@ public struct HeadGestureMotionSnapshot: Equatable, Sendable {
     public let timestamp: Date
     public let pitch: Double
     public let yaw: Double
+    public let neutralPitch: Double?
+    public let neutralYaw: Double?
+    public let deltaPitch: Double?
+    public let deltaYaw: Double?
     public let pitchThreshold: Double
     public let yawThreshold: Double
     public let gesture: HeadGesture?
@@ -18,6 +22,10 @@ public struct HeadGestureMotionSnapshot: Equatable, Sendable {
         timestamp: Date = Date(),
         pitch: Double,
         yaw: Double,
+        neutralPitch: Double? = nil,
+        neutralYaw: Double? = nil,
+        deltaPitch: Double? = nil,
+        deltaYaw: Double? = nil,
         pitchThreshold: Double,
         yawThreshold: Double,
         gesture: HeadGesture? = nil
@@ -25,18 +33,26 @@ public struct HeadGestureMotionSnapshot: Equatable, Sendable {
         self.timestamp = timestamp
         self.pitch = pitch
         self.yaw = yaw
+        self.neutralPitch = neutralPitch
+        self.neutralYaw = neutralYaw
+        self.deltaPitch = deltaPitch
+        self.deltaYaw = deltaYaw
         self.pitchThreshold = pitchThreshold
         self.yawThreshold = yawThreshold
         self.gesture = gesture
     }
 
-    public static let csvHeader = "timestamp,pitch,yaw,pitchThreshold,yawThreshold,gesture"
+    public static let csvHeader = "timestamp,pitch,yaw,neutralPitch,neutralYaw,deltaPitch,deltaYaw,pitchThreshold,yawThreshold,gesture"
 
     public var csvLine: String {
         [
             ISO8601DateFormatter().string(from: timestamp),
             Self.format(pitch),
             Self.format(yaw),
+            neutralPitch.map(Self.format) ?? "",
+            neutralYaw.map(Self.format) ?? "",
+            deltaPitch.map(Self.format) ?? "",
+            deltaYaw.map(Self.format) ?? "",
             Self.format(pitchThreshold),
             Self.format(yawThreshold),
             gesture.map(String.init(describing:)) ?? ""
@@ -111,6 +127,17 @@ public struct HeadGestureClassifier: Sendable {
         }
     }
 
+    public func deltas(pitch: Double, yaw: Double) -> HeadGestureDeltas {
+        let neutralPitch = neutralPitch ?? pitch
+        let neutralYaw = neutralYaw ?? yaw
+        return HeadGestureDeltas(
+            neutralPitch: neutralPitch,
+            neutralYaw: neutralYaw,
+            deltaPitch: pitch - neutralPitch,
+            deltaYaw: yaw - neutralYaw
+        )
+    }
+
     public mutating func classify(pitch: Double, yaw: Double, at date: Date = Date()) -> HeadGesture? {
         guard let neutralPitch, let neutralYaw else {
             calibrate(pitch: pitch, yaw: yaw)
@@ -135,6 +162,13 @@ public struct HeadGestureClassifier: Sendable {
 
         return nil
     }
+}
+
+public struct HeadGestureDeltas: Equatable, Sendable {
+    public let neutralPitch: Double
+    public let neutralYaw: Double
+    public let deltaPitch: Double
+    public let deltaYaw: Double
 }
 
 @MainActor
@@ -210,6 +244,7 @@ public final class HeadGestureDetector {
         latestPitch = pitch
         latestYaw = yaw
 
+        let deltas = classifier.deltas(pitch: pitch, yaw: yaw)
         let gesture = classifier.classify(pitch: pitch, yaw: yaw, at: now)
         if gesture != nil || now.timeIntervalSince(lastSampleDate) >= 0.1 {
             lastSampleDate = now
@@ -217,6 +252,10 @@ public final class HeadGestureDetector {
                 timestamp: now,
                 pitch: pitch,
                 yaw: yaw,
+                neutralPitch: deltas.neutralPitch,
+                neutralYaw: deltas.neutralYaw,
+                deltaPitch: deltas.deltaPitch,
+                deltaYaw: deltas.deltaYaw,
                 pitchThreshold: classifier.pitchThreshold,
                 yawThreshold: classifier.yawThreshold,
                 gesture: gesture

@@ -84,7 +84,30 @@ import Testing
 
     let text = try String(contentsOf: fileURL, encoding: .utf8)
     #expect(text.contains(HeadGestureMotionSnapshot.csvHeader))
-    #expect(text.contains("1970-01-01T00:00:00Z,0.123457,-0.250000,0.350000,0.450000,nod"))
+    #expect(text.contains("1970-01-01T00:00:00Z,0.123457,-0.250000,,,,,0.350000,0.450000,nod"))
+}
+
+@Test func headGestureValidationAnalyzerReportsThresholdSuggestions() throws {
+    let csv = """
+    timestamp,pitch,yaw,neutralPitch,neutralYaw,deltaPitch,deltaYaw,pitchThreshold,yawThreshold,gesture
+    1970-01-01T00:00:00Z,0.00,0.00,0.00,0.00,0.00,0.00,0.35,0.45,
+    1970-01-01T00:00:01Z,0.10,0.04,0.00,0.00,0.10,0.04,0.35,0.45,
+    1970-01-01T00:00:02Z,0.42,0.05,0.00,0.00,0.42,0.05,0.35,0.45,nod
+    1970-01-01T00:00:03Z,0.05,0.52,0.00,0.00,0.05,0.52,0.35,0.45,shake
+    """
+
+    let samples = try HeadGestureValidationAnalyzer.parseCSV(csv)
+    let report = HeadGestureValidationAnalyzer.report(samples: samples)
+
+    #expect(report.sampleCount == 4)
+    #expect(report.quietSampleCount == 2)
+    #expect(report.nodCount == 1)
+    #expect(report.shakeCount == 1)
+    #expect(report.maxQuietPitchDelta == 0.10)
+    #expect(report.maxQuietYawDelta == 0.04)
+    #expect(report.suggestedPitchThreshold == 0.15)
+    #expect(report.suggestedYawThreshold == 0.15)
+    #expect(HeadGestureValidationAnalyzer.render(report).contains("nod detections: 1"))
 }
 
 @Test func wakeWordDetectorMatchesNormalizedPhrase() {

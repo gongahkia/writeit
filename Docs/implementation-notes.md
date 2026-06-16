@@ -20,7 +20,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - SwiftPM builds `cerberus`, `CerberusCore`, and `ShellExecService`.
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
 - First launch opens the Access panel while required permissions remain ungranted, with skip and reset controls persisted in UserDefaults.
-- AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv` for threshold tuning.
+- AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv`; `Scripts/evaluate_head_gestures.sh` summarizes quiet motion, detections, and conservative threshold suggestions.
 - `Wake phrase` is a default-off configurable SpeechAnalyzer phrase monitor; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
