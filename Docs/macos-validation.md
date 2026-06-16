@@ -36,7 +36,7 @@ Validate the implementation on a Mac that matches the project requirements.
 15. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
 16. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
 17. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-18. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+18. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
 19. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
 20. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
 21. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.

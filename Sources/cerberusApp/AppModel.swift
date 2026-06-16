@@ -334,7 +334,9 @@ final class CerberusAppModel: ObservableObject {
 
             switch trigger {
             case .singlePress:
-                if state == .listening || state == .speaking {
+                if state == .awaitingConfirm {
+                    denyPendingConfirmation()
+                } else if state == .listening || state == .speaking {
                     cancel()
                 }
             case .triplePress:
