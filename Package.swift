@@ -33,6 +33,10 @@ let package = Package(
             name: "cerberus-wake-samples",
             targets: ["WakeSampleCapture"]
         ),
+        .executable(
+            name: "cerberus-wake-train",
+            targets: ["WakeModelTrain"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -140,6 +144,17 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("AVFoundation")
+            ]
+        ),
+        .executableTarget(
+            name: "WakeModelTrain",
+            dependencies: ["cerberusCore"],
+            path: "Sources/WakeModelTrain",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("CreateML")
             ]
         ),
         .testTarget(

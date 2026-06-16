@@ -24,6 +24,7 @@ public struct WakeWordSampleRecord: Codable, Equatable, Sendable {
 
 public enum WakeWordSampleDataset {
     public static let manifestFileName = "manifest.jsonl"
+    public static let supportedAudioExtensions: Set<String> = ["aif", "aiff", "caf", "m4a", "mp3", "wav"]
 
     public static func defaultDirectoryURL() -> URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -92,5 +93,40 @@ public enum WakeWordSampleDataset {
         } else {
             try Data(line.utf8).write(to: fileURL, options: .atomic)
         }
+    }
+
+    public static func classCounts(in baseDirectoryURL: URL) throws -> [String: Int] {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: baseDirectoryURL.path, isDirectory: &isDirectory) else {
+            return [:]
+        }
+        guard isDirectory.boolValue else {
+            throw ToolExecutionError.invalidArguments("Wake sample input must be a directory: \(baseDirectoryURL.path)")
+        }
+
+        let labels = try FileManager.default.contentsOfDirectory(
+            at: baseDirectoryURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+
+        var counts: [String: Int] = [:]
+        for labelURL in labels {
+            let values = try labelURL.resourceValues(forKeys: [.isDirectoryKey])
+            guard values.isDirectory == true else {
+                continue
+            }
+            let label = labelURL.lastPathComponent
+            let files = try FileManager.default.contentsOfDirectory(
+                at: labelURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )
+            counts[label] = try files.filter { fileURL in
+                let values = try fileURL.resourceValues(forKeys: [.isRegularFileKey])
+                return values.isRegularFile == true && supportedAudioExtensions.contains(fileURL.pathExtension.lowercased())
+            }.count
+        }
+        return counts.filter { $0.value > 0 }
     }
 }

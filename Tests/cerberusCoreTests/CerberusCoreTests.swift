@@ -193,6 +193,36 @@ import Testing
     #expect(lines[0].contains("sample.wav"))
 }
 
+@Test func wakeWordSampleDatasetCountsSupportedAudioFilesByClass() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+    defer {
+        try? FileManager.default.removeItem(at: directory)
+    }
+    let wakeDirectory = directory.appendingPathComponent("hey_cerberus", isDirectory: true)
+    let backgroundDirectory = directory.appendingPathComponent("background", isDirectory: true)
+    let emptyDirectory = directory.appendingPathComponent("empty", isDirectory: true)
+    try FileManager.default.createDirectory(at: wakeDirectory, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: backgroundDirectory, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: emptyDirectory, withIntermediateDirectories: true)
+    try Data().write(to: wakeDirectory.appendingPathComponent("one.wav"))
+    try Data().write(to: wakeDirectory.appendingPathComponent("ignore.txt"))
+    try Data().write(to: backgroundDirectory.appendingPathComponent("one.m4a"))
+    try Data().write(to: backgroundDirectory.appendingPathComponent("two.WAV"))
+
+    #expect(try WakeWordSampleDataset.classCounts(in: directory) == [
+        "background": 2,
+        "hey_cerberus": 1
+    ])
+}
+
+@Test func wakeWordSampleDatasetClassCountsAllowsMissingDirectory() throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+
+    #expect(try WakeWordSampleDataset.classCounts(in: directory) == [:])
+}
+
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
