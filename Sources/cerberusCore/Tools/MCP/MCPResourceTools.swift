@@ -27,7 +27,10 @@ public struct MCPConfiguredResourceRunner: MCPResourceRunning {
                 clientRequestHandlers: clientRequestHandlers
             ).listResources()
         case .streamableHTTP:
-            return try await MCPStreamableHTTPClient(configuration: configuration).listResources()
+            return try await MCPStreamableHTTPClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).listResources()
         }
     }
 
@@ -40,7 +43,10 @@ public struct MCPConfiguredResourceRunner: MCPResourceRunning {
                 clientRequestHandlers: clientRequestHandlers
             ).readResource(uri: uri)
         case .streamableHTTP:
-            return try await MCPStreamableHTTPClient(configuration: configuration).readResource(uri: uri)
+            return try await MCPStreamableHTTPClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).readResource(uri: uri)
         }
     }
 }

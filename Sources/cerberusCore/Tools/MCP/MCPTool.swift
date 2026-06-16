@@ -26,7 +26,10 @@ public struct MCPConfiguredToolRunner: MCPToolRunning {
                 clientRequestHandlers: clientRequestHandlers
             ).callTool(name: toolName, argumentsJSON: argumentsJSON)
         case .streamableHTTP:
-            return try await MCPStreamableHTTPClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
+            return try await MCPStreamableHTTPClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).callTool(name: toolName, argumentsJSON: argumentsJSON)
         }
     }
 }

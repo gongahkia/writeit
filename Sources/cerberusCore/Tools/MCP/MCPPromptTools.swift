@@ -27,7 +27,10 @@ public struct MCPConfiguredPromptRunner: MCPPromptRunning {
                 clientRequestHandlers: clientRequestHandlers
             ).listPrompts()
         case .streamableHTTP:
-            return try await MCPStreamableHTTPClient(configuration: configuration).listPrompts()
+            return try await MCPStreamableHTTPClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).listPrompts()
         }
     }
 
@@ -43,7 +46,10 @@ public struct MCPConfiguredPromptRunner: MCPPromptRunning {
                 argumentsJSON: argumentsJSON
             )
         case .streamableHTTP:
-            return try await MCPStreamableHTTPClient(configuration: configuration).getPrompt(
+            return try await MCPStreamableHTTPClient(
+                configuration: configuration,
+                clientRequestHandlers: clientRequestHandlers
+            ).getPrompt(
                 name: promptName,
                 argumentsJSON: argumentsJSON
             )

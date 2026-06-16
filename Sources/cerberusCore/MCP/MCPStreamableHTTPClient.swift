@@ -3,15 +3,18 @@ import Foundation
 public struct MCPStreamableHTTPClient: Sendable {
     public let configuration: MCPServerConfiguration
     public let timeoutNanoseconds: UInt64
+    public let clientRequestHandlers: MCPClientRequestHandlers
     private let urlSession: URLSession
 
     public init(
         configuration: MCPServerConfiguration,
         timeoutNanoseconds: UInt64 = 10_000_000_000,
+        clientRequestHandlers: MCPClientRequestHandlers = .none,
         urlSession: URLSession = .shared
     ) {
         self.configuration = configuration
         self.timeoutNanoseconds = timeoutNanoseconds
+        self.clientRequestHandlers = clientRequestHandlers
         self.urlSession = urlSession
     }
 
@@ -19,6 +22,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -30,6 +34,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -41,6 +46,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -52,6 +58,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -63,6 +70,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -74,6 +82,7 @@ public struct MCPStreamableHTTPClient: Sendable {
         let session = MCPStreamableHTTPSession(
             configuration: configuration,
             timeoutNanoseconds: timeoutNanoseconds,
+            clientRequestHandlers: clientRequestHandlers,
             urlSession: urlSession
         )
         try await session.initialize()
@@ -85,21 +94,28 @@ public struct MCPStreamableHTTPClient: Sendable {
 private final class MCPStreamableHTTPSession: @unchecked Sendable {
     private let configuration: MCPServerConfiguration
     private let timeoutNanoseconds: UInt64
+    private let clientRequestHandlers: MCPClientRequestHandlers
     private let urlSession: URLSession
     private let protocolVersion = "2025-06-18"
     private var sessionID: String?
     private var nextRequestID = 1
 
-    init(configuration: MCPServerConfiguration, timeoutNanoseconds: UInt64, urlSession: URLSession) {
+    init(
+        configuration: MCPServerConfiguration,
+        timeoutNanoseconds: UInt64,
+        clientRequestHandlers: MCPClientRequestHandlers,
+        urlSession: URLSession
+    ) {
         self.configuration = configuration
         self.timeoutNanoseconds = timeoutNanoseconds
+        self.clientRequestHandlers = clientRequestHandlers
         self.urlSession = urlSession
     }
 
     func initialize() async throws {
         _ = try await request(method: "initialize", params: [
             "protocolVersion": protocolVersion,
-            "capabilities": [:],
+            "capabilities": clientRequestHandlers.capabilities,
             "clientInfo": [
                 "name": "cerberus",
                 "version": "0.1.0"
@@ -244,7 +260,7 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             request.setValue(value, forHTTPHeaderField: header)
         }
 
-        let (data, response) = try await urlSession.data(for: request)
+        let (bytes, response) = try await urlSession.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ToolExecutionError.denied("MCP HTTP server returned a non-HTTP response.")
         }
@@ -264,8 +280,12 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
         let responseObject: [String: Any]
         if contentType.localizedCaseInsensitiveContains("text/event-stream") {
-            responseObject = try Self.jsonResponseFromSSE(data, responseID: responseID)
+            responseObject = try await jsonResponseFromSSE(bytes, responseID: responseID)
         } else {
+            var data = Data()
+            for try await byte in bytes {
+                data.append(byte)
+            }
             responseObject = try Self.jsonResponse(from: data)
         }
 
@@ -290,30 +310,51 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         return message
     }
 
-    private static func jsonResponseFromSSE(_ data: Data, responseID: Int?) throws -> [String: Any] {
-        let text = String(decoding: data, as: UTF8.self)
+    private func jsonResponseFromSSE(_ bytes: URLSession.AsyncBytes, responseID: Int?) async throws -> [String: Any] {
         var eventDataLines: [String] = []
+        var lineBytes: [UInt8] = []
 
-        for line in text.components(separatedBy: .newlines) {
-            if line.hasPrefix("data:") {
-                eventDataLines.append(String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces))
-            } else if line.isEmpty, !eventDataLines.isEmpty {
-                if let message = try matchingSSEMessage(eventDataLines.joined(separator: "\n"), responseID: responseID) {
+        func processLine(_ line: String) async throws -> [String: Any]? {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmedLine.hasPrefix("data:") {
+                eventDataLines.append(String(trimmedLine.dropFirst(5)).trimmingCharacters(in: .whitespaces))
+            } else if trimmedLine.isEmpty, !eventDataLines.isEmpty {
+                if let message = try await matchingSSEMessage(eventDataLines.joined(separator: "\n"), responseID: responseID) {
                     return message
                 }
                 eventDataLines = []
             }
+            return nil
+        }
+
+        for try await byte in bytes {
+            if byte == 0x0A {
+                let line = String(decoding: lineBytes, as: UTF8.self)
+                if let message = try await processLine(line) {
+                    return message
+                }
+                lineBytes.removeAll(keepingCapacity: true)
+            } else {
+                lineBytes.append(byte)
+            }
+        }
+
+        if !lineBytes.isEmpty {
+            let line = String(decoding: lineBytes, as: UTF8.self)
+            if let message = try await processLine(line) {
+                return message
+            }
         }
 
         if !eventDataLines.isEmpty,
-           let message = try matchingSSEMessage(eventDataLines.joined(separator: "\n"), responseID: responseID) {
+           let message = try await matchingSSEMessage(eventDataLines.joined(separator: "\n"), responseID: responseID) {
             return message
         }
 
         throw ToolExecutionError.invalidArguments("MCP SSE stream did not include the expected JSON-RPC response.")
     }
 
-    private static func matchingSSEMessage(_ json: String, responseID: Int?) throws -> [String: Any]? {
+    private func matchingSSEMessage(_ json: String, responseID: Int?) async throws -> [String: Any]? {
         let data = Data(json.utf8)
         let object = try JSONSerialization.jsonObject(with: data)
         guard let message = object as? [String: Any] else {
@@ -322,7 +363,89 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
         guard let responseID else {
             return message
         }
-        return message["id"] as? Int == responseID ? message : nil
+        if message["id"] as? Int == responseID {
+            return message
+        }
+
+        try await handleServerRequestIfNeeded(message)
+        return nil
+    }
+
+    private func handleServerRequestIfNeeded(_ message: [String: Any]) async throws {
+        guard let id = message["id"],
+              let method = message["method"] as? String else {
+            return
+        }
+
+        switch method {
+        case "sampling/createMessage":
+            try await handleSamplingRequest(id: id, params: message["params"] as? [String: Any] ?? [:])
+        case "elicitation/create":
+            try await handleElicitationRequest(id: id, params: message["params"] as? [String: Any] ?? [:])
+        default:
+            try await sendErrorResponse(
+                id: id,
+                code: -32601,
+                message: "MCP client method is not supported by cerberus: \(method)"
+            )
+        }
+    }
+
+    private func handleSamplingRequest(id: Any, params: [String: Any]) async throws {
+        guard let sampling = clientRequestHandlers.sampling else {
+            try await sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP sampling is not supported by cerberus."
+            )
+            return
+        }
+
+        do {
+            let request = MCPSamplingRequest(serverName: configuration.name, params: params)
+            let response = try await sampling(request)
+            try await sendResultResponse(id: id, result: response.resultObject())
+        } catch {
+            try await sendErrorResponse(id: id, code: -32000, message: error.localizedDescription)
+        }
+    }
+
+    private func handleElicitationRequest(id: Any, params: [String: Any]) async throws {
+        guard let elicitation = clientRequestHandlers.elicitation else {
+            try await sendErrorResponse(
+                id: id,
+                code: -32000,
+                message: "MCP elicitation is not supported by cerberus."
+            )
+            return
+        }
+
+        do {
+            let request = MCPElicitationRequest(serverName: configuration.name, params: params)
+            let response = try await elicitation(request)
+            try await sendResultResponse(id: id, result: response.resultObject(for: request))
+        } catch {
+            try await sendErrorResponse(id: id, code: -32000, message: error.localizedDescription)
+        }
+    }
+
+    private func sendResultResponse(id: Any, result: [String: Any]) async throws {
+        _ = try await post([
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": result
+        ], expectingResponseID: nil)
+    }
+
+    private func sendErrorResponse(id: Any, code: Int, message: String) async throws {
+        _ = try await post([
+            "jsonrpc": "2.0",
+            "id": id,
+            "error": [
+                "code": code,
+                "message": message
+            ]
+        ], expectingResponseID: nil)
     }
 
     private static func accessToken(for configuration: MCPServerConfiguration) throws -> String? {
