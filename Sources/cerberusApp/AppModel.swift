@@ -312,6 +312,10 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func startListening(trigger: WakeTrigger = .manual) {
+        if state == .speaking {
+            cancel(restartWakeWord: false)
+        }
+
         Task {
             await stopWakeWordMonitoringAndWait()
             if apply(.wakeDetected(trigger)) {
@@ -353,6 +357,10 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func cancel() {
+        cancel(restartWakeWord: true)
+    }
+
+    private func cancel(restartWakeWord: Bool) {
         transcriptDraft = ""
         activeRequest = nil
         silenceTask?.cancel()
@@ -365,7 +373,9 @@ final class CerberusAppModel: ObservableObject {
         clearPendingConfirmation()
         finishMCPClientRequest(.cancel)
         apply(.cancelRequested)
-        startWakeWordMonitoringIfNeeded()
+        if restartWakeWord {
+            startWakeWordMonitoringIfNeeded()
+        }
     }
 
     func reset() {

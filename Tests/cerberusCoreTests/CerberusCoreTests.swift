@@ -18,6 +18,13 @@ import Testing
     #expect(machine.handle(.speechFinished)?.to == .idle)
 }
 
+@Test func stateMachineAllowsSpeechInterruptionBeforeNewWake() {
+    var machine = AssistantStateMachine(initialState: .speaking)
+
+    #expect(machine.handle(.cancelRequested)?.to == .idle)
+    #expect(machine.handle(.wakeDetected(.stemTriplePress))?.to == .listening)
+}
+
 @Test func stateMachineRejectsInvalidTransitions() {
     var machine = AssistantStateMachine()
 

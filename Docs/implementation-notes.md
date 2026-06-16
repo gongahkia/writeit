@@ -26,6 +26,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `Scripts/record_wake_samples.sh` records labeled mono 16 kHz WAV files plus `manifest.jsonl`; `Scripts/train_wake_word_model.sh` trains a local CreateML sound classifier and can write the app config.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
+- A stem triple-press while speaking interrupts the current reply and starts a new listening turn.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Explicit file search scopes must be existing directories inside the user's home directory.
