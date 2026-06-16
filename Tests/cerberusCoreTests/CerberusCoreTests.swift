@@ -60,6 +60,11 @@ import Testing
     #expect(!detector.detectsWakeWord(in: "hello service"))
 }
 
+@Test func audioOutputDeviceDetectsAirPodsByName() {
+    #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
+    #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
+}
+
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
     try FoundationModelAdapterConfiguration(name: "demo").validate()
     try FoundationModelAdapterConfiguration(filePath: "/tmp/demo.adapter").validate()

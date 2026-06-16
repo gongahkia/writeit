@@ -34,6 +34,7 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreAudio"),
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("CoreMotion"),
                 .linkedFramework("EventKit"),
@@ -55,6 +56,7 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreAudio"),
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("CoreMotion"),
                 .linkedFramework("EventKit"),

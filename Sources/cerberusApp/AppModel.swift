@@ -10,6 +10,8 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
+    @Published private(set) var audioOutputRouteLine = "Output route unknown"
+    @Published private(set) var isAudioOutputLikelyAirPods = false
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
@@ -69,6 +71,7 @@ final class CerberusAppModel: ObservableObject {
             readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
         )
         refreshPermissions()
+        refreshAudioOutputRoute()
         refreshAuditEntries()
         startTriggers()
         loadConfiguredAdapterIfPresent()
@@ -191,6 +194,17 @@ final class CerberusAppModel: ObservableObject {
 
     func refreshPermissions() {
         permissionSnapshots = permissionCenter.currentSnapshots()
+    }
+
+    func refreshAudioOutputRoute() {
+        do {
+            let device = try AudioOutputRouteInspector.defaultOutputDevice()
+            audioOutputRouteLine = device.displayName
+            isAudioOutputLikelyAirPods = device.isLikelyAirPods
+        } catch {
+            audioOutputRouteLine = error.localizedDescription
+            isAudioOutputLikelyAirPods = false
+        }
     }
 
     func refreshTranscriptRecords() {

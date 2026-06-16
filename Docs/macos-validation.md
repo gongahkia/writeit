@@ -25,26 +25,28 @@ Validate the implementation on a Mac that matches the project requirements.
 4. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
 5. Enable `Wake phrase`, say "hey cerberus", and confirm the app starts active listening; then disable it and confirm the mic indicator clears.
 6. Confirm Control-Option-Space starts listening while the app is not focused.
-7. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
-8. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
-9. Confirm tool payloads are summarized into a useful spoken response.
-10. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
-11. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
-12. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
-13. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-14. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-15. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
-16. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-17. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-18. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-19. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
-20. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-21. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+7. Connect AirPods, set them as the macOS output device, and confirm Settings shows the AirPods route before testing spoken replies.
+8. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
+9. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", or "what text is on my screen?".
+10. Confirm tool payloads are summarized into a useful spoken response.
+11. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
+12. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
+13. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
+14. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
+15. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
+16. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
+17. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+18. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+19. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
+20. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
+21. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+22. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 
 - `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
 - AirPods nod/shake classification has a manual neutral-pose calibration action, but thresholds still need real walking/noisy-environment tuning.
+- Direct per-device speech routing is not implemented; `AVSpeechSynthesizer` on macOS uses the system output route, and the app only reports that route.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
 - Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.

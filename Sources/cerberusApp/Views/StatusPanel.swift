@@ -382,6 +382,29 @@ struct StatusPanel: View {
                     .font(.caption.monospaced())
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Speech output")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        model.refreshAudioOutputRoute()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Refresh speech output route")
+                }
+
+                Label(model.audioOutputRouteLine, systemImage: model.isAudioOutputLikelyAirPods ? "airpodspro" : "speaker.wave.2")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
             Button {
                 model.calibrateHeadGestures()
             } label: {
