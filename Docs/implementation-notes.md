@@ -22,6 +22,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `Wake phrase` is a default-off SpeechAnalyzer phrase monitor for "hey cerberus"; it is not a dedicated keyword-spotting model.
 - Listening auto-runs after a 1.5 second transcript silence timeout.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
+- Explicit file search scopes must be existing directories inside the user's home directory.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
 - Audit logs are hash-chained and HMAC-signed at `~/Library/Application Support/cerberus/audit.log`.

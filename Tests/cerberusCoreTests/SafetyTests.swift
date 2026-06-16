@@ -103,6 +103,14 @@ import Testing
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
 }
 
+@Test func fileSearchRejectsScopesOutsideHome() throws {
+    let tool = FileSearchTool()
+
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(FileSearchTool.Arguments(query: "README", scopePath: "/System"))
+    }
+}
+
 @Test func shellToolExecutesThroughConfiguredExecutorWhenAllowed() async throws {
     struct StubExecutor: ShellCommandExecutor {
         func run(_ command: ValidatedCommand) async throws -> String {

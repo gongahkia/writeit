@@ -26,13 +26,16 @@ public struct FileSearchTool: AssistantTool {
         guard !arguments.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ToolExecutionError.invalidArguments("query is required")
         }
+
+        _ = try validatedScopePath(arguments.scopePath)
     }
 
     public func run(arguments: Arguments) async throws -> ToolResult {
         let limit = ToolArgumentSupport.clampLimit(arguments.limit)
+        let scopePath = try validatedScopePath(arguments.scopePath)
         let results = await MetadataQueryRunner(
             queryText: arguments.query,
-            scopePath: arguments.scopePath,
+            scopePath: scopePath,
             limit: limit
         ).run()
 
@@ -47,6 +50,26 @@ public struct FileSearchTool: AssistantTool {
             untrustedPayload: payload,
             metadata: ["count": "\(results.count)"]
         )
+    }
+
+    private func validatedScopePath(_ path: String?) throws -> String? {
+        guard let path, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path).standardizedFileURL
+        let homeURL = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
+
+        guard url.path == homeURL.path || url.path.hasPrefix(homeURL.path + "/") else {
+            throw ToolExecutionError.denied("File search scope must be inside the user's home directory.")
+        }
+
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw ToolExecutionError.denied("File search scope must be an existing directory.")
+        }
+
+        return url.path
     }
 }
 
