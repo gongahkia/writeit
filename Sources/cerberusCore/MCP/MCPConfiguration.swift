@@ -123,6 +123,13 @@ public actor MCPServerRegistry {
         return configuration
     }
 
+    public func configurations() throws -> [MCPServerConfiguration] {
+        if cachedConfigurations == nil {
+            cachedConfigurations = try loadConfigurations()
+        }
+        return (cachedConfigurations ?? [:]).values.sorted { $0.name < $1.name }
+    }
+
     public func reload() {
         cachedConfigurations = nil
     }

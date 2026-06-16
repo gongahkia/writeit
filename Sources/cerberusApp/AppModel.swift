@@ -108,6 +108,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
+    @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusAppModel.wakePhraseDefaultsKey) ?? "hey cerberus" {
@@ -127,6 +128,11 @@ final class CerberusAppModel: ObservableObject {
     @Published var isMCPToolEnabled = false {
         didSet {
             refreshAssistantToolPrompt()
+            if isMCPToolEnabled {
+                startMCPHTTPListeners()
+            } else {
+                stopMCPHTTPListeners()
+            }
         }
     }
     @Published var isShellToolEnabled = false {
@@ -162,10 +168,13 @@ final class CerberusAppModel: ObservableObject {
     private let assistant: Assistant
     private let transcriptStore = EncryptedTranscriptStore()
     private let adapterLoader = FoundationModelAdapterLoader()
+    private let mcpServerRegistry = MCPServerRegistry()
     private let mcpClientRequestBroker: MCPClientRequestBroker
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
+    private var mcpListenerSetupTask: Task<Void, Never>?
+    private var mcpListenerTasks: [Task<Void, Never>] = []
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
@@ -964,6 +973,70 @@ final class CerberusAppModel: ObservableObject {
         let summaries = enabledToolSummaries
         Task {
             await assistant.updateTools(summaries)
+        }
+    }
+
+    private func startMCPHTTPListeners() {
+        stopMCPHTTPListeners()
+        mcpListenerStatusLine = "MCP listener starting."
+        mcpListenerSetupTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let configurations = try await mcpServerRegistry.configurations()
+                    .filter { $0.transport == .streamableHTTP }
+                guard !configurations.isEmpty else {
+                    mcpListenerStatusLine = "No Streamable HTTP MCP servers configured."
+                    return
+                }
+
+                mcpListenerTasks = configurations.map { configuration in
+                    Task { @MainActor [weak self] in
+                        await self?.runMCPHTTPListener(configuration: configuration)
+                    }
+                }
+                mcpListenerStatusLine = configurations.count == 1
+                    ? "Listening to 1 MCP HTTP server."
+                    : "Listening to \(configurations.count) MCP HTTP servers."
+            } catch {
+                mcpListenerStatusLine = error.localizedDescription
+            }
+        }
+    }
+
+    private func stopMCPHTTPListeners() {
+        mcpListenerSetupTask?.cancel()
+        mcpListenerSetupTask = nil
+        mcpListenerTasks.forEach { $0.cancel() }
+        mcpListenerTasks = []
+        mcpListenerStatusLine = "MCP listener off"
+        finishMCPClientRequest(.cancel)
+    }
+
+    private func runMCPHTTPListener(configuration: MCPServerConfiguration) async {
+        while isMCPToolEnabled, !Task.isCancelled {
+            do {
+                let result = try await MCPStreamableHTTPClient(
+                    configuration: configuration,
+                    clientRequestHandlers: mcpClientRequestBroker.handlers
+                ).listenForServerRequests()
+                guard result.endpointAvailable else {
+                    mcpListenerStatusLine = "\(configuration.name) does not expose MCP HTTP GET SSE."
+                    return
+                }
+
+                if result.handledMessages > 0 {
+                    mcpListenerStatusLine = "\(configuration.name) handled \(result.handledMessages) background MCP request(s)."
+                }
+                try await Task.sleep(nanoseconds: 2_000_000_000)
+            } catch is CancellationError {
+                return
+            } catch {
+                mcpListenerStatusLine = "\(configuration.name) MCP listener error: \(error.localizedDescription)"
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
         }
     }
 

@@ -765,6 +765,136 @@ import Testing
     #expect(StubURLProtocol.requestBodies.contains { $0.contains("octocat") })
 }
 
+@Test func mcpStreamableHTTPClientListensForBackgroundSSEServerRequests() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var requestMethods: [String] = []
+        nonisolated(unsafe) static var requestBodies: [String] = []
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            let method = request.httpMethod ?? ""
+            let body = Self.bodyString(from: request)
+            Self.requestMethods.append(method)
+            Self.requestBodies.append(body)
+
+            let statusCode: Int
+            let headers: [String: String]
+            let responseBody: Data
+
+            if body.contains(#""method":"initialize""#) {
+                statusCode = 200
+                headers = [
+                    "Content-Type": "application/json",
+                    "Mcp-Session-Id": "session-1"
+                ]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"stub","version":"1"}}}"#.utf8)
+            } else if method == "POST" {
+                statusCode = 202
+                headers = [:]
+                responseBody = Data()
+            } else if method == "GET" {
+                statusCode = 200
+                headers = ["Content-Type": "text/event-stream"]
+                responseBody = Data("""
+                event: message
+                data: {"jsonrpc":"2.0","id":201,"method":"sampling/createMessage","params":{"messages":[{"role":"user","content":{"type":"text","text":"background sample"}}],"maxTokens":8}}
+
+                event: message
+                data: {"jsonrpc":"2.0","id":202,"method":"elicitation/create","params":{"message":"team","requestedSchema":{"type":"object","properties":{"team":{"type":"string","enum":["eng"]}},"required":["team"]}}}
+
+                """.utf8)
+            } else {
+                statusCode = 500
+                headers = ["Content-Type": "application/json"]
+                responseBody = Data(#"{"error":"unexpected"}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private static func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let bufferSize = 1024
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: bufferSize)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    StubURLProtocol.requestMethods = []
+    StubURLProtocol.requestBodies = []
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let handlers = MCPClientRequestHandlers(
+        sampling: { request in
+            #expect(request.messagesText.contains("background sample"))
+            return MCPSamplingResponse(text: "background sampled")
+        },
+        elicitation: { request in
+            #expect(request.fields.first?.name == "team")
+            return MCPElicitationResponse(action: .accept, contentJSON: #"{"team":"eng"}"#)
+        }
+    )
+    let client = MCPStreamableHTTPClient(
+        configuration: MCPServerConfiguration(
+            name: "remote",
+            transport: .streamableHTTP,
+            endpointURL: URL(string: "https://example.com/mcp")
+        ),
+        clientRequestHandlers: handlers,
+        urlSession: urlSession
+    )
+
+    let result = try await client.listenForServerRequests(maxMessages: 2)
+
+    #expect(result.endpointAvailable)
+    #expect(result.handledMessages == 2)
+    #expect(StubURLProtocol.requestMethods == ["POST", "POST", "GET", "POST", "POST"])
+}
+
 @Test func mcpStreamableHTTPClientGetsPrompts() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var requestBodies: [String] = []
@@ -1286,6 +1416,25 @@ import Testing
     #expect(file.servers.first?.executable == "node")
     #expect(file.servers.first?.oauthScopes == [])
     #expect(file.servers.first?.accessTokenKeychainAccount == nil)
+}
+
+@Test func mcpServerRegistryListsConfigurationsSortedByName() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let configURL = directory.appendingPathComponent("mcp-servers.json")
+    try Data("""
+    {
+      "servers": [
+        {"name":"zeta","transport":"stdio","executable":"/bin/echo"},
+        {"name":"alpha","transport":"streamable_http","endpointURL":"https://example.com/mcp"}
+      ]
+    }
+    """.utf8).write(to: configURL)
+
+    let configurations = try await MCPServerRegistry(fileURL: configURL).configurations()
+
+    #expect(configurations.map(\.name) == ["alpha", "zeta"])
+    #expect(configurations[0].transport == .streamableHTTP)
 }
 
 private func fetchLoopbackURL(_ url: URL) async throws -> (Data, URLResponse) {

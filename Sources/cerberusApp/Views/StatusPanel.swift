@@ -469,6 +469,10 @@ struct StatusPanel: View {
                 .textFieldStyle(.roundedBorder)
                 .disabled(model.isWakeWordMonitoring)
             Toggle("MCP tool", isOn: $model.isMCPToolEnabled)
+            Label(model.mcpListenerStatusLine, systemImage: "network")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
 
             Divider()
