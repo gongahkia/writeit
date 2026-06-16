@@ -14,7 +14,12 @@ public struct MCPConfiguredToolRunner: MCPToolRunning {
 
     public func call(serverName: String, toolName: String, argumentsJSON: String) async throws -> MCPToolCallResult {
         let configuration = try await registry.configuration(named: serverName)
-        return try await MCPStdioClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
+        switch configuration.transport {
+        case .stdio:
+            return try await MCPStdioClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
+        case .streamableHTTP:
+            return try await MCPStreamableHTTPClient(configuration: configuration).callTool(name: toolName, argumentsJSON: argumentsJSON)
+        }
     }
 }
 
@@ -33,7 +38,7 @@ public struct MCPTool: AssistantTool {
     }
 
     public let name = "mcp.call"
-    public let capability = "Call a tool on a configured local MCP stdio server. Requires opt-in and confirmation."
+    public let capability = "Call a tool on a configured MCP stdio or Streamable HTTP server. Requires opt-in and confirmation."
     public let mutatesState = true
     public let argumentSchema = #"{"serverName":"configured-server","toolName":"tool_name","argumentsJSON":"{}"}"#
 

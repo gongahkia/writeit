@@ -51,5 +51,5 @@ Validate the implementation on a Mac that matches the project requirements.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
 - Screen understanding is OCR-only because this SDK's FoundationModels prompt surface is text-only.
-- MCP support is limited to local stdio tools.
+- MCP support is limited to stdio and basic Streamable HTTP tool calls.
 - Adapter training is not implemented; only prebuilt adapter loading is supported.

@@ -32,7 +32,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR. FoundationModels is text-only in this SDK, so this covers screen text, not full visual reasoning.
-- `mcp.call` is default-off, confirmation-gated, and supports configured local MCP stdio servers via `initialize`, `tools/list`, and `tools/call`.
+- `mcp.call` is default-off, confirmation-gated, and supports configured MCP stdio or Streamable HTTP servers via `initialize`, `tools/list`, and `tools/call`.
 - A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
 - `shell.run` is default-off in the app, requires confirmation when enabled, and routes live commands through `ShellExecService.xpc`.
 
@@ -45,6 +45,6 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - Wake phrase uses live speech transcription, not a dedicated low-power keyword-spotting model.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
-- MCP support is a minimal stdio bridge; Streamable HTTP, resources, prompts, sampling, and dynamic native tool schemas are not implemented.
+- MCP support covers stdio and basic Streamable HTTP tool calls; resources, prompts, sampling, elicitation, OAuth, and dynamic native tool schemas are not implemented.
 - I cannot verify a local FoundationModels adapter training API in this SDK; only adapter loading/compilation is wired.
 - `AVSpeechSynthesizer` on macOS does not expose a verified per-device route selector in the checked SDK headers.

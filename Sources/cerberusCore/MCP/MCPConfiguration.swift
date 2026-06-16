@@ -1,16 +1,67 @@
 import Foundation
 
+public enum MCPTransport: String, Codable, Sendable {
+    case stdio
+    case streamableHTTP = "streamable_http"
+}
+
 public struct MCPServerConfiguration: Codable, Equatable, Sendable {
     public let name: String
+    public let transport: MCPTransport
     public let executable: String
     public let arguments: [String]
     public let workingDirectory: String?
+    public let endpointURL: URL?
+    public let headers: [String: String]
 
-    public init(name: String, executable: String, arguments: [String] = [], workingDirectory: String? = nil) {
+    public init(
+        name: String,
+        transport: MCPTransport = .stdio,
+        executable: String = "",
+        arguments: [String] = [],
+        workingDirectory: String? = nil,
+        endpointURL: URL? = nil,
+        headers: [String: String] = [:]
+    ) {
         self.name = name
+        self.transport = transport
         self.executable = executable
         self.arguments = arguments
         self.workingDirectory = workingDirectory
+        self.endpointURL = endpointURL
+        self.headers = headers
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case transport
+        case executable
+        case arguments
+        case workingDirectory
+        case endpointURL
+        case headers
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        transport = try container.decodeIfPresent(MCPTransport.self, forKey: .transport) ?? .stdio
+        executable = try container.decodeIfPresent(String.self, forKey: .executable) ?? ""
+        arguments = try container.decodeIfPresent([String].self, forKey: .arguments) ?? []
+        workingDirectory = try container.decodeIfPresent(String.self, forKey: .workingDirectory)
+        endpointURL = try container.decodeIfPresent(URL.self, forKey: .endpointURL)
+        headers = try container.decodeIfPresent([String: String].self, forKey: .headers) ?? [:]
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(transport, forKey: .transport)
+        try container.encode(executable, forKey: .executable)
+        try container.encode(arguments, forKey: .arguments)
+        try container.encodeIfPresent(workingDirectory, forKey: .workingDirectory)
+        try container.encodeIfPresent(endpointURL, forKey: .endpointURL)
+        try container.encode(headers, forKey: .headers)
     }
 }
 

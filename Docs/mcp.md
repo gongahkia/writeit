@@ -1,6 +1,6 @@
 # MCP
 
-cerberus supports a minimal, default-off MCP stdio bridge through the `mcp.call` tool.
+cerberus supports a default-off MCP bridge through the `mcp.call` tool.
 
 Config path:
 
@@ -9,9 +9,18 @@ Config path:
   "servers": [
     {
       "name": "local-demo",
+      "transport": "stdio",
       "executable": "node",
       "arguments": ["/absolute/path/to/server.js"],
       "workingDirectory": null
+    },
+    {
+      "name": "remote-demo",
+      "transport": "streamable_http",
+      "endpointURL": "https://example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer token"
+      }
     }
   ]
 }
@@ -21,16 +30,16 @@ Save this as `~/Library/Application Support/cerberus/mcp-servers.json`, then ena
 
 Current scope:
 
-- stdio transport only
+- stdio and Streamable HTTP transports
 - `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`
 - each `mcp.call` is confirmation-gated
 - tool output is treated as untrusted payload
 
 Not implemented:
 
-- Streamable HTTP
 - resources
 - prompts
 - sampling
 - elicitation
 - dynamic FoundationModels native tool schemas
+- OAuth discovery/PKCE
