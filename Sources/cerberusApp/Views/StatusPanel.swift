@@ -215,6 +215,10 @@ struct StatusPanel: View {
 
     private var permissions: some View {
         VStack(alignment: .leading, spacing: 8) {
+            onboardingStep
+
+            Divider()
+
             HStack {
                 Text("Permissions")
                     .font(.caption)
@@ -254,6 +258,35 @@ struct StatusPanel: View {
                     .help("Request \(snapshot.kind.displayName)")
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var onboardingStep: some View {
+        if let next = model.nextPermissionSnapshot {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Setup \(model.grantedPermissionCount + 1) of \(model.permissionSnapshots.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    statusDot(for: next.state)
+                    Text(next.kind.displayName)
+                        .font(.body)
+
+                    Spacer()
+
+                    Button {
+                        model.requestNextPermission()
+                    } label: {
+                        Label("Request", systemImage: "lock.open")
+                    }
+                }
+            }
+        } else {
+            Label("Setup complete", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.green)
         }
     }
 

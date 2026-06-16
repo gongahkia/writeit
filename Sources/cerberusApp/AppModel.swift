@@ -48,6 +48,14 @@ final class CerberusAppModel: ObservableObject {
         state.isMicrophoneActive || isConfirmationVoiceActive
     }
 
+    var nextPermissionSnapshot: PermissionSnapshot? {
+        permissionSnapshots.first { $0.state != .granted }
+    }
+
+    var grantedPermissionCount: Int {
+        permissionSnapshots.filter { $0.state == .granted }.count
+    }
+
     var menuBarSystemImage: String {
         switch state {
         case .idle:
@@ -150,6 +158,13 @@ final class CerberusAppModel: ObservableObject {
             let snapshot = await permissionCenter.request(kind)
             replacePermissionSnapshot(snapshot)
         }
+    }
+
+    func requestNextPermission() {
+        guard let nextPermissionSnapshot else {
+            return
+        }
+        requestPermission(nextPermissionSnapshot.kind)
     }
 
     func approvePendingConfirmation() {
