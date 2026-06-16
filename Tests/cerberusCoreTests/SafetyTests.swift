@@ -38,6 +38,7 @@ import Testing
     #expect(first.previousHash == "genesis")
     #expect(second.previousHash == first.hash)
     #expect(try await auditLog.entries().count == 2)
+    #expect(try await auditLog.recentEntries(limit: 1).map(\.toolName) == ["two"])
 }
 
 @Test func voiceConfirmationParserClassifiesShortApprovalsAndDenials() {

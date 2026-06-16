@@ -10,6 +10,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
+    @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
@@ -68,6 +69,7 @@ final class CerberusAppModel: ObservableObject {
             readOnlyNativeTools: DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
         )
         refreshPermissions()
+        refreshAuditEntries()
         startTriggers()
         loadConfiguredAdapterIfPresent()
     }
@@ -198,6 +200,26 @@ final class CerberusAppModel: ObservableObject {
                     .sorted { $0.timestamp > $1.timestamp }
             } catch {
                 statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func refreshAuditEntries() {
+        Task {
+            do {
+                recentAuditEntries = try await auditLog.recentEntries(limit: 5)
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func answerLastToolAction() {
+        Task {
+            let summary = await lastToolActionSummary()
+            statusLine = summary
+            speaker.speak(summary) { [weak self] in
+                self?.finishSpeaking()
             }
         }
     }
@@ -477,6 +499,9 @@ final class CerberusAppModel: ObservableObject {
     private func runReasoning(for request: String) async {
         do {
             activeRequest = request
+            if await answerAuditQuestionIfNeeded(request) {
+                return
+            }
             let context = AssistantContext(allowedToolNames: enabledToolNames)
             let plan = try await assistant.plan(for: request, context: context)
             await handle(plan)
@@ -533,6 +558,7 @@ final class CerberusAppModel: ObservableObject {
                 toolName: plan.toolName,
                 argumentsSummary: "native FoundationModels read-only tools"
             )
+            refreshAuditEntries()
             speakToolResult(response)
         } catch {
             _ = try? await auditLog.append(
@@ -540,6 +566,7 @@ final class CerberusAppModel: ObservableObject {
                 argumentsSummary: "native FoundationModels read-only tools",
                 resultSummary: "error: \(error.localizedDescription)"
             )
+            refreshAuditEntries()
             await execute(plan, confirmed: false, transitionToExecuting: false)
         }
     }
@@ -559,6 +586,7 @@ final class CerberusAppModel: ObservableObject {
                 argumentsSummary: plan.toolArgumentsSummary,
                 resultSummary: spokenResponse
             )
+            refreshAuditEntries()
             speakToolResult(spokenResponse)
         } catch {
             _ = try? await auditLog.append(
@@ -566,6 +594,7 @@ final class CerberusAppModel: ObservableObject {
                 argumentsSummary: plan.toolArgumentsSummary,
                 resultSummary: "error: \(error.localizedDescription)"
             )
+            refreshAuditEntries()
             recordTranscript(
                 response: error.localizedDescription,
                 toolName: plan.toolName,
@@ -685,6 +714,39 @@ final class CerberusAppModel: ObservableObject {
             } catch {
                 statusLine = error.localizedDescription
             }
+        }
+    }
+
+    private func answerAuditQuestionIfNeeded(_ request: String) async -> Bool {
+        let normalized = request
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+
+        guard normalized.contains("what did cerberus just do")
+                || normalized.contains("what did you just do")
+                || normalized.contains("last tool call")
+                || normalized.contains("recent tool calls") else {
+            return false
+        }
+
+        speak(await lastToolActionSummary())
+        return true
+    }
+
+    private func lastToolActionSummary() async -> String {
+        do {
+            let entries = try await auditLog.recentEntries(limit: 5)
+            recentAuditEntries = entries
+
+            guard let latest = entries.first else {
+                return "No tool calls recorded yet."
+            }
+
+            return "Last tool call: \(latest.toolName). Result: \(latest.resultSummary)"
+        } catch {
+            return error.localizedDescription
         }
     }
 }

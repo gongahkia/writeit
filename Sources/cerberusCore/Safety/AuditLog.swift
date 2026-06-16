@@ -109,6 +109,10 @@ public actor AuditLog {
             }
     }
 
+    public func recentEntries(limit: Int = 5) throws -> [AuditLogEntry] {
+        Array(try entries().suffix(max(0, limit)).reversed())
+    }
+
     public static func defaultFileURL() -> URL {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")

@@ -17,6 +17,8 @@ struct StatusPanel: View {
                 recentEvents
             case .history:
                 history
+            case .audit:
+                audit
             case .permissions:
                 permissions
             case .settings:
@@ -186,6 +188,78 @@ struct StatusPanel: View {
         }
     }
 
+    private var audit: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Tool calls")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    model.answerLastToolAction()
+                } label: {
+                    Label("What did cerberus just do?", systemImage: "questionmark.circle")
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    model.refreshAuditEntries()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Refresh tool calls")
+            }
+
+            if model.recentAuditEntries.isEmpty {
+                Text("No tool calls yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.recentAuditEntries, id: \.hash) { entry in
+                            auditRow(entry)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+        }
+        .task {
+            model.refreshAuditEntries()
+        }
+    }
+
+    private func auditRow(_ entry: AuditLogEntry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(entry.timestamp, style: .time)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                Text(entry.toolName)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(entry.argumentsSummary.isEmpty ? "No arguments" : entry.argumentsSummary)
+                .font(.caption)
+                .lineLimit(2)
+
+            Text(entry.resultSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+    }
+
     private func transcriptRow(_ record: TranscriptRecord) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -352,6 +426,7 @@ struct StatusPanel: View {
 private enum PanelSection: String, CaseIterable, Identifiable {
     case session
     case history
+    case audit
     case permissions
     case settings
 
@@ -365,6 +440,8 @@ private enum PanelSection: String, CaseIterable, Identifiable {
             "Session"
         case .history:
             "History"
+        case .audit:
+            "Audit"
         case .permissions:
             "Access"
         case .settings:

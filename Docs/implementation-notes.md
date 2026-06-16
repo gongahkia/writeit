@@ -25,6 +25,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
 - Audit logs are hash-chained at `~/Library/Application Support/cerberus/audit.log`.
+- The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR. FoundationModels is text-only in this SDK, so this covers screen text, not full visual reasoning.

@@ -30,15 +30,16 @@ Validate the implementation on a Mac that matches the project requirements.
 9. Confirm tool payloads are summarized into a useful spoken response.
 10. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
 11. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain.
-12. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-13. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-14. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
-15. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-16. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
-17. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-18. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
-19. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-20. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
+12. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
+13. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
+14. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
+15. Confirm screen OCR emits only local Vision text results and fails closed when Screen Recording is denied.
+16. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+17. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, or voice "no" cancels it.
+18. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
+19. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval.
+20. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+21. Test AirPods nod, shake, and stem press behavior separately from speech and model behavior.
 
 ## Known Follow-Up
 
