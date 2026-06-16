@@ -13,6 +13,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(MusicNowPlayingTool()),
             AnyAssistantTool(RemindersTool()),
             AnyAssistantTool(ScreenOCRTool()),
+            AnyAssistantTool(ScreenSnapshotTool()),
             AnyAssistantTool(WebSearchTool())
         ]
     }
@@ -32,6 +33,7 @@ public enum DefaultToolCatalog {
             FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),
             FoundationModelToolAdapter(RemindersTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenOCRTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(ScreenSnapshotTool(), auditLog: auditLog),
             FoundationModelToolAdapter(WebSearchTool(), auditLog: auditLog)
         ]
     }

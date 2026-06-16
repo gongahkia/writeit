@@ -40,7 +40,7 @@ Validate the implementation on a Mac that matches the project requirements.
 19. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
 20. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
 21. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
-22. Confirm screen OCR emits only local Vision text results with bounding boxes and fails closed when Screen Recording is denied.
+22. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, and `screen.ocr` emits local Vision text results with bounding boxes; both must fail closed when Screen Recording is denied.
 23. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
 24. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
 25. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
@@ -62,6 +62,6 @@ Validate the implementation on a Mac that matches the project requirements.
 - Direct AirPods speech routing uses `AVSpeechSynthesizer.write` buffers plus `AVAudioEngine` output-unit device selection; it still needs real AirPods runtime validation on target hardware.
 - Wake phrase can use a custom SoundAnalysis/Core ML classifier, but no wake model is bundled.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
-- Screen understanding is OCR-only with text bounding boxes because this SDK's FoundationModels prompt surface is text-only.
+- Screen understanding captures PNG snapshots and OCR text boxes; full image prompting remains unavailable in the checked macOS FoundationModels swiftinterface.
 - MCP support is limited to stdio and Streamable HTTP tools/resources/prompts plus OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, stdio or Streamable HTTP POST/GET-SSE sampling/elicitation review, GET SSE resume through `Last-Event-ID`, and opt-in native read-only tools for flat primitive schemas.
 - Adapter training requires Apple's separate toolkit assets; prebuilt adapter loading, transcript-to-JSONL dataset export, exact-match eval, and toolkit orchestration are supported.

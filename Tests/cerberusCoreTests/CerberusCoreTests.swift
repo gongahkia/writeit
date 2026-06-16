@@ -191,6 +191,19 @@ import Testing
     #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
 }
 
+@Test func screenSnapshotPayloadIncludesFileAndDimensions() {
+    let fileURL = URL(fileURLWithPath: "/tmp/cerberus-screen.png")
+    let payload = ScreenSnapshotTool.payload(
+        fileURL: fileURL,
+        imageSize: CGSize(width: 1440, height: 900)
+    )
+
+    #expect(payload.contains("Screen snapshot saved."))
+    #expect(payload.contains("file: /tmp/cerberus-screen.png"))
+    #expect(payload.contains("image: 1440x900"))
+    #expect(payload.contains("screen.ocr"))
+}
+
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
     try FoundationModelAdapterConfiguration(name: "demo").validate()
     try FoundationModelAdapterConfiguration(filePath: "/tmp/demo.adapter").validate()

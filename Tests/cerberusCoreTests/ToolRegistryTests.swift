@@ -59,6 +59,7 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("mail.search"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("memory.read"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.ocr"))
+    #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.snapshot"))
     #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))

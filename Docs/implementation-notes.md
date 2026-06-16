@@ -33,7 +33,8 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
-- `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR with normalized and pixel bounding boxes. FoundationModels is text-only in this SDK, so this covers screen text layout, not full visual reasoning.
+- `screen.snapshot` captures the main display through ScreenCaptureKit and writes a local PNG in `~/Library/Caches/cerberus/screen-snapshots/`.
+- `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR with normalized and pixel bounding boxes. The checked macOS FoundationModels swiftinterface exposes text `PromptRepresentable` input, not CGImage prompt input, so screen reasoning remains OCR/file-based instead of full visual reasoning.
 - `mcp.call`, `mcp.resources.list`, `mcp.resource.read`, `mcp.prompts.list`, `mcp.prompt.get`, and MCP OAuth helpers are default-off and support configured MCP stdio or Streamable HTTP servers. Configured MCP `nativeReadOnlyTools` are also exposed to FoundationModels as dynamic read-only native tools for flat primitive JSON-object schemas.
 - A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
 - `shell.run` is default-off in the app, requires confirmation when enabled, and routes live commands through `ShellExecService.xpc`.
@@ -47,6 +48,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Stem press interception is best treated as experimental because it overlaps with media controls.
 - Wake phrase has an optional custom SoundAnalysis/Core ML classifier path; no wake model is bundled.
 - FoundationModels native `Tool` protocol integration is intentionally read-only; mutating native tools would need a confirmation-aware tool protocol design.
+- Full multimodal screen prompting is not wired because the checked macOS FoundationModels SDK does not expose a public image prompt API; `screen.snapshot` preserves the captured image locally for user review or future API support.
 - MCP support covers stdio and Streamable HTTP tools, resources, prompts, OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, POST-SSE server requests, background Streamable HTTP GET listening, GET SSE resume through `Last-Event-ID`, and opt-in dynamic native read-only tool schemas for flat primitive inputs. Sampling/elicitation requests are routed through in-app review when MCP tools are enabled and otherwise fail closed with JSON-RPC errors.
 - I cannot verify a local FoundationModels adapter training API in this SDK; adapter loading/compilation, transcript-to-JSONL dataset export, exact-match eval, and Apple toolkit orchestration are wired.
 - `AVSpeechSynthesizer` on macOS does not expose a direct per-device route selector in the checked SDK headers; direct AirPods mode works around that by using synthesized buffers and `kAudioOutputUnitProperty_CurrentDevice`.

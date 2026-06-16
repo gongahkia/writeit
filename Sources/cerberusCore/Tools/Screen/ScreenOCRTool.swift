@@ -1,7 +1,6 @@
 import CoreGraphics
 import Foundation
 import FoundationModels
-import ScreenCaptureKit
 import Vision
 
 public struct ScreenOCRTool: AssistantTool {
@@ -26,7 +25,7 @@ public struct ScreenOCRTool: AssistantTool {
             throw ToolExecutionError.denied("Screen Recording access is not granted.")
         }
 
-        let image = try await captureMainDisplayImage()
+        let image = try await ScreenCaptureSupport.captureMainDisplayImage()
         let limit = ToolArgumentSupport.clampLimit(arguments.limit, default: 20, maximum: 50)
         let observations = try recognizeText(in: image, limit: limit)
         let imageSize = CGSize(width: image.width, height: image.height)
@@ -55,22 +54,6 @@ public struct ScreenOCRTool: AssistantTool {
             let pixelRect = observation.pixelRect(in: imageSize)
             return "- \(observation.text) [confidence: \(format(observation.confidence)), normalizedBox: \(format(observation.boundingBox)), pixelBox: \(format(pixelRect))]"
         }).joined(separator: "\n")
-    }
-
-    private func captureMainDisplayImage() async throws -> CGImage {
-        let bounds = CGDisplayBounds(CGMainDisplayID())
-
-        return try await withCheckedThrowingContinuation { continuation in
-            SCScreenshotManager.captureImage(in: bounds) { image, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else if let image {
-                    continuation.resume(returning: image)
-                } else {
-                    continuation.resume(throwing: ToolExecutionError.denied("Could not capture the main display."))
-                }
-            }
-        }
     }
 
     private func recognizeText(in image: CGImage, limit: Int) throws -> [ScreenTextObservation] {

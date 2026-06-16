@@ -25,7 +25,7 @@
     <key>NSRemindersUsageDescription</key>
     <string>cerberus reads reminders and creates reminders only after confirmation.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>cerberus reads visible screen text only when you ask what is on screen.</string>
+    <string>cerberus captures visible screen images or text only when you ask what is on screen.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>cerberus uses on-device speech recognition to transcribe your requests.</string>
 </dict>
