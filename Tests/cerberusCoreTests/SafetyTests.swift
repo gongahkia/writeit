@@ -201,6 +201,28 @@ import Testing
     #expect(FileSearchScopeStore(defaults: defaults, defaultsKey: "scopes").approvedScopePaths() == [root.path])
 }
 
+@Test func webSearchNormalizesAllowlistedDomains() throws {
+    let tool = WebSearchTool()
+
+    try tool.validate(WebSearchTool.Arguments(query: "swift", site: "HTTPS://Developer.Apple.com/documentation"))
+    try tool.validate(WebSearchTool.Arguments(query: "swift", site: "en.wikipedia.org"))
+    try tool.validate(WebSearchTool.Arguments(query: "swift", site: " developer.apple.com. "))
+}
+
+@Test func webSearchRejectsNonAllowlistedDomains() throws {
+    let tool = WebSearchTool()
+
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(WebSearchTool.Arguments(query: "swift", site: "developer.apple.com.evil.example"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(WebSearchTool.Arguments(query: "swift", site: "https://example.com/search"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(WebSearchTool.Arguments(query: "swift", site: "developer.apple.com/path"))
+    }
+}
+
 @Test func shellToolExecutesThroughConfiguredExecutorWhenAllowed() async throws {
     struct StubExecutor: ShellCommandExecutor {
         func run(_ command: ValidatedCommand) async throws -> String {

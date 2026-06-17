@@ -23,7 +23,7 @@ public struct WebSearchTool: AssistantTool {
     private let allowedDomains: Set<String>
 
     public init(allowedDomains: Set<String> = ["duckduckgo.com", "wikipedia.org", "developer.apple.com"]) {
-        self.allowedDomains = allowedDomains
+        self.allowedDomains = Set(allowedDomains.compactMap { try? Self.normalizedDomain($0) })
     }
 
     public func validate(_ arguments: Arguments) throws {
@@ -31,8 +31,11 @@ public struct WebSearchTool: AssistantTool {
             throw ToolExecutionError.invalidArguments("query is required")
         }
 
-        if let site = arguments.site, !site.isEmpty, !allowedDomains.contains(site) {
-            throw ToolExecutionError.denied("Domain is not allowlisted: \(site)")
+        if let site = arguments.site, !site.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let normalizedSite = try Self.normalizedDomain(site)
+            guard isAllowedDomain(normalizedSite) else {
+                throw ToolExecutionError.denied("Domain is not allowlisted: \(normalizedSite)")
+            }
         }
     }
 
@@ -61,12 +64,16 @@ public struct WebSearchTool: AssistantTool {
         )
     }
 
-    private func scopedQuery(_ arguments: Arguments) -> String {
-        guard let site = arguments.site, !site.isEmpty else {
+    private func scopedQuery(_ arguments: Arguments) throws -> String {
+        guard let site = arguments.site, !site.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return arguments.query
         }
 
-        return "site:\(site) \(arguments.query)"
+        let normalizedSite = try Self.normalizedDomain(site)
+        guard isAllowedDomain(normalizedSite) else {
+            throw ToolExecutionError.denied("Domain is not allowlisted: \(normalizedSite)")
+        }
+        return "site:\(normalizedSite) \(arguments.query)"
     }
 
     private func searchURL(query: String) throws -> URL {
@@ -85,6 +92,42 @@ public struct WebSearchTool: AssistantTool {
         }
 
         return url
+    }
+
+    private func isAllowedDomain(_ domain: String) -> Bool {
+        allowedDomains.contains { allowedDomain in
+            domain == allowedDomain || domain.hasSuffix("." + allowedDomain)
+        }
+    }
+
+    private static func normalizedDomain(_ value: String) throws -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw ToolExecutionError.invalidArguments("Domain is required.")
+        }
+
+        let host: String
+        if trimmed.contains("://") {
+            guard let components = URLComponents(string: trimmed), let componentHost = components.host else {
+                throw ToolExecutionError.invalidArguments("Could not parse domain: \(value)")
+            }
+            host = componentHost
+        } else {
+            guard !trimmed.contains("/") && !trimmed.contains(":") && !trimmed.contains("@") else {
+                throw ToolExecutionError.invalidArguments("Site must be a domain.")
+            }
+            host = trimmed
+        }
+
+        let normalized = host
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            .lowercased()
+        let labels = normalized.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count >= 2,
+              labels.allSatisfy({ !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" } }) else {
+            throw ToolExecutionError.invalidArguments("Site must be a domain.")
+        }
+        return normalized
     }
 }
 
