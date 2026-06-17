@@ -15,6 +15,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(MailSearchTool()),
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
+            AnyAssistantTool(MusicControlTool()),
             AnyAssistantTool(MusicNowPlayingTool()),
             AnyAssistantTool(RemindersCompleteTool()),
             AnyAssistantTool(RemindersCreateTool()),

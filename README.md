@@ -26,6 +26,7 @@ The project is intentionally scoped as a native macOS utility:
 - reminder completion is a separate mutating tool and requires confirmation
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation
+- Music.app now-playing reads and confirmation-gated playback controls
 - local screen snapshots plus text OCR with bounding boxes for "what is on my screen?" requests
 - default-off MCP bridge for configured stdio or Streamable HTTP servers, including OAuth PKCE browser handoff
 - optional prebuilt FoundationModels adapter loading plus transcript JSONL export/eval and Apple toolkit orchestration

@@ -65,15 +65,18 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("calendar.create"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("music.control"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.complete"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.create"))
 }
 
 @Test func mutatingToolArgumentsAreGenerableButNotNativeByDefault() {
     _ = FoundationModelToolAdapter(AppControlTool())
+    _ = FoundationModelToolAdapter(MusicControlTool())
     _ = FoundationModelToolAdapter(ShellTool())
 
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
+    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("music.control"))
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
@@ -166,6 +169,34 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         dueDateISO8601: "2026-06-16T12:00:00Z"
     ))
     #expect(RemindersCompleteTool.payload(title: "Buy milk", listName: "Tasks", dueDate: nil) == "Completed reminder: [Tasks] Buy milk due no due date")
+}
+
+@Test func musicControlToolRequiresConfirmationAndRunsTypedActions() async throws {
+    struct StubRunner: MusicControlRunning {
+        func perform(_ action: MusicControlAction) async throws -> String {
+            switch action {
+            case .playPause:
+                "Music playing."
+            default:
+                "unexpected"
+            }
+        }
+    }
+
+    let tool = MusicControlTool(runner: StubRunner())
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: MusicControlTool.Arguments(action: .playPause)
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+
+    #expect(result.spokenSummary == "Music playing.")
 }
 
 @Test func mcpDynamicNativeToolAdapterCallsConfiguredRunner() async throws {
