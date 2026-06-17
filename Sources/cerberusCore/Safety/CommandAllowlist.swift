@@ -107,13 +107,23 @@ public struct CommandAllowlist: Sendable {
             return nil
         }
 
-        let url = URL(fileURLWithPath: path).standardizedFileURL
-        let homePath = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let expandedPath = (path.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).expandingTildeInPath
+        let url = URL(fileURLWithPath: expandedPath, isDirectory: true)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let homePath = FileManager.default.homeDirectoryForCurrentUser
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+            .path
 
-        guard url.path.hasPrefix(homePath) else {
+        guard Self.contains(url.path, in: homePath) else {
             throw ToolExecutionError.denied("Working directory must be inside the user's home directory.")
         }
 
         return url
+    }
+
+    private static func contains(_ candidatePath: String, in scopePath: String) -> Bool {
+        candidatePath == scopePath || candidatePath.hasPrefix(scopePath + "/")
     }
 }

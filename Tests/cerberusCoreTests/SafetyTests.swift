@@ -26,6 +26,23 @@ import Testing
     #expect(denied)
 }
 
+@Test func commandAllowlistRejectsHomePrefixSiblingWorkingDirectory() throws {
+    let homePath = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath().path
+    let command = ShellCommand(executable: "pwd", workingDirectory: homePath + "-outside")
+
+    #expect(throws: ToolExecutionError.self) {
+        _ = try CommandAllowlist().validate(command)
+    }
+}
+
+@Test func commandAllowlistExpandsTildeWorkingDirectory() throws {
+    let homePath = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath().path
+    let command = ShellCommand(executable: "pwd", workingDirectory: "~")
+    let validated = try CommandAllowlist().validate(command)
+
+    #expect(validated.workingDirectoryURL?.path == homePath)
+}
+
 @Test func auditLogCreatesHashChain() async throws {
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)
