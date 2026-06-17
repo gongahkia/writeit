@@ -48,6 +48,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `screen.snapshot` captures the main display through ScreenCaptureKit and writes a local PNG in `~/Library/Caches/cerberus/screen-snapshots/`.
 - `screen.ocr` captures the main display through ScreenCaptureKit and runs local Vision OCR with normalized and pixel bounding boxes. The checked macOS FoundationModels swiftinterface exposes text `PromptRepresentable` input, not CGImage prompt input, so screen reasoning remains OCR/file-based instead of full visual reasoning.
 - `mcp.call`, `mcp.resources.list`, `mcp.resource.read`, `mcp.prompts.list`, `mcp.prompt.get`, and MCP OAuth helpers are default-off and support configured MCP stdio or Streamable HTTP servers. Configured MCP `nativeReadOnlyTools` are also exposed to FoundationModels as dynamic read-only native tools for flat primitive JSON-object schemas.
+- Tool, MCP, and nested MCP prompt payloads are wrapped as untrusted prompt blocks, and matching closing delimiters inside payload text are neutralized before model ingress.
 - A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
 - `shell.run` is default-off in the app, requires confirmation when enabled, and routes live commands through `ShellExecService.xpc`.
 

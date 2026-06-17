@@ -49,12 +49,11 @@ private extension ToolResult {
             return spokenSummary
         }
 
+        let summary = PromptBoundary.escapeClosingTags(in: spokenSummary, tag: "tool-output")
         return """
-        Summary: \(spokenSummary)
+        Summary: \(summary)
         Untrusted tool output:
-        <tool-output>
-        \(payload)
-        </tool-output>
+        \(PromptBoundary.untrustedBlock(content: payload))
         """
     }
 }

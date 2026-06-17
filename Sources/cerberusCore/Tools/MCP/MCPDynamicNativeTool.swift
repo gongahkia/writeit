@@ -57,9 +57,7 @@ public struct MCPDynamicNativeToolAdapter: FoundationModels.Tool {
         return """
         Summary: \(result.isError ? "MCP tool returned an error." : "MCP tool completed.")
         Untrusted MCP tool output:
-        <tool-output>
-        \(payload)
-        </tool-output>
+        \(PromptBoundary.untrustedBlock(content: payload))
         """
     }
 
