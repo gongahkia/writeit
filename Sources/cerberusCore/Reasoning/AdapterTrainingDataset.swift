@@ -73,11 +73,7 @@ public struct AdapterTrainingDatasetExporter: Sendable {
     }
 
     public static func defaultOutputDirectory() -> URL {
-        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return baseURL
-            .appendingPathComponent(CerberusCore.appName, isDirectory: true)
-            .appendingPathComponent("adapter-dataset", isDirectory: true)
+        CerberusDirectories.applicationSupportSubdirectory("adapter-dataset")
     }
 
     private func write(_ samples: [AdapterTrainingSample], to fileURL: URL) throws {

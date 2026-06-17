@@ -50,8 +50,6 @@ public struct FoundationModelAdapterLoader: Sendable {
     }
 
     public static func defaultFileURL() -> URL {
-        let supportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("cerberus", isDirectory: true)
-        return supportDirectory.appendingPathComponent("foundation-model-adapter.json")
+        CerberusDirectories.applicationSupportFile("foundation-model-adapter.json")
     }
 }

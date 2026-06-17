@@ -45,6 +45,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
+- App-owned default write paths are centralized under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.
 - `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
 - `music.now_playing` reads Music.app state, while `music.control` is separate, mutates playback state, and is blocked by confirmation unless approved.
 - `screen.snapshot` captures the main display through ScreenCaptureKit and writes a local PNG in `~/Library/Caches/cerberus/screen-snapshots/`.

@@ -27,11 +27,7 @@ public enum WakeWordSampleDataset {
     public static let supportedAudioExtensions: Set<String> = ["aif", "aiff", "caf", "m4a", "mp3", "wav"]
 
     public static func defaultDirectoryURL() -> URL {
-        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return baseURL
-            .appendingPathComponent(CerberusCore.appName, isDirectory: true)
-            .appendingPathComponent("wake-word-samples", isDirectory: true)
+        CerberusDirectories.applicationSupportSubdirectory("wake-word-samples")
     }
 
     public static func normalizedLabel(_ label: String) throws -> String {

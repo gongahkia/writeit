@@ -141,9 +141,7 @@ public actor MCPServerRegistry {
     }
 
     public static func defaultFileURL() -> URL {
-        let supportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("cerberus", isDirectory: true)
-        return supportDirectory.appendingPathComponent("mcp-servers.json")
+        CerberusDirectories.applicationSupportFile("mcp-servers.json")
     }
 
     private func loadConfigurations() throws -> [String: MCPServerConfiguration] {

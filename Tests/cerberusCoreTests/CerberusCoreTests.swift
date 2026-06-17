@@ -9,6 +9,32 @@ import Testing
     #expect(CerberusCore.bundleIdentifier == "dev.gongahkia.cerberus")
 }
 
+@Test func appOwnedDefaultPathsStayInSupportOrCachesDirectories() {
+    let supportPath = CerberusDirectories.applicationSupportDirectory().standardizedFileURL.path
+    let cachesPath = CerberusDirectories.cachesDirectory().standardizedFileURL.path
+    let supportFiles = [
+        AuditLog.defaultFileURL(),
+        EncryptedTranscriptStore.defaultFileURL(),
+        EncryptedMemoryStore.defaultFileURL(),
+        HeadGestureValidationLog.defaultFileURL(),
+        MCPServerRegistry.defaultFileURL(),
+        FoundationModelAdapterLoader.defaultFileURL(),
+        WakeWordSoundClassifierConfigurationLoader.defaultFileURL()
+    ]
+    let supportDirectories = [
+        AdapterTrainingDatasetExporter.defaultOutputDirectory(),
+        WakeWordSampleDataset.defaultDirectoryURL()
+    ]
+    let cacheDirectories = [
+        ScreenSnapshotTool.defaultOutputDirectoryURL()
+    ]
+
+    #expect(supportPath.hasSuffix("/Library/Application Support/cerberus"))
+    #expect(cachesPath.hasSuffix("/Library/Caches/cerberus"))
+    #expect((supportFiles + supportDirectories).allSatisfy { $0.standardizedFileURL.path.hasPrefix(supportPath + "/") })
+    #expect(cacheDirectories.allSatisfy { $0.standardizedFileURL.path.hasPrefix(cachesPath + "/") })
+}
+
 @Test func appInfoPlistDeclaresEventKitFullAccessUsage() throws {
     let fileURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("Sources/cerberusApp/Resources/Info.plist")

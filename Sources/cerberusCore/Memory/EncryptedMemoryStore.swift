@@ -100,12 +100,7 @@ public actor EncryptedMemoryStore {
     }
 
     public static func defaultFileURL() -> URL {
-        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-
-        return baseURL
-            .appendingPathComponent(CerberusCore.appName, isDirectory: true)
-            .appendingPathComponent("memory.jsonl.enc")
+        CerberusDirectories.applicationSupportFile("memory.jsonl.enc")
     }
 
     private func key() throws -> SymmetricKey {

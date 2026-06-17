@@ -53,11 +53,7 @@ public struct ScreenSnapshotTool: AssistantTool {
     }
 
     public static func defaultOutputDirectoryURL() -> URL {
-        let baseURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches")
-        return baseURL
-            .appendingPathComponent(CerberusCore.appName, isDirectory: true)
-            .appendingPathComponent("screen-snapshots", isDirectory: true)
+        CerberusDirectories.cacheSubdirectory("screen-snapshots")
     }
 
     private static func fileName(for date: Date) -> String {
