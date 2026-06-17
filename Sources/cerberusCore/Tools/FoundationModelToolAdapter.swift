@@ -26,6 +26,10 @@ public struct FoundationModelToolAdapter<ToolImplementation: AssistantTool>: Fou
     }
 
     public func call(arguments: Arguments) async throws -> String {
+        guard !tool.mutatesState else {
+            throw ToolExecutionError.confirmationRequired(tool.name)
+        }
+
         try tool.validate(arguments)
         let result = try await tool.run(arguments: arguments)
         let output = result.promptPayload

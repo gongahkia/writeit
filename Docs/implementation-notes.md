@@ -31,6 +31,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Spoken replies use `AVSpeechSynthesizer`; by default they follow the current macOS output device, and Settings can opt into direct AirPods playback by rendering speech buffers through an `AVAudioEngine` output unit pinned to the detected AirPods output device.
 - A stem triple-press while speaking interrupts the current reply and starts a new listening turn.
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
+- FoundationModels native tool adapters fail closed if asked to execute a mutating tool.
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Planning context includes the current `NSWorkspace.frontmostApplication` localized name when available.
 - `files.search` is constrained to user-approved folders selected in Settings; omitted `scopePath` searches all approved folders, while explicit scopes must be inside an approved folder.

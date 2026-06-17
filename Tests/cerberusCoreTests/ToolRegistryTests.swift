@@ -96,6 +96,14 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
+@Test func foundationModelToolAdapterRefusesMutatingToolCallsByDefault() async {
+    let adapter = FoundationModelToolAdapter(AppControlTool())
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await adapter.call(arguments: AppControlTool.Arguments(action: .open, applicationName: "Calendar"))
+    }
+}
+
 @Test func calendarCreateToolRequiresConfirmationAndValidatesArguments() async throws {
     let tool = CalendarCreateTool()
     let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
