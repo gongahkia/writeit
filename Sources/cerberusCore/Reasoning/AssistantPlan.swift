@@ -59,10 +59,16 @@ public struct AssistantToolResponse: Equatable, Sendable {
 public struct AssistantContext: Equatable, Sendable {
     public let activeApplicationName: String?
     public let allowedToolNames: [String]
+    public let fileSearchScopePaths: [String]
 
-    public init(activeApplicationName: String? = nil, allowedToolNames: [String] = []) {
+    public init(
+        activeApplicationName: String? = nil,
+        allowedToolNames: [String] = [],
+        fileSearchScopePaths: [String] = []
+    ) {
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
+        self.fileSearchScopePaths = fileSearchScopePaths
     }
 
     public var promptFragment: String {
@@ -76,6 +82,14 @@ public struct AssistantContext: Equatable, Sendable {
             lines.append("Allowed tools: none")
         } else {
             lines.append("Allowed tools: \(allowedToolNames.joined(separator: ", "))")
+        }
+
+        if allowedToolNames.contains("files.search") {
+            if fileSearchScopePaths.isEmpty {
+                lines.append("File search folders: none approved; ask the user to add folders in Settings before files.search.")
+            } else {
+                lines.append("File search folders: \(fileSearchScopePaths.joined(separator: ", "))")
+            }
         }
 
         return lines.joined(separator: "\n")

@@ -632,6 +632,48 @@ struct StatusPanel: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("File search folders")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        model.addFileSearchScope()
+                    } label: {
+                        Label("Add", systemImage: "folder.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if model.fileSearchScopePaths.isEmpty {
+                    Text("No folders approved")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    ForEach(model.fileSearchScopePaths, id: \.self) { path in
+                        HStack(spacing: 8) {
+                            Text(path)
+                                .font(.caption.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            Spacer()
+
+                            Button {
+                                model.removeFileSearchScope(path)
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove file search folder")
+                        }
+                    }
+                }
+            }
+
             DisclosureGroup(isExpanded: $isToolAllowlistExpanded) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.availableAmbientToolSummaries, id: \.name) { summary in

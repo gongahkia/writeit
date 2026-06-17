@@ -16,26 +16,34 @@ public struct FileSearchTool: AssistantTool {
     }
 
     public let name = "files.search"
-    public let capability = "Search indexed user files by filename using Spotlight metadata."
+    public let capability = "Search indexed user files by filename using Spotlight metadata within approved folders."
     public let mutatesState = false
-    public let argumentSchema = #"{"query":"filename terms","scopePath":"optional folder path","limit":10}"#
+    public let argumentSchema = #"{"query":"filename terms","scopePath":"optional approved folder/subfolder path; omit to search all approved folders","limit":10}"#
 
-    public init() {}
+    private let approvedScopePathsProvider: @Sendable () -> [String]?
+
+    public init(approvedScopePaths: [String]? = []) {
+        approvedScopePathsProvider = { approvedScopePaths }
+    }
+
+    public init(approvedScopePathsProvider: @escaping @Sendable () -> [String]?) {
+        self.approvedScopePathsProvider = approvedScopePathsProvider
+    }
 
     public func validate(_ arguments: Arguments) throws {
         guard !arguments.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ToolExecutionError.invalidArguments("query is required")
         }
 
-        _ = try validatedScopePath(arguments.scopePath)
+        _ = try validatedScopePaths(arguments.scopePath)
     }
 
     public func run(arguments: Arguments) async throws -> ToolResult {
         let limit = ToolArgumentSupport.clampLimit(arguments.limit)
-        let scopePath = try validatedScopePath(arguments.scopePath)
+        let scopePaths = try validatedScopePaths(arguments.scopePath)
         let results = await MetadataQueryRunner(
             queryText: arguments.query,
-            scopePath: scopePath,
+            scopePaths: scopePaths,
             limit: limit
         ).run()
 
@@ -52,24 +60,42 @@ public struct FileSearchTool: AssistantTool {
         )
     }
 
-    private func validatedScopePath(_ path: String?) throws -> String? {
-        guard let path, !path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    private func validatedScopePaths(_ path: String?) throws -> [String]? {
+        let approvedScopePaths = try normalizedApprovedScopePaths()
+        let trimmedPath = path?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        guard let approvedScopePaths else {
+            guard !trimmedPath.isEmpty else {
+                return nil
+            }
+            return [try FileSearchScopeStore.normalizedDirectoryInHome(trimmedPath)]
+        }
+
+        guard !approvedScopePaths.isEmpty else {
+            throw ToolExecutionError.denied("Add a file search folder in Settings before using files.search.")
+        }
+
+        guard !trimmedPath.isEmpty else {
+            return approvedScopePaths
+        }
+
+        let scopePath = try FileSearchScopeStore.normalizedDirectoryInHome(trimmedPath)
+        guard approvedScopePaths.contains(where: { FileSearchScopeStore.contains(scopePath, in: $0) }) else {
+            throw ToolExecutionError.denied("File search scope must be inside an approved folder.")
+        }
+        return [scopePath]
+    }
+
+    private func normalizedApprovedScopePaths() throws -> [String]? {
+        guard let paths = approvedScopePathsProvider() else {
             return nil
         }
 
-        let url = URL(fileURLWithPath: path).standardizedFileURL
-        let homeURL = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
-
-        guard url.path == homeURL.path || url.path.hasPrefix(homeURL.path + "/") else {
-            throw ToolExecutionError.denied("File search scope must be inside the user's home directory.")
-        }
-
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            throw ToolExecutionError.denied("File search scope must be an existing directory.")
-        }
-
-        return url.path
+        var seen = Set<String>()
+        return try paths
+            .map(FileSearchScopeStore.normalizedDirectoryInHome)
+            .filter { seen.insert($0).inserted }
+            .sorted()
     }
 }
 
@@ -81,14 +107,14 @@ private struct FileSearchResult: Sendable {
 @MainActor
 private final class MetadataQueryRunner {
     private let queryText: String
-    private let scopePath: String?
+    private let scopePaths: [String]?
     private let limit: Int
     private var metadataQuery: NSMetadataQuery?
     private var observer: (any NSObjectProtocol)?
 
-    init(queryText: String, scopePath: String?, limit: Int) {
+    init(queryText: String, scopePaths: [String]?, limit: Int) {
         self.queryText = queryText
-        self.scopePath = scopePath
+        self.scopePaths = scopePaths
         self.limit = limit
     }
 
@@ -128,11 +154,11 @@ private final class MetadataQueryRunner {
     }
 
     private func searchScopes() -> [Any] {
-        guard let scopePath, !scopePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard let scopePaths, !scopePaths.isEmpty else {
             return [NSMetadataQueryUserHomeScope]
         }
 
-        return [URL(fileURLWithPath: scopePath)]
+        return scopePaths.map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     private func collectResults() -> [FileSearchResult] {

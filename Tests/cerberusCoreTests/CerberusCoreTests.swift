@@ -72,10 +72,21 @@ import Testing
 }
 
 @Test func assistantContextIncludesActiveApplicationName() {
-    let context = AssistantContext(activeApplicationName: "Xcode", allowedToolNames: ["files.search"])
+    let context = AssistantContext(
+        activeApplicationName: "Xcode",
+        allowedToolNames: ["files.search"],
+        fileSearchScopePaths: ["/Users/example/Documents"]
+    )
 
     #expect(context.promptFragment.contains("Active app: Xcode"))
     #expect(context.promptFragment.contains("Allowed tools: files.search"))
+    #expect(context.promptFragment.contains("File search folders: /Users/example/Documents"))
+}
+
+@Test func assistantContextWarnsWhenFileSearchHasNoApprovedFolders() {
+    let context = AssistantContext(allowedToolNames: ["files.search"])
+
+    #expect(context.promptFragment.contains("File search folders: none approved"))
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {

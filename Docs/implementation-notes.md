@@ -32,7 +32,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Read-only tools are exposed through FoundationModels native `Tool` adapters; mutating tools stay on guided planning and explicit confirmation.
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Planning context includes the current `NSWorkspace.frontmostApplication` localized name when available.
-- Explicit file search scopes must be existing directories inside the user's home directory.
+- `files.search` is constrained to user-approved folders selected in Settings; omitted `scopePath` searches all approved folders, while explicit scopes must be inside an approved folder.
 - Settings exposes a per-session allowlist for ambient tools; disabled tools are omitted from the planner prompt and execution allowlist.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.

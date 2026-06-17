@@ -114,6 +114,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
+    @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
@@ -187,6 +188,7 @@ final class CerberusAppModel: ObservableObject {
     private let headGestureDetector = HeadGestureDetector()
     private let headGestureValidationLog = HeadGestureValidationLog()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
+    private let fileSearchScopeStore: FileSearchScopeStore
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
@@ -234,12 +236,18 @@ final class CerberusAppModel: ObservableObject {
     init() {
         let mcpClientRequestBroker = MCPClientRequestBroker()
         let mcpServerRegistry = MCPServerRegistry()
+        let fileSearchScopeStore = FileSearchScopeStore()
+        let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
         let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
-        let tools = DefaultToolCatalog.tools + mcpTools + [AnyAssistantTool(shellTool)]
-        let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: auditLog)
+        let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
+        let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(
+            auditLog: auditLog,
+            fileSearchTool: fileSearchTool
+        )
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
+        self.fileSearchScopeStore = fileSearchScopeStore
         self.mcpNativeToolLoader = MCPNativeToolLoader(
             registry: mcpServerRegistry,
             clientRequestHandlers: mcpClientRequestBroker.handlers,
@@ -252,6 +260,7 @@ final class CerberusAppModel: ObservableObject {
             readOnlyNativeTools: baseReadOnlyNativeTools
         )
         mcpClientRequestBroker.model = self
+        fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
         refreshPermissions()
         refreshAudioOutputRoute()
         refreshWakeWordMonitorLine()
@@ -312,6 +321,34 @@ final class CerberusAppModel: ObservableObject {
     func resetAmbientToolAllowlist() {
         ambientToolAllowlist = ToolSessionAllowlist()
         refreshAssistantToolPrompt()
+    }
+
+    func addFileSearchScope() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Add"
+        panel.message = "Choose folders cerberus may search by filename."
+
+        guard panel.runModal() == .OK else {
+            return
+        }
+
+        do {
+            for url in panel.urls {
+                try fileSearchScopeStore.add(url.path)
+            }
+            fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
+            statusLine = fileSearchScopePaths.isEmpty ? "No file search folders approved." : "File search folders updated."
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    func removeFileSearchScope(_ path: String) {
+        fileSearchScopePaths = fileSearchScopeStore.remove(path)
+        statusLine = fileSearchScopePaths.isEmpty ? "No file search folders approved." : "File search folders updated."
     }
 
     var menuBarSystemImage: String {
@@ -977,7 +1014,8 @@ final class CerberusAppModel: ObservableObject {
             }
             let context = AssistantContext(
                 activeApplicationName: currentActiveApplicationName(),
-                allowedToolNames: enabledToolNames
+                allowedToolNames: enabledToolNames,
+                fileSearchScopePaths: fileSearchScopePaths
             )
             let plan = try await assistant.plan(for: request, context: context)
             await handle(plan)
@@ -1029,7 +1067,8 @@ final class CerberusAppModel: ObservableObject {
             let readOnlyNames = DefaultToolCatalog.readOnlyToolNames.intersection(Set(enabledToolNames))
             let context = AssistantContext(
                 activeApplicationName: currentActiveApplicationName(),
-                allowedToolNames: Array(readOnlyNames).sorted()
+                allowedToolNames: Array(readOnlyNames).sorted(),
+                fileSearchScopePaths: fileSearchScopePaths
             )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordTranscript(

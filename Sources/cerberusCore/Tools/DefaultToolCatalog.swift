@@ -3,11 +3,15 @@ import FoundationModels
 
 public enum DefaultToolCatalog {
     public static var tools: [AnyAssistantTool] {
+        makeTools()
+    }
+
+    public static func makeTools(fileSearchTool: FileSearchTool = FileSearchTool()) -> [AnyAssistantTool] {
         [
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarTool()),
-            AnyAssistantTool(FileSearchTool()),
+            AnyAssistantTool(fileSearchTool),
             AnyAssistantTool(MailSearchTool()),
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
@@ -27,10 +31,13 @@ public enum DefaultToolCatalog {
             .sorted { $0.name < $1.name }
     }
 
-    public static func readOnlyFoundationModelTools(auditLog: AuditLog? = nil) -> [any FoundationModels.Tool] {
+    public static func readOnlyFoundationModelTools(
+        auditLog: AuditLog? = nil,
+        fileSearchTool: FileSearchTool = FileSearchTool()
+    ) -> [any FoundationModels.Tool] {
         [
             FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(FileSearchTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(fileSearchTool, auditLog: auditLog),
             FoundationModelToolAdapter(MailSearchTool(), auditLog: auditLog),
             FoundationModelToolAdapter(MemoryReadTool(), auditLog: auditLog),
             FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),

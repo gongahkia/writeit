@@ -146,11 +146,59 @@ import Testing
 }
 
 @Test func fileSearchRejectsScopesOutsideHome() throws {
-    let tool = FileSearchTool()
+    let tool = FileSearchTool(approvedScopePaths: nil)
 
     #expect(throws: ToolExecutionError.self) {
         try tool.validate(FileSearchTool.Arguments(query: "README", scopePath: "/System"))
     }
+}
+
+@Test func fileSearchRequiresApprovedFolderWhenScoped() throws {
+    let tool = FileSearchTool(approvedScopePaths: [])
+
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(FileSearchTool.Arguments(query: "README"))
+    }
+}
+
+@Test func fileSearchAllowsOnlyApprovedFoldersWhenScoped() throws {
+    let root = try makeHomeTestDirectory()
+    let approved = root.appendingPathComponent("approved", isDirectory: true)
+    let child = approved.appendingPathComponent("child", isDirectory: true)
+    let other = root.appendingPathComponent("other", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: root)
+    }
+    try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+
+    let tool = FileSearchTool(approvedScopePaths: [approved.path])
+
+    try tool.validate(FileSearchTool.Arguments(query: "README"))
+    try tool.validate(FileSearchTool.Arguments(query: "README", scopePath: child.path))
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(FileSearchTool.Arguments(query: "README", scopePath: other.path))
+    }
+}
+
+@Test func fileSearchScopeStorePersistsApprovedFolders() throws {
+    let defaultsName = "cerberus-tests-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: defaultsName))
+    defer {
+        defaults.removePersistentDomain(forName: defaultsName)
+    }
+    let root = try makeHomeTestDirectory()
+    defer {
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    let store = FileSearchScopeStore(defaults: defaults, defaultsKey: "scopes")
+
+    try store.add(root.path)
+    try store.add(root.path + "/")
+
+    #expect(store.approvedScopePaths() == [root.path])
+    #expect(FileSearchScopeStore(defaults: defaults, defaultsKey: "scopes").approvedScopePaths() == [root.path])
 }
 
 @Test func shellToolExecutesThroughConfiguredExecutorWhenAllowed() async throws {
@@ -167,6 +215,14 @@ import Testing
 
     #expect(result.metadata["dryRun"] == "false")
     #expect(result.untrustedPayload == "stubbed ls")
+}
+
+private func makeHomeTestDirectory() throws -> URL {
+    let url = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Caches/cerberus-tests", isDirectory: true)
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
 }
 
 @Test func shellToolStillSupportsDryRun() async throws {
