@@ -42,6 +42,22 @@ import Testing
     #expect(machine.state == .idle)
 }
 
+@Test func earconMapperDistinguishesSameDestinationTransitions() {
+    let speechDone = AssistantTransition(from: .speaking, event: .speechFinished, to: .idle)
+    let speechCancel = AssistantTransition(from: .speaking, event: .cancelRequested, to: .idle)
+    let confirmAccepted = AssistantTransition(from: .awaitingConfirm, event: .confirmationAccepted, to: .executing)
+    let executionStarted = AssistantTransition(from: .reasoning, event: .executionStarted("calendar.read"), to: .executing)
+    let confirmDenied = AssistantTransition(from: .awaitingConfirm, event: .confirmationDenied, to: .idle)
+    let responseReady = AssistantTransition(from: .reasoning, event: .responseReady("done"), to: .speaking)
+    let executionFinished = AssistantTransition(from: .executing, event: .executionFinished("done"), to: .speaking)
+
+    #expect(EarconMapper.earcon(for: speechDone) != EarconMapper.earcon(for: speechCancel))
+    #expect(EarconMapper.earcon(for: confirmAccepted) != EarconMapper.earcon(for: executionStarted))
+    #expect(EarconMapper.earcon(for: confirmDenied) != EarconMapper.earcon(for: speechCancel))
+    #expect(EarconMapper.earcon(for: responseReady) == .speaking)
+    #expect(EarconMapper.earcon(for: executionFinished) == .toolResult)
+}
+
 @Test func systemPromptDocumentsUntrustedToolOutput() {
     let prompt = SystemPrompt.render(toolSummaries: [
         ToolSummary(name: "calendar.read", capability: "Read upcoming events.", mutatesState: false)

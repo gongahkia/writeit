@@ -19,6 +19,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 
 - SwiftPM builds `cerberus`, `CerberusCore`, and `ShellExecService`.
 - `cerberus` has manual, Control-Option-Space, AirPods motion, and media-key trigger paths.
+- Earcons are mapped from the triggering state-machine event, so same-destination transitions such as cancel vs finished and approval vs execution start are audibly distinct.
 - The menu bar extra uses a custom SwiftUI label so active microphone states can tint the status icon red.
 - First launch opens the Access panel while required permissions remain ungranted, with skip and reset controls persisted in UserDefaults.
 - Calendar and Reminders permission prompts include full-access usage descriptions; write-only EventKit access is displayed separately because read tools require full access.

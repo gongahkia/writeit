@@ -1,13 +1,17 @@
 import AVFoundation
 import Foundation
 
-public enum Earcon: Sendable {
+public enum Earcon: Equatable, Sendable {
     case wake
     case cancel
+    case complete
     case reasoning
     case confirmation
+    case approved
+    case denied
     case executing
     case speaking
+    case toolResult
     case error
 
     var frequencies: [Double] {
@@ -16,16 +20,55 @@ public enum Earcon: Sendable {
             [660, 880]
         case .cancel:
             [330, 220]
+        case .complete:
+            [660, 520]
         case .reasoning:
             [520]
         case .confirmation:
             [740, 740]
+        case .approved:
+            [660, 880, 990]
+        case .denied:
+            [260, 220, 180]
         case .executing:
             [440, 660, 440]
         case .speaking:
             [880]
+        case .toolResult:
+            [880, 660]
         case .error:
             [180, 180]
+        }
+    }
+}
+
+public enum EarconMapper {
+    public static func earcon(for transition: AssistantTransition) -> Earcon {
+        switch transition.event {
+        case .wakeDetected:
+            .wake
+        case .silenceDetected:
+            .reasoning
+        case .cancelRequested:
+            .cancel
+        case .confirmationRequired:
+            .confirmation
+        case .confirmationAccepted:
+            .approved
+        case .confirmationDenied:
+            .denied
+        case .executionStarted:
+            .executing
+        case .executionFinished:
+            .toolResult
+        case .responseReady:
+            .speaking
+        case .speechFinished:
+            .complete
+        case .failed:
+            .error
+        case .reset:
+            .cancel
         }
     }
 }
@@ -42,25 +85,7 @@ public final class EarconPlayer {
     }
 
     public func play(for transition: AssistantTransition) {
-        if case .failed = transition.event {
-            play(.error)
-            return
-        }
-
-        switch transition.to {
-        case .idle:
-            play(.cancel)
-        case .listening:
-            play(.wake)
-        case .reasoning:
-            play(.reasoning)
-        case .awaitingConfirm:
-            play(.confirmation)
-        case .executing:
-            play(.executing)
-        case .speaking:
-            play(.speaking)
-        }
+        play(EarconMapper.earcon(for: transition))
     }
 
     public func play(_ earcon: Earcon) {
