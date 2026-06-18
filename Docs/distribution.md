@@ -78,6 +78,16 @@ For local package smoke tests without Developer ID or notarization:
 ALLOW_ADHOC=1 SKIP_NOTARIZE=1 Scripts/package_release.sh
 ```
 
+## Release Smoke
+
+Run build, package, checksum, Gatekeeper, demo, and open-source gates with one command:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/release_smoke.sh
+```
+
 ## Release Readiness
 
 Run the full pre-release gate:
