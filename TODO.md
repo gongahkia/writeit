@@ -38,7 +38,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][oss][manual] Enable or verify code scanning if the repo will accept outside contributions.
 - [ ] [P0][oss][manual] Make the GitHub repository public only after explicit approval.
 - [ ] [P0][oss] Run `Scripts/release_check.sh oss` after the repository is public.
-- [ ] [P1][oss] Add PR template requiring `swift test`, release-check impact, and permission/privacy review notes.
 - [ ] [P2][oss] Add repository topics after public release so the project is discoverable.
 - [ ] [P2][oss] Add a GitHub release checklist that mirrors `Scripts/release_check.sh`.
 
