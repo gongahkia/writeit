@@ -416,6 +416,56 @@ import Testing
     #expect(payload.contains("screen.ocr"))
 }
 
+@Test func screenSnapshotCacheCleanupPrunesOldSnapshotsAndKeepsUnrelatedFiles() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let now = Date(timeIntervalSince1970: 2_000)
+    let oldSnapshot = directory.appendingPathComponent("screen-1-old.png")
+    let newSnapshot = directory.appendingPathComponent("screen-2-new.png")
+    let preservedSnapshot = directory.appendingPathComponent("screen-3-preserved.png")
+    let unrelated = directory.appendingPathComponent("notes.txt")
+    for fileURL in [oldSnapshot, newSnapshot, preservedSnapshot, unrelated] {
+        try Data(fileURL.lastPathComponent.utf8).write(to: fileURL)
+    }
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-200)], ofItemAtPath: oldSnapshot.path)
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-10)], ofItemAtPath: newSnapshot.path)
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-500)], ofItemAtPath: preservedSnapshot.path)
+
+    let policy = ScreenSnapshotCachePolicy(maximumFileCount: 2, maximumAge: 60) { now }
+    try ScreenSnapshotCachePolicy.cleanDirectory(directory, preserving: preservedSnapshot, policy: policy)
+
+    #expect(!FileManager.default.fileExists(atPath: oldSnapshot.path))
+    #expect(FileManager.default.fileExists(atPath: newSnapshot.path))
+    #expect(FileManager.default.fileExists(atPath: preservedSnapshot.path))
+    #expect(FileManager.default.fileExists(atPath: unrelated.path))
+}
+
+@Test func screenSnapshotCacheCleanupLimitsSnapshotCount() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let now = Date(timeIntervalSince1970: 2_000)
+    let newest = directory.appendingPathComponent("screen-3-newest.png")
+    let middle = directory.appendingPathComponent("screen-2-middle.png")
+    let oldest = directory.appendingPathComponent("screen-1-oldest.png")
+    for fileURL in [newest, middle, oldest] {
+        try Data(fileURL.lastPathComponent.utf8).write(to: fileURL)
+    }
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-1)], ofItemAtPath: newest.path)
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-2)], ofItemAtPath: middle.path)
+    try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-3)], ofItemAtPath: oldest.path)
+
+    let policy = ScreenSnapshotCachePolicy(maximumFileCount: 2, maximumAge: 60) { now }
+    try ScreenSnapshotCachePolicy.cleanDirectory(directory, preserving: newest, policy: policy)
+
+    #expect(FileManager.default.fileExists(atPath: newest.path))
+    #expect(FileManager.default.fileExists(atPath: middle.path))
+    #expect(!FileManager.default.fileExists(atPath: oldest.path))
+}
+
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
     try FoundationModelAdapterConfiguration(name: "demo").validate()
     try FoundationModelAdapterConfiguration(filePath: "/tmp/demo.adapter").validate()

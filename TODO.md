@@ -245,7 +245,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][screen] Validate `screen.ocr` returns local Vision text with normalized bounding boxes.
 - [ ] [P0][screen] Validate `screen.ocr` returns pixel bounding boxes.
 - [ ] [P0][screen] Validate `screen.ocr` fails closed when Screen Recording is denied.
-- [ ] [P0][screen] Validate screen snapshot cache cleanup policy or add one if snapshots accumulate without bound.
 - [ ] [P1][screen] Add a user-visible "open latest screenshot" control if screen snapshots are useful for debugging.
 - [ ] [P1][screen] Add a user-visible "delete screen snapshots" control.
 - [ ] [P1][screen] Add OCR confidence and language reporting if Vision exposes reliable values in the SDK.
@@ -338,7 +337,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][tests] Add tests for release scripts in check-only or dry-run mode where possible.
 - [ ] [P1][tests] Add tests for demo script check mode.
 - [ ] [P1][tests] Add tests for adapter dataset privacy/redaction once redaction exists.
-- [ ] [P1][tests] Add tests for screen snapshot cache cleanup once cleanup exists.
 - [ ] [P1][tests] Add tests for prompt-boundary wrapping of all tool outputs.
 - [ ] [P1][tests] Add tests for MCP config validation edge cases.
 - [ ] [P1][tests] Add tests for MCP OAuth config precedence.
