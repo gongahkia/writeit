@@ -497,6 +497,28 @@ import Testing
     #expect(decodedStats.responseWords.maximum == 3)
 }
 
+@Test func adapterTrainingDatasetExporterRedactsPrivateValues() throws {
+    let records = [
+        TranscriptRecord(
+            request: "email me@example.com and read /Users/alice/Secret.txt",
+            response: "Bearer abcdefghijklmnopqrstuvwxyz123456 token 0123456789abcdef0123456789abcdef"
+        )
+    ]
+    let samples = AdapterTrainingDatasetExporter().samples(
+        from: records,
+        redactsPrivateData: true
+    )
+    let messages = try #require(samples.first?.messages)
+    let text = messages.map(\.content).joined(separator: "\n")
+
+    #expect(text.contains("[email]"))
+    #expect(text.contains("/Users/[user]/Secret.txt"))
+    #expect(text.contains("Bearer [token]"))
+    #expect(text.contains("[hex-token]"))
+    #expect(!text.contains("me@example.com"))
+    #expect(!text.contains("/Users/alice"))
+}
+
 @Test func adapterEvaluationParsesJSONLAndScoresNormalizedMatches() throws {
     let data = Data("""
     [{"role":"user","content":"open calendar"},{"role":"assistant","content":"Opened Calendar."}]

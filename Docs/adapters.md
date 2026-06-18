@@ -50,6 +50,8 @@ Optional arguments:
 Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data --eval-fraction 0.2 --limit 1000
 ```
 
+The exporter writes `stats.json` and redacts email addresses, bearer tokens, long hex tokens, and `/Users/...` home paths by default. Use `--no-redact` only for a private local review pass where exact values are needed.
+
 Evaluate an eval split with the default model:
 
 ```sh

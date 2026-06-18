@@ -89,6 +89,36 @@ public struct AdapterTrainingDatasetStatistics: Codable, Equatable, Sendable {
     }
 }
 
+public struct AdapterTrainingRedactor: Sendable {
+    public static let `default` = AdapterTrainingRedactor()
+
+    private let patterns: [(NSRegularExpression, String)]
+
+    public init() {
+        patterns = [
+            (Self.regex(#"[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}"#), "[email]"),
+            (Self.regex(#"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{16,}"#), "Bearer [token]"),
+            (Self.regex(#"/Users/[^/\s]+"#), "/Users/[user]"),
+            (Self.regex(#"\b[0-9A-Fa-f]{32,}\b"#), "[hex-token]")
+        ]
+    }
+
+    public func redact(_ value: String) -> String {
+        patterns.reduce(value) { current, pattern in
+            let range = NSRange(current.startIndex..<current.endIndex, in: current)
+            return pattern.0.stringByReplacingMatches(in: current, range: range, withTemplate: pattern.1)
+        }
+    }
+
+    private static func regex(_ pattern: String) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: pattern)
+        } catch {
+            preconditionFailure("Invalid redaction regex: \(pattern)")
+        }
+    }
+}
+
 public struct AdapterTrainingDatasetExporter: Sendable {
     private let encoder: JSONEncoder
 
@@ -97,8 +127,14 @@ public struct AdapterTrainingDatasetExporter: Sendable {
         encoder.outputFormatting = [.sortedKeys]
     }
 
-    public func samples(from records: [TranscriptRecord], limit: Int? = nil) -> [AdapterTrainingSample] {
-        exportableRecords(from: records, limit: limit).compactMap(Self.sample)
+    public func samples(
+        from records: [TranscriptRecord],
+        limit: Int? = nil,
+        redactsPrivateData: Bool = false
+    ) -> [AdapterTrainingSample] {
+        exportableRecords(from: records, limit: limit).compactMap {
+            Self.sample(from: $0, redactor: redactsPrivateData ? .default : nil)
+        }
     }
 
     public func statistics(from records: [TranscriptRecord], limit: Int? = nil) -> AdapterTrainingDatasetStatistics {
@@ -152,14 +188,14 @@ public struct AdapterTrainingDatasetExporter: Sendable {
             }
             return lhs.timestamp < rhs.timestamp
         }
-        let filtered = sortedRecords.filter { Self.sample(from: $0) != nil }
+        let filtered = sortedRecords.filter { Self.sample(from: $0, redactor: nil) != nil }
         guard let limit else {
             return filtered
         }
         return Array(filtered.suffix(max(0, limit)))
     }
 
-    private static func sample(from record: TranscriptRecord) -> AdapterTrainingSample? {
+    private static func sample(from record: TranscriptRecord, redactor: AdapterTrainingRedactor?) -> AdapterTrainingSample? {
         let request = record.request.trimmingCharacters(in: .whitespacesAndNewlines)
         let response = record.response.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !request.isEmpty, !response.isEmpty else {
@@ -167,8 +203,8 @@ public struct AdapterTrainingDatasetExporter: Sendable {
         }
 
         return AdapterTrainingSample(messages: [
-            AdapterTrainingMessage(role: "user", content: request),
-            AdapterTrainingMessage(role: "assistant", content: response)
+            AdapterTrainingMessage(role: "user", content: redactor?.redact(request) ?? request),
+            AdapterTrainingMessage(role: "assistant", content: redactor?.redact(response) ?? response)
         ])
     }
 }
