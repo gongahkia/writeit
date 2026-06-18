@@ -13,12 +13,17 @@ struct AdapterDatasetExportCommand {
         let records = try await EncryptedTranscriptStore().records()
         let exporter = AdapterTrainingDatasetExporter()
         let samples = exporter.samples(from: records, limit: options.limit)
+        let statistics = exporter.statistics(from: records, limit: options.limit)
         let split = try exporter.split(samples: samples, evalFraction: options.evalFraction)
         try exporter.write(split, to: options.outputDirectory)
+        try exporter.writeStatistics(statistics, to: options.outputDirectory)
 
         print(options.outputDirectory.path)
         print("train: \(split.train.count)")
         print("eval: \(split.eval.count)")
+        for line in statistics.summaryLines {
+            print(line)
+        }
     }
 }
 
@@ -65,6 +70,7 @@ private struct Options {
         Exports encrypted cerberus transcripts to Foundation Models adapter-training JSONL:
           train.jsonl
           eval.jsonl
+          stats.json
         """)
     }
 }

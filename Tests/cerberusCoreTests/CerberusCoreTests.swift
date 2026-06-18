@@ -457,7 +457,8 @@ import Testing
             id: firstID,
             timestamp: Date(timeIntervalSince1970: 1),
             request: " open calendar ",
-            response: "Opened Calendar."
+            response: "Opened Calendar.",
+            toolName: "app.control"
         ),
         TranscriptRecord(
             id: secondID,
@@ -469,22 +470,31 @@ import Testing
             id: thirdID,
             timestamp: Date(timeIntervalSince1970: 3),
             request: "what is next",
-            response: "Standup at 9."
+            response: "Standup at 9.",
+            toolName: "calendar.read"
         )
     ]
     let exporter = AdapterTrainingDatasetExporter()
     let samples = exporter.samples(from: records)
+    let statistics = exporter.statistics(from: records)
     let split = try exporter.split(samples: samples, evalFraction: 0.5)
 
     try exporter.write(split, to: directory)
+    try exporter.writeStatistics(statistics, to: directory)
 
     let trainText = try String(contentsOf: directory.appendingPathComponent("train.jsonl"), encoding: .utf8)
     let evalText = try String(contentsOf: directory.appendingPathComponent("eval.jsonl"), encoding: .utf8)
+    let statsData = try Data(contentsOf: directory.appendingPathComponent("stats.json"))
+    let decodedStats = try JSONDecoder().decode(AdapterTrainingDatasetStatistics.self, from: statsData)
     #expect(split.train.count == 1)
     #expect(split.eval.count == 1)
     #expect(trainText.contains(#""role":"user""#))
     #expect(trainText.contains(#""content":"open calendar""#))
     #expect(evalText.contains(#""content":"Standup at 9.""#))
+    #expect(decodedStats.totalSamples == 2)
+    #expect(decodedStats.taskCategories == ["app": 1, "calendar": 1])
+    #expect(decodedStats.tools == ["app.control": 1, "calendar.read": 1])
+    #expect(decodedStats.responseWords.maximum == 3)
 }
 
 @Test func adapterEvaluationParsesJSONLAndScoresNormalizedMatches() throws {
