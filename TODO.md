@@ -317,7 +317,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][docs] Add a permissions section explaining Accessibility, Input Monitoring, Microphone, Speech Recognition, Calendar, Reminders, Screen Recording, Automation, and Network Client.
 - [ ] [P1][docs] Add a troubleshooting section for Foundation Models unavailable.
 - [ ] [P1][docs] Add a troubleshooting section for SpeechAnalyzer unavailable.
-- [ ] [P1][docs] Add a troubleshooting section for AirPods motion unavailable.
 - [ ] [P1][docs] Add a troubleshooting section for Screen Recording permission denied.
 - [ ] [P1][docs] Add a troubleshooting section for Mail Automation permission denied.
 - [ ] [P1][docs] Add a troubleshooting section for Music Automation permission denied.
