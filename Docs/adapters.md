@@ -52,6 +52,30 @@ Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data --eval-fraction 0.2
 
 The exporter writes `stats.json` and redacts email addresses, bearer tokens, long hex tokens, and `/Users/...` home paths by default. Use `--no-redact` only for a private local review pass where exact values are needed.
 
+## Human Review Workflow
+
+Use this before training:
+
+1. Export with default redaction:
+
+   ```sh
+   Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data --eval-fraction 0.2 --limit 1000
+   ```
+
+2. Review `stats.json` for unexpected task categories, tool names, and response-length outliers.
+3. Read `train.jsonl` and `eval.jsonl` locally. Do not upload them to external review tools.
+4. Delete rows that contain private data, unsafe tool behavior, failed tool calls, hallucinated actions, or low-quality responses.
+5. Save curated files as `train.reviewed.jsonl` and `eval.reviewed.jsonl`.
+6. Run eval on the curated split:
+
+   ```sh
+   Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.reviewed.jsonl --limit 20
+   ```
+
+7. Train only from reviewed files by copying them over `train.jsonl` and `eval.jsonl` in the private training directory used for `Scripts/train_adapter.sh`.
+
+Keep rejected rows out of the training directory. If exact private values are required for a local-only investigation, keep that copy outside `.dist/`, outside git, and delete it after review.
+
 Evaluate an eval split with the default model:
 
 ```sh
