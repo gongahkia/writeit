@@ -26,4 +26,4 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 
 ### Rollback
 
-Rollback steps must be finalized before the tag is cut.
+Use `Docs/rollback.md` for local removal and recovery steps.

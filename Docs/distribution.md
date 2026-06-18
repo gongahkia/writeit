@@ -116,3 +116,4 @@ Scripts/release_check.sh oss
 
 See `Docs/open-source.md` for the public repository handoff.
 See `Docs/release-notes.md` for the first tagged build notes.
+See `Docs/rollback.md` for local rollback and removal steps.
