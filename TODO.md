@@ -86,7 +86,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][airpods][blocked: AirPods] Validate stem triple-press starts listening from idle.
 - [ ] [P0][airpods][blocked: AirPods] Validate stem triple-press interrupts speaking and starts a new turn.
 - [ ] [P1][airpods] Add hardware validation thresholds to docs after real-data tuning.
-- [ ] [P1][airpods] Add a short troubleshooting note for AirPods motion unavailability.
 - [ ] [P2][airpods][Inference] Add optional per-user threshold profile export/import if validation shows thresholds vary materially.
 - [ ] [P2][airpods][Inference] Add a cooldown tuning control if validation shows accidental repeated triggers.
 
