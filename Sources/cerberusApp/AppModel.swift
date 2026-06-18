@@ -114,6 +114,8 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
+    @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
+    @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
     @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published var isAutoSilenceEnabled = true
@@ -264,6 +266,7 @@ final class CerberusAppModel: ObservableObject {
         refreshPermissions()
         refreshAudioOutputRoute()
         refreshWakeWordMonitorLine()
+        refreshFoundationModelStatus()
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         startTriggers()
@@ -465,6 +468,10 @@ final class CerberusAppModel: ObservableObject {
             isAudioOutputLikelyAirPods = false
         }
         refreshPreferredSpeechOutputDevice()
+    }
+
+    func refreshFoundationModelStatus() {
+        foundationModelAvailabilityLine = Self.foundationModelAvailabilityText(SystemLanguageModel.default.availability)
     }
 
     private func refreshPreferredSpeechOutputDevice() {
@@ -1414,14 +1421,37 @@ final class CerberusAppModel: ObservableObject {
         Task {
             do {
                 guard let model = try await adapterLoader.configuredModelIfPresent() else {
+                    foundationModelAdapterStatusLine = "Adapter config not found"
                     return
                 }
 
                 await assistant.updateModel(model)
+                foundationModelAdapterStatusLine = "Adapter loaded"
                 statusLine = "FoundationModels adapter loaded."
             } catch {
+                foundationModelAdapterStatusLine = "Adapter error: \(error.localizedDescription)"
                 statusLine = error.localizedDescription
             }
+        }
+    }
+
+    private static func foundationModelAvailabilityText(_ availability: SystemLanguageModel.Availability) -> String {
+        switch availability {
+        case .available:
+            "Foundation Models available"
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible:
+                "Foundation Models unavailable: device not eligible"
+            case .appleIntelligenceNotEnabled:
+                "Foundation Models unavailable: Apple Intelligence not enabled"
+            case .modelNotReady:
+                "Foundation Models unavailable: model not ready"
+            @unknown default:
+                "Foundation Models unavailable"
+            }
+        @unknown default:
+            "Foundation Models status unknown"
         }
     }
 

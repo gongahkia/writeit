@@ -134,7 +134,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][model][Unverified] Re-evaluate Apple-provided OCRTool and BarcodeReaderTool availability against the current macOS 26 SDK.
 - [ ] [P1][model][Inference] Replace or augment OCR-only screen reasoning if public image prompt APIs are available in the installed SDK.
 - [ ] [P1][model][Inference] Add model-availability diagnostics if target machines lack required Apple Intelligence state.
-- [ ] [P1][model] Add a settings/status row that reports Foundation Models availability and adapter load status.
 - [ ] [P1][model] Add a model benchmark regression baseline to docs after hardware measurements.
 - [ ] [P1][model] Add a fallback UX for Foundation Models unavailable, disabled, or model-download-pending states.
 - [ ] [P1][model] Add tests for model-unavailable error formatting using injectable assistant/model fakes.

@@ -551,6 +551,34 @@ struct StatusPanel: View {
                 .lineLimit(2)
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Foundation Models")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        model.refreshFoundationModelStatus()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Refresh Foundation Models status")
+                }
+
+                Label(model.foundationModelAvailabilityLine, systemImage: "brain")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Label(model.foundationModelAdapterStatusLine, systemImage: "shippingbox")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
             Divider()
 
             VStack(alignment: .leading, spacing: 6) {
