@@ -55,3 +55,4 @@ See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
 See `Docs/open-source.md` for public repository release checks.
+See `CONTRIBUTING.md` for local setup, validation, signing, and hardware prerequisites.
