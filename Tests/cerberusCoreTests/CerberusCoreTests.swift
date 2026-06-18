@@ -416,6 +416,18 @@ import Testing
     #expect(payload.contains("screen.ocr"))
 }
 
+@Test func screenSnapshotWriteCreatesOutputDirectory() throws {
+    let rootDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let directory = rootDirectory.appendingPathComponent("Library/Caches/cerberus/screen-snapshots", isDirectory: true)
+    let fileURL = directory.appendingPathComponent("screen-test.png")
+    defer { try? FileManager.default.removeItem(at: rootDirectory) }
+
+    try ScreenCaptureSupport.writePNG(makeTestImage(), to: fileURL)
+
+    #expect(FileManager.default.fileExists(atPath: directory.path))
+    #expect(FileManager.default.fileExists(atPath: fileURL.path))
+}
+
 @Test func screenSnapshotCacheCleanupPrunesOldSnapshotsAndKeepsUnrelatedFiles() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -487,6 +499,27 @@ import Testing
     #expect(!FileManager.default.fileExists(atPath: newest.path))
     #expect(!FileManager.default.fileExists(atPath: oldest.path))
     #expect(FileManager.default.fileExists(atPath: unrelated.path))
+}
+
+private func makeTestImage() throws -> CGImage {
+    let bytes = Data([255, 255, 255, 255])
+    guard let provider = CGDataProvider(data: bytes as CFData),
+          let image = CGImage(
+        width: 1,
+        height: 1,
+        bitsPerComponent: 8,
+        bitsPerPixel: 32,
+        bytesPerRow: 4,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+        provider: provider,
+        decode: nil,
+        shouldInterpolate: false,
+        intent: .defaultIntent
+    ) else {
+        throw ToolExecutionError.denied("Could not create test image.")
+    }
+    return image
 }
 
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
