@@ -579,6 +579,47 @@ struct StatusPanel: View {
                     .lineLimit(2)
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Screen snapshots")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        model.refreshScreenSnapshotStatus()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Refresh screen snapshot status")
+                }
+
+                Label(model.screenSnapshotStatusLine, systemImage: "photo")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                HStack(spacing: 8) {
+                    Button {
+                        model.openLatestScreenSnapshot()
+                    } label: {
+                        Label("Open latest", systemImage: "photo")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.screenSnapshotCount == 0)
+
+                    Button(role: .destructive) {
+                        model.deleteScreenSnapshots()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.screenSnapshotCount == 0)
+                }
+            }
+
             Divider()
 
             VStack(alignment: .leading, spacing: 6) {

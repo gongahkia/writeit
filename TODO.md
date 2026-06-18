@@ -245,8 +245,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][screen] Validate `screen.ocr` returns local Vision text with normalized bounding boxes.
 - [ ] [P0][screen] Validate `screen.ocr` returns pixel bounding boxes.
 - [ ] [P0][screen] Validate `screen.ocr` fails closed when Screen Recording is denied.
-- [ ] [P1][screen] Add a user-visible "open latest screenshot" control if screen snapshots are useful for debugging.
-- [ ] [P1][screen] Add a user-visible "delete screen snapshots" control.
 - [ ] [P1][screen] Add OCR confidence and language reporting if Vision exposes reliable values in the SDK.
 - [ ] [P1][screen] Add tests for screen snapshot output directory creation under caches.
 - [ ] [P1][screen][Unverified] Re-check Apple Foundation Models image attachment support before keeping OCR-only screen reasoning.

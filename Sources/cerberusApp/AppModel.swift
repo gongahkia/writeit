@@ -116,6 +116,8 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
+    @Published private(set) var screenSnapshotStatusLine = "Screen snapshots not checked"
+    @Published private(set) var screenSnapshotCount = 0
     @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published var isAutoSilenceEnabled = true
@@ -268,6 +270,7 @@ final class CerberusAppModel: ObservableObject {
         refreshAudioOutputRoute()
         refreshWakeWordMonitorLine()
         refreshFoundationModelStatus()
+        refreshScreenSnapshotStatus()
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         startTriggers()
@@ -325,6 +328,38 @@ final class CerberusAppModel: ObservableObject {
     func resetAmbientToolAllowlist() {
         ambientToolAllowlist = ToolSessionAllowlist()
         refreshAssistantToolPrompt()
+    }
+
+    func refreshScreenSnapshotStatus() {
+        let directoryURL = ScreenSnapshotTool.defaultOutputDirectoryURL()
+        screenSnapshotCount = ScreenSnapshotCache.snapshotCount(in: directoryURL)
+        screenSnapshotStatusLine = screenSnapshotCount == 1
+            ? "1 cached snapshot in \(directoryURL.path)"
+            : "\(screenSnapshotCount) cached snapshots in \(directoryURL.path)"
+    }
+
+    func openLatestScreenSnapshot() {
+        let directoryURL = ScreenSnapshotTool.defaultOutputDirectoryURL()
+        guard let fileURL = ScreenSnapshotCache.latestSnapshotURL(in: directoryURL) else {
+            statusLine = "No screen snapshots found."
+            refreshScreenSnapshotStatus()
+            return
+        }
+
+        NSWorkspace.shared.open(fileURL)
+        statusLine = "Opened latest screen snapshot."
+        screenSnapshotStatusLine = "Latest snapshot: \(fileURL.path)"
+    }
+
+    func deleteScreenSnapshots() {
+        do {
+            let count = try ScreenSnapshotCache.deleteSnapshots(in: ScreenSnapshotTool.defaultOutputDirectoryURL())
+            screenSnapshotCount = 0
+            screenSnapshotStatusLine = count == 1 ? "Deleted 1 screen snapshot." : "Deleted \(count) screen snapshots."
+            statusLine = screenSnapshotStatusLine
+        } catch {
+            statusLine = error.localizedDescription
+        }
     }
 
     func addFileSearchScope() {
