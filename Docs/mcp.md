@@ -34,6 +34,55 @@ Config path:
 
 Save this as `~/Library/Application Support/cerberus/mcp-servers.json`, then enable `MCP tool` in settings.
 
+## Local Sample Servers
+
+Start the stdio sample server through config:
+
+```json
+{
+  "servers": [
+    {
+      "name": "local-stdio-sample",
+      "transport": "stdio",
+      "executable": "python3",
+      "arguments": ["/absolute/path/to/cerberus/Scripts/sample_mcp_stdio_server.py"],
+      "workingDirectory": "/absolute/path/to/cerberus",
+      "nativeReadOnlyTools": ["echo"]
+    }
+  ]
+}
+```
+
+Start the Streamable HTTP sample server:
+
+```sh
+Scripts/sample_mcp_http_server.py --port 8766
+```
+
+Then use this config:
+
+```json
+{
+  "servers": [
+    {
+      "name": "local-http-sample",
+      "transport": "streamable_http",
+      "endpointURL": "http://127.0.0.1:8766/mcp",
+      "nativeReadOnlyTools": ["echo"]
+    }
+  ]
+}
+```
+
+Both sample servers expose:
+
+- `tools/list` with `echo`, `sample`, and `elicit`
+- `tools/call` for direct echo plus sampling and elicitation review flows
+- `resources/list` and `resources/read`
+- `prompts/list` and `prompts/get`
+
+The HTTP sample also exposes a GET SSE listener that sends one sampling request and one elicitation request before closing.
+
 Current scope:
 
 - stdio and Streamable HTTP transports
