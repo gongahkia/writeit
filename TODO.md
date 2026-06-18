@@ -209,7 +209,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][mcp] Validate `nativeReadOnlyTools` rejects nested schemas.
 - [ ] [P0][mcp] Validate `nativeReadOnlyTools` exposes only trusted read-only tool names.
 - [ ] [P0][mcp] Validate mutating MCP tools are never exposed through native FoundationModels read-only tool sessions.
-- [ ] [P1][mcp] Add a local sample MCP stdio server for repeatable manual validation.
 - [ ] [P1][mcp] Add a local sample MCP Streamable HTTP server for repeatable manual validation.
 - [ ] [P1][mcp] Add docs with known-good MCP server config examples.
 - [ ] [P2][mcp][Inference] Add per-server UI health indicators if multiple MCP servers are common.
