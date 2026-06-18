@@ -23,7 +23,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][release] Confirm `ShellExecService.xpc` is signed before the parent app bundle in release packaging.
 - [ ] [P0][release] Confirm the final `.app` launches after download/quarantine simulation.
 - [ ] [P0][release] Confirm the app runs on the lowest supported macOS 26 build targeted by `Package.swift`.
-- [ ] [P1][release] Add release notes for the first tagged build.
 - [ ] [P1][release] Add a rollback note describing how to remove app data, Keychain items, permissions, and launch artifacts.
 
 ## Open-source readiness
