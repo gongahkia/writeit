@@ -1,0 +1,55 @@
+name: Hardware report
+description: Report behavior on a specific Mac, AirPods, or permission setup.
+title: "[hardware]: "
+labels: ["hardware"]
+body:
+  - type: input
+    id: mac
+    attributes:
+      label: Mac
+      description: Model, chip, memory, macOS build.
+    validations:
+      required: true
+  - type: input
+    id: xcode
+    attributes:
+      label: Xcode
+      description: Version and active toolchain path.
+    validations:
+      required: true
+  - type: input
+    id: airpods
+    attributes:
+      label: AirPods
+      description: Model, firmware, input/output routing. Use `n/a` if unrelated.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - app launch
+        - permissions
+        - speech input
+        - speech output
+        - AirPods gestures
+        - Foundation Models
+        - screen/OCR
+        - release package
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result
+      description: What happened, and what validation commands or checklist items were used?
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy notes
+      description: Confirm attached data is redacted or synthetic.
+    validations:
+      required: true
