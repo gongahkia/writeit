@@ -26,6 +26,7 @@ The script checks:
 - no tracked private-key block or obvious quoted token assignment is present
 
 The secret check is only a local heuristic. Keep GitHub push protection enabled and review any secret-scanning alerts before release.
+See `SECURITY.md` for vulnerability reporting and local-data handling expectations.
 
 ## Manual Decisions
 

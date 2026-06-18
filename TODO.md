@@ -38,7 +38,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][oss][manual] Enable or verify code scanning if the repo will accept outside contributions.
 - [ ] [P0][oss][manual] Make the GitHub repository public only after explicit approval.
 - [ ] [P0][oss] Run `Scripts/release_check.sh oss` after the repository is public.
-- [ ] [P1][oss] Add `SECURITY.md` with vulnerability reporting and local-data handling expectations.
 - [ ] [P1][oss] Add `CONTRIBUTING.md` with macOS 26, Xcode 26, SwiftPM, signing, and hardware prerequisites.
 - [ ] [P1][oss] Add `CODE_OF_CONDUCT.md` if accepting external contributors.
 - [ ] [P1][oss] Add issue templates for bug reports, validation results, feature requests, and hardware reports.
