@@ -64,6 +64,15 @@ struct MCPClientElicitationFieldDraft: Identifiable {
     }
 }
 
+struct AppDataLocation: Identifiable, Equatable {
+    let name: String
+    let url: URL
+
+    var id: String {
+        name
+    }
+}
+
 private enum MCPClientRequestDecision: Sendable {
     case approve(String)
     case decline
@@ -321,6 +330,18 @@ final class CerberusAppModel: ObservableObject {
 
     var disabledAmbientToolCount: Int {
         ambientToolAllowlist.disabledToolNames.count
+    }
+
+    var appDataLocations: [AppDataLocation] {
+        [
+            AppDataLocation(name: "Audit log", url: AuditLog.defaultFileURL()),
+            AppDataLocation(name: "Transcripts", url: EncryptedTranscriptStore.defaultFileURL()),
+            AppDataLocation(name: "Memories", url: EncryptedMemoryStore.defaultFileURL()),
+            AppDataLocation(name: "Wake samples", url: WakeWordSampleDataset.defaultDirectoryURL()),
+            AppDataLocation(name: "Adapter config", url: FoundationModelAdapterLoader.defaultFileURL()),
+            AppDataLocation(name: "MCP config", url: MCPServerRegistry.defaultFileURL()),
+            AppDataLocation(name: "Screen snapshots", url: ScreenSnapshotTool.defaultOutputDirectoryURL())
+        ]
     }
 
     func isAmbientToolEnabled(_ toolName: String) -> Bool {

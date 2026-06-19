@@ -229,7 +229,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][ux] Validate MCP review controls with long prompts and responses.
 - [ ] [P0][ux] Validate MCP elicitation controls with boolean, enum, number, integer, and string fields.
 - [ ] [P1][ux] Replace any user-facing text that is too implementation-heavy for a voice-first utility.
-- [ ] [P1][ux] Add app-data location display for audit, transcripts, memory, wake samples, adapter config, MCP config, and screen snapshots.
 - [ ] [P1][ux] Add "Reveal in Finder" controls for validation artifacts and app data directories.
 - [ ] [P1][ux] Add a first-run checklist summary once setup completes.
 - [ ] [P1][ux] Add keyboard accessibility review for the panel controls.

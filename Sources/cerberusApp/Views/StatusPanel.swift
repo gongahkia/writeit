@@ -819,6 +819,24 @@ struct StatusPanel: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                Text("App data")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                ForEach(model.appDataLocations) { location in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(location.name)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(location.url.path)
+                            .font(.caption2.monospaced())
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("File search folders")
                         .font(.caption)
