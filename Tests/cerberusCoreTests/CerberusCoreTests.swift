@@ -89,6 +89,25 @@ import Testing
     #expect(result.output.contains("rendered demo ok"))
 }
 
+@Test func releaseScriptsExposeNonDestructivePreflightModes() throws {
+    let checks = [
+        ("Scripts/release_check.sh", ["--help"], "usage: Scripts/release_check.sh"),
+        ("Scripts/release_smoke.sh", ["--help"], "usage: Scripts/release_smoke.sh"),
+        ("Scripts/package_release.sh", ["--help"], "usage: Scripts/package_release.sh"),
+        ("Scripts/record_demo.sh", ["--check"], "rendered demo ok")
+    ]
+
+    for check in checks {
+        let result = try runScript(
+            check.0,
+            arguments: check.1,
+            environment: ["DEMO_CAPTURE_MODE": "rendered"]
+        )
+        #expect(result.exitCode == 0)
+        #expect(result.output.contains(check.2))
+    }
+}
+
 @Test func stateMachineFollowsHappyPath() {
     var machine = AssistantStateMachine()
 
