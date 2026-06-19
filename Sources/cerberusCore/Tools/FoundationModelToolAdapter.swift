@@ -49,11 +49,11 @@ public struct FoundationModelToolAdapter<ToolImplementation: AssistantTool>: Fou
 private extension ToolResult {
     var promptPayload: String {
         let payload = untrustedPayload.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summary = PromptBoundary.escapeClosingTags(in: spokenSummary, tag: "tool-output")
         guard !payload.isEmpty else {
-            return spokenSummary
+            return summary
         }
 
-        let summary = PromptBoundary.escapeClosingTags(in: spokenSummary, tag: "tool-output")
         return """
         Summary: \(summary)
         Untrusted tool output:
