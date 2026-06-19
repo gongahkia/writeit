@@ -14,6 +14,29 @@ struct CerberusApp: App {
             MenuBarStatusIcon(model: model)
         }
         .menuBarExtraStyle(.window)
+        .commands {
+            CommandMenu("Cerberus") {
+                Button("Listen") {
+                    model.startListening()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+
+                Button("Cancel") {
+                    model.cancel()
+                }
+                .keyboardShortcut(".", modifiers: [.command])
+
+                Button("Refresh Permissions") {
+                    model.refreshPermissions()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+
+                Button("Open Settings") {
+                    model.selectedPanelSection = .settings
+                }
+                .keyboardShortcut(",", modifiers: [.command])
+            }
+        }
     }
 }
 

@@ -232,7 +232,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][ux] Add keyboard accessibility review for the panel controls.
 - [ ] [P1][ux] Add dynamic type/layout review for long paths and long tool names.
 - [ ] [P1][ux] Add dark/light appearance review screenshots.
-- [ ] [P2][ux][Inference] Add menu command shortcuts for Listen, Cancel, Refresh Permissions, and Open Settings.
 - [ ] [P2][ux][Inference] Add configurable hotkey if Control-Option-Space conflicts in real use.
 - [ ] [P2][ux][Inference] Add onboarding progress persistence per permission if setup flow becomes longer.
 

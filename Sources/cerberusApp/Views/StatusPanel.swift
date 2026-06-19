@@ -3,7 +3,6 @@ import cerberusCore
 
 struct StatusPanel: View {
     @ObservedObject var model: CerberusAppModel
-    @State private var selectedSection: PanelSection = .session
     @State private var isToolAllowlistExpanded = false
 
     var body: some View {
@@ -12,7 +11,7 @@ struct StatusPanel: View {
             setupBanner
             sectionPicker
 
-            switch selectedSection {
+            switch model.selectedPanelSection {
             case .session:
                 controls
                 transcript
@@ -37,7 +36,7 @@ struct StatusPanel: View {
     }
 
     private var sectionPicker: some View {
-        Picker("Panel", selection: $selectedSection) {
+        Picker("Panel", selection: $model.selectedPanelSection) {
             ForEach(PanelSection.allCases) { section in
                 Text(section.title).tag(section)
             }
@@ -84,14 +83,14 @@ struct StatusPanel: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        selectedSection = .permissions
+                        model.selectedPanelSection = .permissions
                         model.requestNextPermission()
                     } label: {
                         Label("Request", systemImage: "lock.open")
                     }
 
                     Button {
-                        selectedSection = .permissions
+                        model.selectedPanelSection = .permissions
                     } label: {
                         Label("Access", systemImage: "slider.horizontal.3")
                     }
@@ -673,7 +672,7 @@ struct StatusPanel: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             Button {
-                selectedSection = .permissions
+                model.selectedPanelSection = .permissions
                 model.resetOnboarding()
             } label: {
                 Label("Reset setup", systemImage: "arrow.counterclockwise")
@@ -990,12 +989,12 @@ struct StatusPanel: View {
 
     private func showOnboardingIfNeeded() {
         if model.shouldShowOnboarding {
-            selectedSection = .permissions
+            model.selectedPanelSection = .permissions
         }
     }
 }
 
-private enum PanelSection: String, CaseIterable, Identifiable {
+enum PanelSection: String, CaseIterable, Identifiable {
     case session
     case history
     case audit

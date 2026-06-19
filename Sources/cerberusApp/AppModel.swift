@@ -131,6 +131,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var screenSnapshotCount = 0
     @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
+    @Published var selectedPanelSection: PanelSection = .session
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier) {
