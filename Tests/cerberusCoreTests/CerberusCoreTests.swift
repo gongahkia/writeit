@@ -78,6 +78,17 @@ import Testing
     ])
 }
 
+@Test func demoRecorderCheckModeAcceptsRenderedDemoPath() throws {
+    let result = try runScript(
+        "Scripts/record_demo.sh",
+        arguments: ["--check"],
+        environment: ["DEMO_CAPTURE_MODE": "rendered"]
+    )
+
+    #expect(result.exitCode == 0)
+    #expect(result.output.contains("rendered demo ok"))
+}
+
 @Test func stateMachineFollowsHappyPath() {
     var machine = AssistantStateMachine()
 
@@ -560,6 +571,27 @@ private func loadPlist(_ relativePath: String) throws -> [String: Any] {
         .appendingPathComponent(relativePath)
     let data = try Data(contentsOf: fileURL)
     return try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+}
+
+private func runScript(
+    _ relativePath: String,
+    arguments: [String] = [],
+    environment: [String: String] = [:]
+) throws -> (exitCode: Int32, output: String) {
+    let process = Process()
+    process.currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = [relativePath] + arguments
+    process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
+
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    process.standardError = pipe
+    try process.run()
+    process.waitUntilExit()
+
+    let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    return (process.terminationStatus, output)
 }
 
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {
