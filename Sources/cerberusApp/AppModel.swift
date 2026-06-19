@@ -1559,7 +1559,8 @@ final class CerberusAppModel: ObservableObject {
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,
                     allowedToolNames: enabledToolNames
-                )
+                ),
+                recentTurns: await recentConversationContext()
             )
             let startedAt = Date()
             var succeeded = false
@@ -1651,7 +1652,8 @@ final class CerberusAppModel: ObservableObject {
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,
                     allowedToolNames: allowedToolNames
-                )
+                ),
+                recentTurns: await recentConversationContext()
             )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordModelSuccess()
@@ -1864,6 +1866,32 @@ final class CerberusAppModel: ObservableObject {
 
     private func currentActiveApplicationName() -> String? {
         NSWorkspace.shared.frontmostApplication?.localizedName
+    }
+
+    private func recentConversationContext(limit: Int = 3) async -> [AssistantContext.RecentTurn] {
+        do {
+            return try await transcriptStore.records()
+                .sorted { $0.timestamp > $1.timestamp }
+                .prefix(limit)
+                .reversed()
+                .map { record in
+                    AssistantContext.RecentTurn(
+                        request: Self.promptSnippet(record.request),
+                        response: Self.promptSnippet(record.response),
+                        toolName: record.toolName
+                    )
+                }
+        } catch {
+            return []
+        }
+    }
+
+    private static func promptSnippet(_ text: String, limit: Int = 500) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > limit else {
+            return trimmed
+        }
+        return String(trimmed.prefix(limit)) + "..."
     }
 
     private func detectedProjectWorkspaces() -> [ProjectWorkspaceHint] {

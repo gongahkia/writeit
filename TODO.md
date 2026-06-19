@@ -230,7 +230,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P2][product][Inference] Add app-specific tool packs for Xcode, Terminal, Safari, Chrome, Calendar, Mail, and Music.
 - [ ] [P2][product][Inference] Add local vector memory only after encrypted memory UX and deletion controls exist.
 - [ ] [P2][product][Inference] Add background task queue only after cancellation and audit semantics are designed.
-- [ ] [P2][product][Inference] Add multi-turn follow-up context after transcript privacy controls are complete.
 - [ ] [P2][product][Inference] Add plugin-like local tool registration only after security model review.
 - [ ] [P3][product][Speculation] Explore iOS companion only as a separate project.
 - [ ] [P3][product][Speculation] Explore non-AirPods trigger surfaces only if AirPods validation is weak.

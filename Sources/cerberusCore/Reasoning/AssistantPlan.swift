@@ -57,24 +57,39 @@ public struct AssistantToolResponse: Equatable, Sendable {
 }
 
 public struct AssistantContext: Equatable, Sendable {
+    public struct RecentTurn: Equatable, Sendable {
+        public let request: String
+        public let response: String
+        public let toolName: String?
+
+        public init(request: String, response: String, toolName: String? = nil) {
+            self.request = request
+            self.response = response
+            self.toolName = toolName
+        }
+    }
+
     public let activeApplicationName: String?
     public let allowedToolNames: [String]
     public let fileSearchScopePaths: [String]
     public let projectWorkspaceHints: [ProjectWorkspaceHint]
     public let activeApplicationHints: [String]
+    public let recentTurns: [RecentTurn]
 
     public init(
         activeApplicationName: String? = nil,
         allowedToolNames: [String] = [],
         fileSearchScopePaths: [String] = [],
         projectWorkspaceHints: [ProjectWorkspaceHint] = [],
-        activeApplicationHints: [String] = []
+        activeApplicationHints: [String] = [],
+        recentTurns: [RecentTurn] = []
     ) {
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
         self.fileSearchScopePaths = fileSearchScopePaths
         self.projectWorkspaceHints = projectWorkspaceHints
         self.activeApplicationHints = activeApplicationHints
+        self.recentTurns = recentTurns
     }
 
     public var promptFragment: String {
@@ -106,6 +121,18 @@ public struct AssistantContext: Equatable, Sendable {
         if !activeApplicationHints.isEmpty {
             lines.append("Active app policies:")
             lines += activeApplicationHints.map { "- \($0)" }
+        }
+
+        if !recentTurns.isEmpty {
+            let text = recentTurns.enumerated().map { index, turn in
+                var line = "\(index + 1). User: \(turn.request)\nAssistant: \(turn.response)"
+                if let toolName = turn.toolName, !toolName.isEmpty {
+                    line += "\nTool: \(toolName)"
+                }
+                return line
+            }.joined(separator: "\n\n")
+            lines.append("Recent conversation:")
+            lines.append(PromptBoundary.untrustedBlock(tag: "recent-conversation", content: text))
         }
 
         return lines.joined(separator: "\n")
