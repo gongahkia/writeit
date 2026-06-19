@@ -235,6 +235,47 @@ import Testing
     }
 }
 
+@Test func keychainDeletionForcesNewEncryptedStoreKeyAndClearRecoveryState() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("transcripts.jsonl.enc")
+    let operations = InMemoryKeychainOperations()
+    let keychainStore = KeychainSecretStore(account: "transcripts", operations: operations)
+    let store = EncryptedTranscriptStore(fileURL: fileURL, keychainStore: keychainStore)
+
+    try await store.append(TranscriptRecord(request: "first", response: "old key"))
+    let originalKey = try #require(try keychainStore.data())
+    try keychainStore.delete()
+
+    await #expect(throws: EncryptedStoreRecoveryError.unreadableWithCurrentKey) {
+        _ = try await store.records()
+    }
+
+    try await store.deleteAll()
+    try await store.append(TranscriptRecord(request: "second", response: "new key"))
+    let rotatedKey = try #require(try keychainStore.data())
+
+    #expect(rotatedKey != originalKey)
+    #expect(try await store.records().map(\.response) == ["new key"])
+}
+
+@Test func keychainDeletionInvalidatesOldAuditSignatures() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("audit.log")
+    let operations = InMemoryKeychainOperations()
+    let keychainStore = KeychainSecretStore(account: "audit", operations: operations)
+    let auditLog = AuditLog(fileURL: fileURL, keychainStore: keychainStore)
+
+    _ = try await auditLog.append(toolName: "files.search", argumentsSummary: "q", resultSummary: "ok")
+    let originalKey = try #require(try keychainStore.data())
+    try keychainStore.delete()
+    let signaturesAreValid = try await auditLog.signaturesAreValid()
+
+    #expect(!signaturesAreValid)
+    #expect(try keychainStore.data() != originalKey)
+}
+
 @Test func mailSearchToolFormatsReadOnlyResults() async throws {
     struct StubRunner: MailSearchRunning {
         func search(
@@ -418,6 +459,53 @@ private struct StubKeychainOperations: KeychainSecretStoreOperations {
 
     func delete(_ query: [String: Any]) -> OSStatus {
         deleteStatus
+    }
+}
+
+private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @unchecked Sendable {
+    private var items: [String: Data] = [:]
+    private let lock = NSLock()
+
+    func copyMatching(_ query: [String: Any]) -> (OSStatus, Data?) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let data = items[key(for: query)] else {
+            return (errSecItemNotFound, nil)
+        }
+        return (errSecSuccess, data)
+    }
+
+    func update(_ query: [String: Any], data: Data) -> OSStatus {
+        lock.lock()
+        defer { lock.unlock() }
+        let key = key(for: query)
+        guard items[key] != nil else {
+            return errSecItemNotFound
+        }
+        items[key] = data
+        return errSecSuccess
+    }
+
+    func add(_ query: [String: Any], data: Data) -> OSStatus {
+        lock.lock()
+        defer { lock.unlock() }
+        let key = key(for: query)
+        guard items[key] == nil else {
+            return errSecDuplicateItem
+        }
+        items[key] = data
+        return errSecSuccess
+    }
+
+    func delete(_ query: [String: Any]) -> OSStatus {
+        lock.lock()
+        defer { lock.unlock() }
+        items.removeValue(forKey: key(for: query))
+        return errSecSuccess
+    }
+
+    private func key(for query: [String: Any]) -> String {
+        "\(query[kSecAttrService as String] as? String ?? ""):\(query[kSecAttrAccount as String] as? String ?? "")"
     }
 }
 

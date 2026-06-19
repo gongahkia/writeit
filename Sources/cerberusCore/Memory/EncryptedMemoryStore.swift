@@ -68,16 +68,20 @@ public actor EncryptedMemoryStore {
             return []
         }
 
-        return try text
-            .split(separator: "\n")
-            .map { line in
-                guard let sealedData = Data(base64Encoded: String(line)) else {
-                    throw CocoaError(.fileReadCorruptFile)
+        do {
+            return try text
+                .split(separator: "\n")
+                .map { line in
+                    guard let sealedData = Data(base64Encoded: String(line)) else {
+                        throw EncryptedStoreRecoveryError.unreadableWithCurrentKey
+                    }
+                    let sealedBox = try AES.GCM.SealedBox(combined: sealedData)
+                    let opened = try AES.GCM.open(sealedBox, using: try key())
+                    return try decoder.decode(MemoryRecord.self, from: opened)
                 }
-                let sealedBox = try AES.GCM.SealedBox(combined: sealedData)
-                let opened = try AES.GCM.open(sealedBox, using: try key())
-                return try decoder.decode(MemoryRecord.self, from: opened)
-            }
+        } catch {
+            throw EncryptedStoreRecoveryError.unreadableWithCurrentKey
+        }
     }
 
     public func search(query: String, limit: Int) throws -> [MemoryRecord] {
