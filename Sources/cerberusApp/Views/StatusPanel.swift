@@ -104,6 +104,7 @@ struct StatusPanel: View {
                         Image(systemName: "xmark")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Skip setup")
                     .help("Skip setup")
                 }
                 .buttonStyle(.bordered)
@@ -317,6 +318,7 @@ struct StatusPanel: View {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Export transcript history")
                 .help("Export transcript history")
                 .disabled(model.transcriptRecords.isEmpty)
 
@@ -326,6 +328,7 @@ struct StatusPanel: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Delete transcript history")
                 .help("Delete transcript history")
                 .disabled(model.transcriptRecords.isEmpty)
 
@@ -335,6 +338,7 @@ struct StatusPanel: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Refresh transcript history")
                 .help("Refresh transcript history")
             }
 
@@ -382,6 +386,7 @@ struct StatusPanel: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear tool calls")
                 .help("Clear tool calls")
                 .disabled(model.recentAuditEntries.isEmpty)
 
@@ -391,6 +396,7 @@ struct StatusPanel: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Refresh tool calls")
                 .help("Refresh tool calls")
             }
 
@@ -431,6 +437,7 @@ struct StatusPanel: View {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Export memories")
                 .help("Export memories")
                 .disabled(model.memoryRecords.isEmpty)
 
@@ -440,6 +447,7 @@ struct StatusPanel: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Delete memories")
                 .help("Delete memories")
                 .disabled(model.memoryRecords.isEmpty)
 
@@ -449,6 +457,7 @@ struct StatusPanel: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Refresh memories")
                 .help("Refresh memories")
             }
 
@@ -568,6 +577,7 @@ struct StatusPanel: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Refresh permission status")
                 .help("Refresh permission status")
             }
 
@@ -591,6 +601,7 @@ struct StatusPanel: View {
                             Image(systemName: "lock.open")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Request \(snapshot.kind.displayName)")
                         .disabled(snapshot.state == .granted)
                         .help("Request \(snapshot.kind.displayName)")
                     }
@@ -682,6 +693,7 @@ struct StatusPanel: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh Foundation Models status")
                     .help("Refresh Foundation Models status")
                 }
 
@@ -710,6 +722,7 @@ struct StatusPanel: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh screen snapshot status")
                     .help("Refresh screen snapshot status")
                 }
 
@@ -761,6 +774,7 @@ struct StatusPanel: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh speech output route")
                     .help("Refresh speech output route")
                 }
 
@@ -799,6 +813,7 @@ struct StatusPanel: View {
                         Image(systemName: "arrow.counterclockwise")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Reset gesture thresholds")
                     .help("Reset gesture thresholds")
                 }
 
@@ -843,6 +858,7 @@ struct StatusPanel: View {
                             Image(systemName: "folder")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Reveal \(location.name) in Finder")
                         .help("Reveal \(location.name) in Finder")
                     }
                 }
@@ -884,6 +900,7 @@ struct StatusPanel: View {
                                 Image(systemName: "minus.circle")
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove file search folder")
                             .help("Remove file search folder")
                         }
                     }
