@@ -300,9 +300,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][docs] Run `Scripts/release_check.sh demo`.
 - [ ] [P0][docs] Add a short demo script covering trigger, speech, one read-only tool, one confirmation-gated tool, and audit review.
 - [ ] [P1][docs] Add screenshots of the menu bar panel after UI stabilizes.
-- [ ] [P1][docs] Add examples for safe natural-language requests.
-- [ ] [P1][docs] Add examples for requests that require confirmation.
-- [ ] [P1][docs] Add examples for refused unsafe requests.
 - [ ] [P2][docs] Add architecture diagram updates matching the actual current code layout.
 - [ ] [P2][docs] Add a security model document for reviewers.
 - [ ] [P2][docs] Add threat model notes for prompt injection, tool misuse, and local data storage.
