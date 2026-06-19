@@ -20,6 +20,7 @@ public enum ActiveApplicationContextPolicy {
         }
         if app.contains("safari") || app.contains("chrome") {
             append("Prefer screen.ocr for visible page text and web.search for current public facts.", ifAnyAllowed: ["screen.ocr", "web.search"], in: allowed, to: &hints)
+            append("Use screen.ui_elements when visible controls or screen coordinates are needed.", ifAllowed: "screen.ui_elements", in: allowed, to: &hints)
         }
         if app.contains("calendar") {
             append("Prefer calendar.read for schedule questions and calendar.create only for explicit event creation.", ifAnyAllowed: ["calendar.read", "calendar.create"], in: allowed, to: &hints)

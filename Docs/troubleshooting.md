@@ -12,6 +12,10 @@ Confirm macOS 26 and Xcode 26 are installed, then grant Microphone and Speech Re
 
 Grant Screen Recording in System Settings, then relaunch cerberus. `screen.snapshot`, `screen.ocr`, and `screen.barcodes` fail closed until `CGPreflightScreenCaptureAccess()` reports access.
 
+## Accessibility Denied
+
+Grant Accessibility in System Settings, then relaunch cerberus. `screen.ui_elements` fails closed until `AXIsProcessTrusted()` reports access.
+
 ## Mail Automation Denied
 
 Grant Automation access for Mail in System Settings after the first `mail.search` prompt. The Mail tool is read-only and returns subject/sender metadata; denied Automation prevents Mail Apple Events.

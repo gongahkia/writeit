@@ -130,6 +130,35 @@ protocol AppAssistanting: Sendable {
     func summarize(toolResult: ToolResult, for request: String) async throws -> String
 }
 
+private actor DisabledRuntimeAssistant: AppAssistanting {
+    func updateToolConfiguration(
+        toolSummaries: [ToolSummary],
+        readOnlyNativeTools: [any FoundationModels.Tool]
+    ) async {}
+
+    func updateModel(_ model: SystemLanguageModel) async {}
+
+    func plan(for request: String, context: AssistantContext) async throws -> AssistantPlan {
+        AssistantPlan(
+            intent: .answerDirectly,
+            spokenResponse: "Runtime services are disabled.",
+            requiresConfirmation: false
+        )
+    }
+
+    func answerWithReadOnlyTools(for request: String, context: AssistantContext) async throws -> String {
+        "Runtime services are disabled."
+    }
+
+    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
+        "Runtime services are disabled."
+    }
+
+    func summarize(toolResult: ToolResult, for request: String) async throws -> String {
+        toolResult.spokenSummary
+    }
+}
+
 extension AppTranscribing {
     func start(
         onUpdate: @escaping @MainActor @Sendable (TranscriptionUpdate) -> Void
@@ -439,12 +468,18 @@ final class CerberusAppModel: ObservableObject {
             executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
         )
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
-        let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool, mailSearchTool: mailSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
-        let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(
-            auditLog: injectedAuditLog,
+        let tools = DefaultToolCatalog.makeTools(
             fileSearchTool: fileSearchTool,
-            mailSearchTool: mailSearchTool
-        )
+            mailSearchTool: mailSearchTool,
+            includesUIElementTool: startsRuntimeServices
+        ) + mcpTools + [AnyAssistantTool(shellTool)]
+        let baseReadOnlyNativeTools = injectedAssistant == nil && startsRuntimeServices
+            ? DefaultToolCatalog.readOnlyFoundationModelTools(
+                auditLog: injectedAuditLog,
+                fileSearchTool: fileSearchTool,
+                mailSearchTool: mailSearchTool
+            )
+            : []
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
         self.fileSearchScopeStore = fileSearchScopeStore
@@ -462,10 +497,12 @@ final class CerberusAppModel: ObservableObject {
         self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
         self.skipsFoundationModelAvailabilityCheck = skipsFoundationModelAvailabilityCheck
         toolRegistry = injectedToolRegistry ?? ((try? ToolRegistry(tools: tools)) ?? ToolRegistry())
-        assistant = injectedAssistant ?? Assistant(
-            toolSummaries: Self.ambientToolSummaries,
-            readOnlyNativeTools: baseReadOnlyNativeTools
-        )
+        assistant = injectedAssistant ?? (startsRuntimeServices
+            ? Assistant(
+                toolSummaries: Self.ambientToolSummaries,
+                readOnlyNativeTools: baseReadOnlyNativeTools
+            )
+            : DisabledRuntimeAssistant())
         mcpClientRequestBroker.model = self
         fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
         refreshPermissions()

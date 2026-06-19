@@ -149,7 +149,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Screen and multimodal work
 
-- [ ] [P3][screen][Inference] Add UI-element detection beyond OCR if app-control tasks need coordinates.
 
 ## UX, onboarding, and settings polish
 

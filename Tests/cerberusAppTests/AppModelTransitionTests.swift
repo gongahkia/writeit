@@ -161,6 +161,8 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(model.transcriptDraft == "hello")
     #expect(speaker.spoken == ["It is handled."])
     #expect(await assistant.plannedRequests == ["hello"])
+
+    model.cancel()
 }
 
 @MainActor
@@ -199,6 +201,8 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(model.recentEvents.contains("awaiting_confirm -> executing"))
     #expect(model.recentEvents.first == "executing -> speaking")
     #expect(speaker.spoken.contains("Tool done."))
+
+    model.cancel()
 }
 
 @MainActor

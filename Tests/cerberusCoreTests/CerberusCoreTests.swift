@@ -384,9 +384,14 @@ private func temporaryDirectory() throws -> URL {
         for: "Safari",
         allowedToolNames: ["calendar.read"]
     )
+    let browserUIHints = ActiveApplicationContextPolicy.hints(
+        for: "Safari",
+        allowedToolNames: ["screen.ui_elements"]
+    )
 
     #expect(xcodeHints == ["Prefer project workspace hints and files.search for coding context."])
     #expect(browserHints.isEmpty)
+    #expect(browserUIHints == ["Use screen.ui_elements when visible controls or screen coordinates are needed."])
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {
@@ -915,6 +920,30 @@ private func temporaryDirectory() throws -> URL {
 
     #expect(observations.contains { $0.payloadString == "cerberus-qr-test" })
     #expect(observations.contains { $0.symbology.lowercased().contains("qr") })
+}
+
+@Test func screenUIElementsPayloadRedactsTextAndIncludesFrames() {
+    let payload = ScreenUIElementsTool.payload(for: ScreenUIElementSnapshot(
+        applicationName: "TestApp",
+        bundleIdentifier: "dev.example.test",
+        elements: [
+            ScreenUIElementObservation(
+                role: "AXButton",
+                title: "Verification code 123456",
+                identifier: "confirm",
+                enabled: true,
+                frame: CGRect(x: 10, y: 20, width: 100, height: 40)
+            )
+        ]
+    ))
+
+    #expect(payload.contains("application: TestApp"))
+    #expect(payload.contains("bundleIdentifier: dev.example.test"))
+    #expect(payload.contains("role: AXButton"))
+    #expect(payload.contains("title: [redacted sensitive field]"))
+    #expect(payload.contains("identifier: confirm"))
+    #expect(payload.contains("frame: x=10 y=20 w=100 h=40"))
+    #expect(!payload.contains("123456"))
 }
 
 @Test func contactsSearchToolFormatsReadOnlyResults() async throws {

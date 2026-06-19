@@ -50,7 +50,7 @@ Validate the implementation on a Mac that matches the project requirements.
 29. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
 30. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
 31. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
-32. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, `screen.ocr` emits local Vision text results with bounding boxes, and `screen.barcodes` emits local Vision barcode/QR results with bounding boxes; all must fail closed when Screen Recording is denied.
+32. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, `screen.ocr` emits local Vision text results with bounding boxes, `screen.barcodes` emits local Vision barcode/QR results with bounding boxes, and `screen.ui_elements` emits Accessibility roles/labels/frames; screen capture tools must fail closed when Screen Recording is denied, and `screen.ui_elements` must fail closed when Accessibility is denied.
 33. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
 34. Ask to create a calendar event and confirm `calendar.create` is proposed only through `awaiting_confirm`.
 35. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
@@ -77,6 +77,6 @@ Validate the implementation on a Mac that matches the project requirements.
 - Direct AirPods speech routing uses `AVSpeechSynthesizer.write` buffers plus `AVAudioEngine` output-unit device selection; it still needs real AirPods runtime validation on target hardware.
 - Wake phrase can use a custom SoundAnalysis/Core ML classifier; sample collection and local CreateML training are supported, but no trained wake model is bundled.
 - Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
-- Screen understanding captures PNG snapshots, OCR text boxes, and barcode/QR boxes; full image prompting remains unavailable in the checked macOS FoundationModels swiftinterface.
+- Screen understanding captures PNG snapshots, OCR text boxes, barcode/QR boxes, and Accessibility UI element frames; full image prompting remains unavailable in the checked macOS FoundationModels swiftinterface.
 - MCP support is limited to stdio and Streamable HTTP tools/resources/prompts plus OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, stdio or Streamable HTTP POST/GET-SSE sampling/elicitation review, GET SSE resume through `Last-Event-ID`, and opt-in native read-only tools for flat primitive schemas.
 - Adapter training requires Apple's separate toolkit assets; prebuilt adapter loading, transcript-to-JSONL dataset export, exact-match eval, and toolkit orchestration are supported.

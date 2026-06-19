@@ -8,9 +8,10 @@ public enum DefaultToolCatalog {
 
     public static func makeTools(
         fileSearchTool: FileSearchTool = FileSearchTool(),
-        mailSearchTool: MailSearchTool = MailSearchTool()
+        mailSearchTool: MailSearchTool = MailSearchTool(),
+        includesUIElementTool: Bool = true
     ) -> [AnyAssistantTool] {
-        [
+        var tools = [
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarDeleteTool()),
@@ -35,6 +36,10 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(ScreenSnapshotTool()),
             AnyAssistantTool(WebSearchTool())
         ]
+        if includesUIElementTool {
+            tools.insert(AnyAssistantTool(ScreenUIElementsTool()), at: tools.count - 1)
+        }
+        return tools
     }
 
     public static var summaries: [ToolSummary] {

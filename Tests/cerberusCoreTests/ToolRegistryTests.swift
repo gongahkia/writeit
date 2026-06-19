@@ -145,11 +145,13 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "screen.barcodes",
         "screen.ocr",
         "screen.snapshot",
+        "screen.ui_elements",
         "web.search"
     ]
+    let expectedNativeToolNames = expectedReadOnlyToolNames.subtracting(["screen.ui_elements"])
 
     #expect(DefaultToolCatalog.readOnlyToolNames == expectedReadOnlyToolNames)
-    #expect(readOnlyNativeToolNames == expectedReadOnlyToolNames)
+    #expect(readOnlyNativeToolNames == expectedNativeToolNames)
 }
 
 @Test func mutatingToolArgumentsAreGenerableButNotNativeByDefault() {
@@ -565,6 +567,14 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     }
     await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
         _ = try await barcodeTool.run(arguments: ScreenBarcodeTool.Arguments())
+    }
+}
+
+@Test func screenUIElementsToolFailsClosedWithoutAccessibilityPermission() async {
+    let tool = ScreenUIElementsTool(hasAccessibilityAccess: { false })
+
+    await #expect(throws: ToolExecutionError.denied("Accessibility access is not granted.")) {
+        _ = try await tool.run(arguments: ScreenUIElementsTool.Arguments())
     }
 }
 
