@@ -90,6 +90,19 @@ Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --adap
 
 The evaluator runs each prompt through Foundation Models and reports exact normalized response-match accuracy. Use it as a smoke metric; adapter quality still needs task-specific human or automated review.
 
+## Latest Local Preflight
+
+2026-06-19 local export:
+
+- output: `.dist/validation/adapter-data`
+- train: 107 rows
+- eval: 27 rows
+- redaction: enabled
+- private-data scan: 0 email, home path, bearer token, or long-hex matches in train/eval
+- base eval smoke: `Scripts/evaluate_adapter_dataset.sh .dist/validation/adapter-data/eval.jsonl --limit 5` returned 0/5 exact matches and 0.0 average token F1
+
+The exported split is not training-ready. The sampled expected responses are mostly short test/stub replies, so transcript curation and low-quality row removal remain required before adapter training.
+
 Train with Apple's adapter training toolkit:
 
 ```sh
