@@ -551,6 +551,8 @@ private final class FakePermissionCenter: PermissionChecking {
     model.allowsMailBodySearch = true
     model.wakePhrase = "hello cerberus"
     model.isShellProposalMode = false
+    model.headNodThreshold = 0.55
+    model.headShakeThreshold = 0.65
     model.headGestureCooldownSeconds = 0.8
 
     let relaunchedModel = CerberusAppModel(
@@ -567,11 +569,27 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(relaunchedModel.allowsMailBodySearch)
     #expect(relaunchedModel.wakePhrase == "hello cerberus")
     #expect(!relaunchedModel.isShellProposalMode)
+    #expect(relaunchedModel.headNodThreshold == 0.55)
+    #expect(relaunchedModel.headShakeThreshold == 0.65)
     #expect(relaunchedModel.headGestureCooldownSeconds == 0.8)
 }
 
 @MainActor
 @Test func appModelSessionSettingsResetAcrossRelaunch() {
+    let keys = CerberusSettingsKeys.persistedKeys
+    let priorValues = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+    defer {
+        for (key, value) in priorValues {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+    UserDefaults.standard.removeObject(forKey: CerberusSettingsKeys.headNodThreshold)
+    UserDefaults.standard.removeObject(forKey: CerberusSettingsKeys.headShakeThreshold)
+
     let model = CerberusAppModel(
         startsRuntimeServices: false,
         skipsFoundationModelAvailabilityCheck: true
@@ -598,8 +616,8 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(!relaunchedModel.isMCPToolEnabled)
     #expect(!relaunchedModel.isShellToolEnabled)
     #expect(!relaunchedModel.isHeadGestureValidationLoggingEnabled)
-    #expect(relaunchedModel.headNodThreshold == 0.35)
-    #expect(relaunchedModel.headShakeThreshold == 0.45)
+    #expect(relaunchedModel.headNodThreshold == 0.8)
+    #expect(relaunchedModel.headShakeThreshold == 0.8)
 }
 
 @MainActor

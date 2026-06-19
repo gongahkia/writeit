@@ -76,7 +76,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][airpods][blocked: AirPods] Run `Scripts/evaluate_head_gestures.sh` on each validation CSV.
 - [ ] [P0][airpods][blocked: AirPods] Tune default nod threshold from real false-positive and true-positive data.
 - [ ] [P0][airpods][blocked: AirPods] Tune default shake threshold from real false-positive and true-positive data.
-- [ ] [P0][airpods][blocked: AirPods] Validate threshold sliders persist across app relaunch.
 - [ ] [P0][airpods][blocked: AirPods] Validate neutral-pose calibration before and after walking.
 - [ ] [P0][airpods][blocked: AirPods] Validate nod while `awaitingConfirm` approves only the pending confirmation.
 - [ ] [P0][airpods][blocked: AirPods] Validate shake while `awaitingConfirm` denies only the pending confirmation.

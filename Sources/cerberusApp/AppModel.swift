@@ -302,13 +302,25 @@ final class CerberusAppModel: ObservableObject {
             UserDefaults.standard.set(isShellProposalMode, forKey: CerberusSettingsKeys.shellProposalMode)
         }
     }
-    @Published var headNodThreshold = 0.35 {
+    @Published var headNodThreshold = min(0.8, max(0.15, UserDefaults.standard.object(forKey: CerberusSettingsKeys.headNodThreshold) as? Double ?? 0.35)) {
         didSet {
+            let clamped = min(0.8, max(0.15, headNodThreshold))
+            if headNodThreshold != clamped {
+                headNodThreshold = clamped
+                return
+            }
+            UserDefaults.standard.set(headNodThreshold, forKey: CerberusSettingsKeys.headNodThreshold)
             updateHeadGestureThresholds()
         }
     }
-    @Published var headShakeThreshold = 0.45 {
+    @Published var headShakeThreshold = min(0.8, max(0.15, UserDefaults.standard.object(forKey: CerberusSettingsKeys.headShakeThreshold) as? Double ?? 0.45)) {
         didSet {
+            let clamped = min(0.8, max(0.15, headShakeThreshold))
+            if headShakeThreshold != clamped {
+                headShakeThreshold = clamped
+                return
+            }
+            UserDefaults.standard.set(headShakeThreshold, forKey: CerberusSettingsKeys.headShakeThreshold)
             updateHeadGestureThresholds()
         }
     }

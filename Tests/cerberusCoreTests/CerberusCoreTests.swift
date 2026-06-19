@@ -47,6 +47,8 @@ import Testing
         "usesConfiguredAdapter",
         "hotKeyConfigurationID",
         "shellProposalMode",
+        "headNodThreshold",
+        "headShakeThreshold",
         "headGestureCooldownSeconds",
         "allowsMailBodySearch"
     ])

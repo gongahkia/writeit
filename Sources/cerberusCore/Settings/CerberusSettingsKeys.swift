@@ -10,6 +10,8 @@ public enum CerberusSettingsKeys {
     public static let usesConfiguredAdapter = "usesConfiguredAdapter"
     public static let hotKeyConfigurationID = "hotKeyConfigurationID"
     public static let shellProposalMode = "shellProposalMode"
+    public static let headNodThreshold = "headNodThreshold"
+    public static let headShakeThreshold = "headShakeThreshold"
     public static let headGestureCooldownSeconds = "headGestureCooldownSeconds"
     public static let allowsMailBodySearch = "allowsMailBodySearch"
 
@@ -23,6 +25,8 @@ public enum CerberusSettingsKeys {
         usesConfiguredAdapter,
         hotKeyConfigurationID,
         shellProposalMode,
+        headNodThreshold,
+        headShakeThreshold,
         headGestureCooldownSeconds,
         allowsMailBodySearch
     ]
