@@ -356,6 +356,79 @@ private final class FakePermissionCenter: PermissionChecking {
 }
 
 @MainActor
+@Test func appModelMCPElicitationDraftsCoverPrimitiveControlTypes() throws {
+    let fields = [
+        MCPElicitationField(
+            name: "enabled",
+            type: .boolean,
+            title: "Enabled",
+            description: nil,
+            required: true,
+            defaultValue: "true",
+            enumValues: [],
+            enumNames: []
+        ),
+        MCPElicitationField(
+            name: "team",
+            type: .string,
+            title: "Team",
+            description: nil,
+            required: true,
+            defaultValue: nil,
+            enumValues: ["eng", "design"],
+            enumNames: ["Engineering", "Design"]
+        ),
+        MCPElicitationField(
+            name: "ratio",
+            type: .number,
+            title: "Ratio",
+            description: nil,
+            required: true,
+            defaultValue: "0.5",
+            enumValues: [],
+            enumNames: []
+        ),
+        MCPElicitationField(
+            name: "count",
+            type: .integer,
+            title: "Count",
+            description: nil,
+            required: true,
+            defaultValue: "2",
+            enumValues: [],
+            enumNames: []
+        ),
+        MCPElicitationField(
+            name: "note",
+            type: .string,
+            title: "Note",
+            description: nil,
+            required: true,
+            defaultValue: "ship it",
+            enumValues: [],
+            enumNames: []
+        )
+    ]
+
+    let drafts = CerberusAppModel.defaultElicitationFieldDrafts(for: fields)
+    let valuesByName = Dictionary(uniqueKeysWithValues: drafts.map { ($0.field.name, $0.value) })
+    let contentJSON = try CerberusAppModel.elicitationContentJSON(from: drafts)
+
+    #expect(valuesByName == [
+        "enabled": "true",
+        "team": "eng",
+        "ratio": "0.5",
+        "count": "2",
+        "note": "ship it"
+    ])
+    #expect(contentJSON.contains(#""enabled" : true"#))
+    #expect(contentJSON.contains(#""team" : "eng""#))
+    #expect(contentJSON.contains(#""ratio" : 0.5"#))
+    #expect(contentJSON.contains(#""count" : 2"#))
+    #expect(contentJSON.contains(#""note" : "ship it""#))
+}
+
+@MainActor
 @Test func appModelSettingsPersistExpectedTogglesAcrossRelaunch() {
     let keys = CerberusSettingsKeys.persistedKeys
     let priorValues = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })

@@ -2137,7 +2137,11 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private static func defaultElicitationFieldDrafts(for request: MCPElicitationRequest) -> [MCPClientElicitationFieldDraft] {
-        request.fields.map { field in
+        defaultElicitationFieldDrafts(for: request.fields)
+    }
+
+    static func defaultElicitationFieldDrafts(for fields: [MCPElicitationField]) -> [MCPClientElicitationFieldDraft] {
+        fields.map { field in
             let value = field.defaultValue ?? {
                 if let firstEnumValue = field.enumValues.first {
                     return firstEnumValue
@@ -2153,7 +2157,7 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
-    private static func elicitationContentJSON(from drafts: [MCPClientElicitationFieldDraft]) throws -> String {
+    static func elicitationContentJSON(from drafts: [MCPClientElicitationFieldDraft]) throws -> String {
         var content: [String: Any] = [:]
         for draft in drafts {
             let trimmed = draft.value.trimmingCharacters(in: .whitespacesAndNewlines)
