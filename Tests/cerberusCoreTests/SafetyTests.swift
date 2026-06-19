@@ -268,6 +268,24 @@ import Testing
     #expect(FileSearchScopeStore(defaults: defaults, defaultsKey: "scopes").approvedScopePaths() == [root.path])
 }
 
+@Test func fileSearchScopeStoreDropsInvalidPersistedFolders() throws {
+    let defaultsName = "cerberus-tests-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: defaultsName))
+    defer {
+        defaults.removePersistentDomain(forName: defaultsName)
+    }
+    let root = try makeHomeTestDirectory()
+    defer {
+        try? FileManager.default.removeItem(at: root)
+    }
+    defaults.set([root.path, "/System", root.appendingPathComponent("missing").path], forKey: "scopes")
+
+    let store = FileSearchScopeStore(defaults: defaults, defaultsKey: "scopes")
+
+    #expect(store.approvedScopePaths() == [root.path])
+    #expect(defaults.stringArray(forKey: "scopes") == [root.path])
+}
+
 @Test func webSearchNormalizesAllowlistedDomains() throws {
     let tool = WebSearchTool()
 
