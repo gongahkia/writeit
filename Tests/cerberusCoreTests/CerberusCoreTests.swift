@@ -669,6 +669,29 @@ private func temporaryDirectory() throws -> URL {
     }
 }
 
+@Test func wakeWordSoundClassifierConfigurationRemovalFallsBackToSpeechPhrase() throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let fileURL = directoryURL.appendingPathComponent("wake-word-sound-classifier.json")
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+
+    let configuration = WakeWordSoundClassifierConfiguration(
+        modelPath: "/tmp/wake.mlmodelc",
+        targetLabels: ["hey_cerberus"]
+    )
+    let data = try JSONEncoder().encode(configuration)
+    try data.write(to: fileURL)
+    #expect(try WakeWordSoundClassifierConfigurationLoader.loadIfPresent(fileURL: fileURL) == configuration)
+
+    try FileManager.default.removeItem(at: fileURL)
+
+    #expect(try WakeWordSoundClassifierConfigurationLoader.loadIfPresent(fileURL: fileURL) == nil)
+    #expect(WakeWordMonitorStatusLine.soundModelConfigMissingUsingSpeechPhrase == "Sound wake model config not found; using speech phrase")
+}
+
 @Test func wakeWordSampleDatasetNormalizesLabelsAndPaths() throws {
     let baseURL = URL(fileURLWithPath: "/tmp/wake-samples")
     let id = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000123"))

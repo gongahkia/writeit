@@ -112,7 +112,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][wake] Run `Scripts/train_wake_word_model.sh --target-label hey_cerberus --write-config` after collecting a balanced local dataset.
 - [ ] [P1][wake] Validate generated `CerberusWakeWord.mlmodel` loads at app startup.
 - [ ] [P1][wake] Validate `.mlmodel` compilation to `.mlmodelc` at runtime.
-- [ ] [P1][wake] Validate `wake-word-sound-classifier.json` fallback to SpeechAnalyzer phrase mode after config removal.
 - [ ] [P1][wake] Validate false-positive rate for the trained wake model in quiet, walking, and noisy conditions.
 - [ ] [P1][wake] Validate false-negative rate for the trained wake model in quiet, walking, and noisy conditions.
 - [ ] [P2][wake][Inference] Add wake-model confidence threshold guidance after collecting real validation metrics.
