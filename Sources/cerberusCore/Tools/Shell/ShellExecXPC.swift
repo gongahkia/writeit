@@ -113,13 +113,23 @@ public final class ShellExecService: NSObject, ShellExecServiceProtocol {
 
 public struct ShellXPCCommandExecutor: ShellCommandExecutor {
     public let serviceName: String
+    public let serviceBundleURL: URL?
 
-    public init(serviceName: String = "dev.gongahkia.cerberus.ShellExecService") {
+    public init(
+        serviceName: String = "dev.gongahkia.cerberus.ShellExecService",
+        serviceBundleURL: URL? = nil
+    ) {
         self.serviceName = serviceName
+        self.serviceBundleURL = serviceBundleURL
     }
 
     public func run(_ command: ValidatedCommand) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
+        if let serviceBundleURL,
+           !FileManager.default.fileExists(atPath: serviceBundleURL.path) {
+            throw ToolExecutionError.denied("Shell XPC service is missing: \(serviceBundleURL.path)")
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
             let connection = NSXPCConnection(serviceName: serviceName)
             let connectionBox = XPCConnectionBox(connection)
             connection.remoteObjectInterface = NSXPCInterface(with: (any ShellExecServiceProtocol).self)

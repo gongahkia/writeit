@@ -225,6 +225,19 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(result.metadata["dryRun"] == "false")
 }
 
+@Test func shellXPCExecutorFailsClosedWhenServiceBundleIsMissing() async throws {
+    let missingURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        .appendingPathComponent("ShellExecService.xpc", isDirectory: true)
+    let executor = ShellXPCCommandExecutor(serviceBundleURL: missingURL)
+    let command = try CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]])
+        .validate(ShellCommand(executable: "ls"))
+
+    await #expect(throws: ToolExecutionError.denied("Shell XPC service is missing: \(missingURL.path)")) {
+        _ = try await executor.run(command)
+    }
+}
+
 @Test func foundationModelToolAdapterRefusesMutatingToolCallsByDefault() async {
     let adapter = FoundationModelToolAdapter(AppControlTool())
 

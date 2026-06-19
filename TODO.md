@@ -143,7 +143,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Tool safety and confirmation QA
 
-- [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
 - [ ] [P2][safety][Inference] Add optional "paranoid mode" where all tools, including read-only tools, require confirmation.
 - [ ] [P2][safety][Inference] Add per-tool confirmation overrides if real use shows current defaults are too strict or too loose.
 

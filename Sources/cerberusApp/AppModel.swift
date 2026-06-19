@@ -221,6 +221,14 @@ final class CerberusAppModel: ObservableObject {
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
     private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
     private static let shellToolSummary = ShellTool().summary
+
+    private static func shellXPCBundleURL() -> URL {
+        Bundle.main.bundleURL
+            .appendingPathComponent("Contents", isDirectory: true)
+            .appendingPathComponent("XPCServices", isDirectory: true)
+            .appendingPathComponent("ShellExecService.xpc", isDirectory: true)
+    }
+
     private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
         [
             AnyAssistantTool(MCPTool(runner: MCPConfiguredToolRunner(clientRequestHandlers: clientRequestHandlers))),
@@ -241,7 +249,10 @@ final class CerberusAppModel: ObservableObject {
         let mcpServerRegistry = MCPServerRegistry()
         let fileSearchScopeStore = FileSearchScopeStore()
         let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
-        let shellTool = ShellTool(allowExecution: true, executor: ShellXPCCommandExecutor())
+        let shellTool = ShellTool(
+            allowExecution: true,
+            executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
+        )
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
         let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
         let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(
