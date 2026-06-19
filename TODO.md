@@ -131,19 +131,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## MCP validation
 
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `tools/list` and `tools/call`.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `resources/list` and `resources/read`.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `prompts/list` and `prompts/get`.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `sampling/createMessage` prompt review.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `sampling/createMessage` response review.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `elicitation/create` accept flow.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `elicitation/create` decline flow.
-- [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `elicitation/create` cancel flow.
-- [ ] [P0][mcp][blocked: test MCP HTTP server] Validate Streamable HTTP `tools/list` and `tools/call`.
-- [ ] [P0][mcp][blocked: test MCP HTTP server] Validate Streamable HTTP `resources/list` and `resources/read`.
-- [ ] [P0][mcp][blocked: test MCP HTTP server] Validate Streamable HTTP `prompts/list` and `prompts/get`.
-- [ ] [P0][mcp][blocked: test MCP HTTP server] Validate Streamable HTTP POST responses with SSE server requests.
-- [ ] [P0][mcp][blocked: test MCP HTTP server] Validate Streamable HTTP GET listener reconnection with `Last-Event-ID`.
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth protected-resource discovery.
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth dynamic client registration when supported.
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth static client ID path when dynamic registration is unavailable.
