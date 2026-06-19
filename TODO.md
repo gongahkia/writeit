@@ -146,7 +146,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][safety] Validate disabled ambient tools cannot execute through `ToolRegistry`.
 - [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
 - [ ] [P0][safety] Validate screen tools fail closed without Screen Recording permission.
-- [ ] [P0][safety] Validate prompt-boundary escaping for nested tool payloads from every tool family.
 - [ ] [P0][safety] Validate Keychain deletion forces new encryption/signing keys and produces a clear recovery state.
 - [ ] [P1][safety] Add a user-visible export/delete control for transcripts.
 - [ ] [P1][safety] Add a user-visible export/delete control for memories.
