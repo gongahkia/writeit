@@ -190,7 +190,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][adapter][blocked: Apple toolkit assets] Compare base-model and adapter eval outputs.
 - [ ] [P0][adapter][blocked: Apple toolkit assets] Document adapter compatibility with the exact system model version used for training.
 - [ ] [P0][adapter][blocked: Apple toolkit assets] Re-train adapters for every incompatible system-model version.
-- [ ] [P2][adapter][Inference] Add automatic adapter disable on repeated model failures.
 
 ## Screen and multimodal work
 

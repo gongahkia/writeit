@@ -237,6 +237,7 @@ final class CerberusAppModel: ObservableObject {
     private var mcpListenerSetupTask: Task<Void, Never>?
     private var mcpListenerTasks: [Task<Void, Never>] = []
     private var mcpListenerLastEventIDs: [String: String] = [:]
+    private var adapterFailureCircuitBreaker = AdapterFailureCircuitBreaker()
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
@@ -1273,8 +1274,10 @@ final class CerberusAppModel: ObservableObject {
                 fileSearchScopePaths: fileSearchScopePaths
             )
             let plan = try await assistant.plan(for: request, context: context)
+            recordModelSuccess()
             await handle(plan)
         } catch {
+            handleModelFailure(error)
             speak(error.localizedDescription)
         }
     }
@@ -1329,6 +1332,7 @@ final class CerberusAppModel: ObservableObject {
                 fileSearchScopePaths: fileSearchScopePaths
             )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
+            recordModelSuccess()
             recordTranscript(
                 response: response,
                 toolName: plan.toolName,
@@ -1344,6 +1348,7 @@ final class CerberusAppModel: ObservableObject {
                 resultSummary: "error: \(error.localizedDescription)"
             )
             refreshAuditEntries()
+            handleModelFailure(error)
             await execute(plan, confirmed: false, transitionToExecuting: false)
         }
     }
@@ -1677,6 +1682,7 @@ final class CerberusAppModel: ObservableObject {
     private func refreshConfiguredAdapter() {
         Task {
             do {
+                adapterFailureCircuitBreaker.reset()
                 guard usesConfiguredAdapter else {
                     await assistant.updateModel(.default)
                     foundationModelAdapterStatusLine = "Adapter disabled"
@@ -1700,6 +1706,20 @@ final class CerberusAppModel: ObservableObject {
                 statusLine = error.localizedDescription
             }
         }
+    }
+
+    private func recordModelSuccess() {
+        adapterFailureCircuitBreaker.recordSuccess()
+    }
+
+    private func handleModelFailure(_ error: any Error) {
+        guard adapterFailureCircuitBreaker.recordFailure(modelProfile: foundationModelProfile) else {
+            return
+        }
+
+        usesConfiguredAdapter = false
+        foundationModelAdapterStatusLine = "Adapter disabled after repeated errors"
+        statusLine = "Disabled FoundationModels adapter after repeated errors: \(error.localizedDescription)"
     }
 
     private func answerAuditQuestionIfNeeded(_ request: String) async -> Bool {

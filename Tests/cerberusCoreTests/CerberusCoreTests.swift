@@ -368,6 +368,23 @@ import Testing
     #expect(response == "Found 2 matching files.")
 }
 
+@Test func adapterFailureCircuitBreakerDisablesOnlyAfterAdapterFailures() {
+    var breaker = AdapterFailureCircuitBreaker(threshold: 2)
+
+    let defaultFailureTripped = breaker.recordFailure(modelProfile: "default")
+    #expect(!defaultFailureTripped)
+    #expect(breaker.consecutiveFailures == 0)
+    let firstAdapterFailureTripped = breaker.recordFailure(modelProfile: "adapter:demo")
+    #expect(!firstAdapterFailureTripped)
+    #expect(breaker.consecutiveFailures == 1)
+    breaker.recordSuccess()
+    #expect(breaker.consecutiveFailures == 0)
+    let adapterFailureAfterSuccessTripped = breaker.recordFailure(modelProfile: "adapter:demo")
+    let secondAdapterFailureTripped = breaker.recordFailure(modelProfile: "adapter:demo")
+    #expect(!adapterFailureAfterSuccessTripped)
+    #expect(secondAdapterFailureTripped)
+}
+
 @Test func benchmarkReportWriterWritesPrettyJSON() throws {
     struct Report: Codable {
         let name: String
