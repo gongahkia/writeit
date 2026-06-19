@@ -1496,11 +1496,7 @@ final class CerberusAppModel: ObservableObject {
             let entries = try await auditLog.recentEntries(limit: 5)
             recentAuditEntries = entries
 
-            guard let latest = entries.first else {
-                return "No tool calls recorded yet."
-            }
-
-            return "Last tool call: \(latest.toolName). Result: \(latest.resultSummary)"
+            return AuditLogActionSummary.lastToolActionSummary(from: entries)
         } catch {
             return error.localizedDescription
         }

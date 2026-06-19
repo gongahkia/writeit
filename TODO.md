@@ -151,7 +151,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][safety] Add a user-visible export/delete control for memories.
 - [ ] [P1][safety] Add a user-visible clear/reset control for audit history if product policy allows deletion.
 - [ ] [P1][safety] Add tests for tool-output summarization fallback when Foundation Models summarization fails.
-- [ ] [P1][safety] Add tests for `answerLastToolAction()` using a seeded audit log.
 - [ ] [P2][safety][Inference] Add optional "paranoid mode" where all tools, including read-only tools, require confirmation.
 - [ ] [P2][safety][Inference] Add per-tool confirmation overrides if real use shows current defaults are too strict or too loose.
 

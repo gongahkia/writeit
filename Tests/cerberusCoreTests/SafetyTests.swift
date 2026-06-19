@@ -113,6 +113,20 @@ import Testing
     #expect(try await !auditLog.signaturesAreValid())
 }
 
+@Test func answerLastToolActionSummaryUsesSeededAuditLog() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("audit.log")
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 9, count: 32))
+
+    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "today", resultSummary: "3 events")
+    _ = try await auditLog.append(toolName: "mail.search", argumentsSummary: "invoice", resultSummary: "2 messages")
+    let summary = AuditLogActionSummary.lastToolActionSummary(from: try await auditLog.recentEntries(limit: 5))
+
+    #expect(summary == "Last tool call: mail.search. Result: 2 messages")
+    #expect(AuditLogActionSummary.lastToolActionSummary(from: []) == "No tool calls recorded yet.")
+}
+
 @Test func voiceConfirmationParserClassifiesShortApprovalsAndDenials() {
     #expect(VoiceConfirmationParser.decision(in: "yes go ahead") == .accept)
     #expect(VoiceConfirmationParser.decision(in: "do it") == .accept)
