@@ -1272,14 +1272,15 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private var enabledToolSummaries: [ToolSummary] {
-        var summaries = ambientToolAllowlist.filter(Self.ambientToolSummaries)
-        if isMCPToolEnabled {
-            summaries += Self.mcpToolSummaries
-        }
-        if isShellToolEnabled {
-            summaries.append(Self.shellToolSummary)
-        }
-        return summaries.sorted { $0.name < $1.name }
+        ToolEnablementPolicy(
+            ambientAllowlist: ambientToolAllowlist,
+            mcpEnabled: isMCPToolEnabled,
+            shellEnabled: isShellToolEnabled
+        ).enabledSummaries(
+            ambientSummaries: Self.ambientToolSummaries,
+            mcpSummaries: Self.mcpToolSummaries,
+            shellSummary: Self.shellToolSummary
+        )
     }
 
     private var mutatingToolNames: Set<String> {

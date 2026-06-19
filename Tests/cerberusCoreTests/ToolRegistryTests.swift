@@ -135,6 +135,22 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
+@Test func toolEnablementKeepsShellDisabledUntilExplicitlyEnabled() {
+    let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
+    let mcp = [ToolSummary(name: "mcp.call", capability: "Call MCP tool.", mutatesState: true)]
+    let shell = ShellTool().summary
+
+    let defaultNames = ToolEnablementPolicy()
+        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
+        .map(\.name)
+    let shellEnabledNames = ToolEnablementPolicy(shellEnabled: true)
+        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
+        .map(\.name)
+
+    #expect(defaultNames == ["calendar.read"])
+    #expect(shellEnabledNames == ["calendar.read", "shell.run"])
+}
+
 @Test func foundationModelToolAdapterRefusesMutatingToolCallsByDefault() async {
     let adapter = FoundationModelToolAdapter(AppControlTool())
 
