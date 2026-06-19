@@ -40,6 +40,8 @@ Current GitHub state checked on 2026-06-19 for `gongahkia/cerberus`: repository 
 
 GitHub settings were reviewed on 2026-06-19 before public release. The repository is private with default branch `main`; Issues, Projects, Wiki, and forking are enabled; merge, squash, and rebase merges are enabled; auto-merge and delete-branch-on-merge are disabled; Actions are enabled with all actions allowed, SHA pinning not required, and default workflow token permissions set to read. GitHub Actions has no runs and no artifacts, so there are no hosted logs or artifacts to scrub before the first public release.
 
+Code scanning advanced setup is tracked in `.github/workflows/codeql.yml`. It runs CodeQL for Swift on `macos-26` with a manual `swift build`.
+
 Official references:
 
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
