@@ -57,7 +57,7 @@ public struct ShellTool: AssistantTool {
         return ToolResult(
             toolName: name,
             succeeded: true,
-            spokenSummary: "Command completed.",
+            spokenSummary: ShellOutputSpokenSummary.summary(for: validated, output: output),
             untrustedPayload: output,
             metadata: ["dryRun": "false"]
         )

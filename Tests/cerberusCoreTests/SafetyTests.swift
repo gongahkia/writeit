@@ -440,6 +440,48 @@ import Testing
     #expect(result.untrustedPayload == "stubbed ls")
 }
 
+@Test func shellToolSummarizesGitShortStatusOutput() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            " M README.md\n?? TODO.md\n"
+        }
+    }
+
+    let allowlist = CommandAllowlist(allowedExecutablePaths: ["git": ["/usr/bin/git"]])
+    let tool = ShellTool(allowExecution: true, allowlist: allowlist, executor: StubExecutor())
+
+    let result = try await tool.run(
+        arguments: ShellTool.Arguments(command: ShellCommand(executable: "git", arguments: ["status", "--short"]))
+    )
+
+    #expect(result.spokenSummary == "Git status shows 2 changed files.")
+    #expect(result.untrustedPayload == " M README.md\n?? TODO.md\n")
+}
+
+@Test func shellToolSummarizesGitDiffOutput() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            """
+            diff --git a/README.md b/README.md
+            +new line
+            -old line
+            diff --git a/TODO.md b/TODO.md
+            +another line
+
+            """
+        }
+    }
+
+    let allowlist = CommandAllowlist(allowedExecutablePaths: ["git": ["/usr/bin/git"]])
+    let tool = ShellTool(allowExecution: true, allowlist: allowlist, executor: StubExecutor())
+
+    let result = try await tool.run(
+        arguments: ShellTool.Arguments(command: ShellCommand(executable: "git", arguments: ["diff"]))
+    )
+
+    #expect(result.spokenSummary == "Git diff changes 2 files with 2 additions and 1 deletion.")
+}
+
 private func makeHomeTestDirectory() throws -> URL {
     let url = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Caches/cerberus-tests", isDirectory: true)
