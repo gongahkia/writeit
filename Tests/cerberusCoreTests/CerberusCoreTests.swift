@@ -35,14 +35,47 @@ import Testing
     #expect(cacheDirectories.allSatisfy { $0.standardizedFileURL.path.hasPrefix(cachesPath + "/") })
 }
 
-@Test func appInfoPlistDeclaresEventKitFullAccessUsage() throws {
-    let fileURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent("Sources/cerberusApp/Resources/Info.plist")
-    let data = try Data(contentsOf: fileURL)
-    let plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+@Test func appInfoPlistDeclaresRequiredUsageDescriptions() throws {
+    let plist = try loadPlist("Sources/cerberusApp/Resources/Info.plist")
+    let usageDescriptionKeys = [
+        "NSAppleEventsUsageDescription",
+        "NSCalendarsUsageDescription",
+        "NSCalendarsFullAccessUsageDescription",
+        "NSMicrophoneUsageDescription",
+        "NSRemindersUsageDescription",
+        "NSRemindersFullAccessUsageDescription",
+        "NSScreenCaptureUsageDescription",
+        "NSSpeechRecognitionUsageDescription"
+    ]
 
-    #expect(plist["NSCalendarsFullAccessUsageDescription"] as? String != nil)
-    #expect(plist["NSRemindersFullAccessUsageDescription"] as? String != nil)
+    for key in usageDescriptionKeys {
+        let value = try #require(plist[key] as? String)
+        #expect(!value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+}
+
+@Test func releaseEntitlementsCoverShippedToolPermissions() throws {
+    let appEntitlements = try loadPlist("Config/cerberus.entitlements")
+    let requiredAppEntitlements = [
+        "com.apple.security.automation.apple-events",
+        "com.apple.security.device.audio-input",
+        "com.apple.security.network.client",
+        "com.apple.security.personal-information.calendars",
+        "com.apple.security.personal-information.reminders"
+    ]
+
+    for key in requiredAppEntitlements {
+        #expect(appEntitlements[key] as? Bool == true)
+    }
+
+    let shellEntitlements = try loadPlist("Config/ShellExecService.entitlements")
+    #expect(shellEntitlements["com.apple.security.app-sandbox"] as? Bool == true)
+    #expect(shellEntitlements["com.apple.security.inherit"] as? Bool == false)
+    #expect(shellEntitlements["com.apple.security.temporary-exception.files.absolute-path.read-only"] as? [String] == [
+        "/bin/",
+        "/usr/bin/",
+        "/opt/homebrew/bin/"
+    ])
 }
 
 @Test func stateMachineFollowsHappyPath() {
@@ -520,6 +553,13 @@ private func makeTestImage() throws -> CGImage {
         throw ToolExecutionError.denied("Could not create test image.")
     }
     return image
+}
+
+private func loadPlist(_ relativePath: String) throws -> [String: Any] {
+    let fileURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent(relativePath)
+    let data = try Data(contentsOf: fileURL)
+    return try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
 }
 
 @Test func foundationModelAdapterConfigurationRequiresOneSource() throws {

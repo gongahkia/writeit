@@ -319,8 +319,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## Tests and CI
 
 - [ ] [P0][tests] Keep `swift test` passing before every release.
-- [ ] [P0][tests] Add a test that release entitlements contain all permissions used by shipped tools.
-- [ ] [P0][tests] Add a test that Info.plist contains all required usage descriptions.
 - [ ] [P0][tests] Add a test that every mutating tool is either confirmation-gated or intentionally excluded from ambient execution.
 - [ ] [P0][tests] Add a test that every default native FoundationModels tool is read-only.
 - [ ] [P0][tests] Add a test that every app-owned default path stays under Application Support or Caches.
