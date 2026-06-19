@@ -1014,6 +1014,48 @@ private func runScript(
     #expect(!text.contains("/Users/alice"))
 }
 
+@Test func diagnosticBundleExporterRedactsPrivateValues() throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("diagnostics.json")
+    try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    let snapshot = DiagnosticBundleSnapshot(
+        generatedAt: Date(timeIntervalSince1970: 1_000),
+        statusLines: ["Signed in as me@example.com"],
+        appDataLocations: [
+            DiagnosticBundleAppDataLocation(name: "Private", path: "/Users/alice/Secret.txt", exists: true)
+        ],
+        auditEntries: [
+            AuditLogEntry(
+                timestamp: Date(timeIntervalSince1970: 1_001),
+                toolName: "files.search",
+                argumentsSummary: "read /Users/alice/Secret.txt",
+                resultSummary: "Bearer abcdefghijklmnopqrstuvwxyz123456",
+                previousHash: "genesis"
+            )
+        ],
+        telemetryRecords: [
+            LocalTelemetryRecord(
+                timestamp: Date(timeIntervalSince1970: 1_002),
+                category: .planning,
+                name: "assistant.plan",
+                durationSeconds: 0.2,
+                succeeded: true,
+                qualitySignal: "ok"
+            )
+        ]
+    )
+
+    try DiagnosticBundleExporter().write(snapshot, to: fileURL)
+
+    let text = try String(contentsOf: fileURL, encoding: .utf8)
+    #expect(text.contains("[email]"))
+    #expect(text.contains("/Users/[user]/Secret.txt"))
+    #expect(text.contains("Bearer [token]"))
+    #expect(!text.contains("me@example.com"))
+    #expect(!text.contains("/Users/alice"))
+}
+
 @Test func adapterEvaluationParsesJSONLAndScoresNormalizedMatches() throws {
     let data = Data("""
     [{"role":"user","content":"open calendar"},{"role":"assistant","content":"Opened Calendar."}]

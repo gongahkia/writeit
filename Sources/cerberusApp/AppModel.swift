@@ -812,6 +812,51 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
+    func exportDiagnosticsBundle() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "cerberus-diagnostics.json"
+        panel.prompt = "Export"
+        panel.message = "Export redacted diagnostics as JSON."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        Task {
+            do {
+                let locations = appDataLocations.map {
+                    DiagnosticBundleAppDataLocation(
+                        name: $0.name,
+                        path: $0.url.path,
+                        exists: FileManager.default.fileExists(atPath: $0.url.path)
+                    )
+                }
+                let snapshot = DiagnosticBundleSnapshot(
+                    statusLines: [
+                        statusLine,
+                        foundationModelAvailabilityLine,
+                        foundationModelAvailabilityDetailLine,
+                        foundationModelAdapterStatusLine,
+                        wakeWordMonitorLine,
+                        mcpListenerStatusLine,
+                        screenSnapshotStatusLine,
+                        audioOutputRouteLine,
+                        speechOutputRoutingLine
+                    ],
+                    appDataLocations: locations,
+                    auditEntries: try await auditLog.entries(),
+                    telemetryRecords: try await telemetryStore.records()
+                )
+                try DiagnosticBundleExporter().write(snapshot, to: url)
+                statusLine = "Exported diagnostics to \(url.path)"
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
     func refreshAuditEntries() {
         Task {
             do {

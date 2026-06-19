@@ -889,6 +889,13 @@ struct StatusPanel: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Button {
+                    model.exportDiagnosticsBundle()
+                } label: {
+                    Label("Export diagnostics", systemImage: "stethoscope")
+                }
+                .buttonStyle(.bordered)
+
                 ForEach(model.appDataLocations) { location in
                     HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
