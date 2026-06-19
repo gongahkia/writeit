@@ -5,6 +5,7 @@ public enum CerberusSettingsKeys {
     public static let prefersSoundWakeWordClassifier = "prefersSoundWakeWordClassifier"
     public static let routesSpeechDirectlyToAirPods = "routesSpeechDirectlyToAirPods"
     public static let onboardingSkipped = "onboardingSkipped"
+    public static let onboardingCurrentPermission = "onboardingCurrentPermission"
     public static let requiresConfirmationForAllTools = "requiresConfirmationForAllTools"
     public static let requiresLocalFoundationModels = "requiresLocalFoundationModels"
     public static let usesConfiguredAdapter = "usesConfiguredAdapter"
@@ -20,6 +21,7 @@ public enum CerberusSettingsKeys {
         prefersSoundWakeWordClassifier,
         routesSpeechDirectlyToAirPods,
         onboardingSkipped,
+        onboardingCurrentPermission,
         requiresConfirmationForAllTools,
         requiresLocalFoundationModels,
         usesConfiguredAdapter,

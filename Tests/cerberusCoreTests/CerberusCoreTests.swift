@@ -43,6 +43,7 @@ import Testing
         "prefersSoundWakeWordClassifier",
         "routesSpeechDirectlyToAirPods",
         "onboardingSkipped",
+        "onboardingCurrentPermission",
         "requiresConfirmationForAllTools",
         "requiresLocalFoundationModels",
         "usesConfiguredAdapter",

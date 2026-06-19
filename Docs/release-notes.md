@@ -7,6 +7,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 ### Included
 
 - menu bar macOS assistant shell for explicit listening, cancellation, setup, settings, transcript, and audit flows
+- per-permission setup progress persistence for permission onboarding
 - SpeechAnalyzer transcription path, live speech benchmark CLI, and optional wake phrase monitor
 - AirPods motion trigger path with head-gesture validation logging and evaluator scripts
 - Foundation Models planning path with native read-only tool adapter support and benchmark tooling

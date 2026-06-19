@@ -20,7 +20,7 @@ Validate the implementation on a Mac that matches the project requirements.
 ## Runtime Checks
 
 1. Launch the menu bar app and confirm the status item appears without a main window.
-2. Confirm first-run setup selects the Access panel while required permissions are missing; use `Skip` and `Reset setup` to confirm the persisted setup state.
+2. Confirm first-run setup selects the Access panel while required permissions are missing; use relaunch, `Skip`, and `Reset setup` to confirm per-permission setup progress and the persisted setup state.
 3. Request Microphone, Speech Recognition, and Screen Recording permissions.
 4. Request Calendar and Reminders permissions and confirm the Access panel reports `Granted`, not `Write only`, before running read tools.
 5. Press `Listen`, speak a short request, then wait 1.5 seconds or press `Run`.

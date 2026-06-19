@@ -118,9 +118,11 @@ private struct WaitTimeout: Error {}
 @MainActor
 private final class FakePermissionCenter: PermissionChecking {
     var snapshots: [PermissionSnapshot]
+    var requestResults: [SystemPermission: PermissionSnapshot]
 
-    init(snapshots: [PermissionSnapshot]) {
+    init(snapshots: [PermissionSnapshot], requestResults: [SystemPermission: PermissionSnapshot] = [:]) {
         self.snapshots = snapshots
+        self.requestResults = requestResults
     }
 
     func currentSnapshots() -> [PermissionSnapshot] {
@@ -128,7 +130,13 @@ private final class FakePermissionCenter: PermissionChecking {
     }
 
     func request(_ kind: SystemPermission) async -> PermissionSnapshot {
-        snapshots.first { $0.kind == kind } ?? PermissionSnapshot(kind: kind, state: .unknown)
+        let snapshot = requestResults[kind] ?? snapshots.first { $0.kind == kind } ?? PermissionSnapshot(kind: kind, state: .unknown)
+        if let index = snapshots.firstIndex(where: { $0.kind == kind }) {
+            snapshots[index] = snapshot
+        } else {
+            snapshots.append(snapshot)
+        }
+        return snapshot
     }
 }
 
@@ -285,21 +293,26 @@ private final class FakePermissionCenter: PermissionChecking {
 
 @MainActor
 @Test func appModelSetupSkipPersistsAcrossRelaunch() {
-    let key = CerberusSettingsKeys.onboardingSkipped
-    let prior = UserDefaults.standard.object(forKey: key)
+    let keys = [CerberusSettingsKeys.onboardingSkipped, CerberusSettingsKeys.onboardingCurrentPermission]
+    let prior = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
     defer {
-        if let prior {
-            UserDefaults.standard.set(prior, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
+        for (key, value) in prior {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
     }
 
-    UserDefaults.standard.removeObject(forKey: key)
+    for key in keys {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
     let model = CerberusAppModel(
         startsRuntimeServices: false,
         skipsFoundationModelAvailabilityCheck: true
     )
+    UserDefaults.standard.set(SystemPermission.microphone.rawValue, forKey: CerberusSettingsKeys.onboardingCurrentPermission)
     model.skipOnboarding()
 
     let relaunchedModel = CerberusAppModel(
@@ -308,22 +321,26 @@ private final class FakePermissionCenter: PermissionChecking {
     )
 
     #expect(relaunchedModel.hasSkippedOnboarding)
-    #expect(UserDefaults.standard.bool(forKey: key))
+    #expect(UserDefaults.standard.bool(forKey: CerberusSettingsKeys.onboardingSkipped))
+    #expect(UserDefaults.standard.string(forKey: CerberusSettingsKeys.onboardingCurrentPermission) == nil)
 }
 
 @MainActor
 @Test func appModelSetupResetClearsSkipFlag() {
-    let key = CerberusSettingsKeys.onboardingSkipped
-    let prior = UserDefaults.standard.object(forKey: key)
+    let keys = [CerberusSettingsKeys.onboardingSkipped, CerberusSettingsKeys.onboardingCurrentPermission]
+    let prior = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
     defer {
-        if let prior {
-            UserDefaults.standard.set(prior, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
+        for (key, value) in prior {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
     }
 
-    UserDefaults.standard.set(true, forKey: key)
+    UserDefaults.standard.set(true, forKey: CerberusSettingsKeys.onboardingSkipped)
+    UserDefaults.standard.set(SystemPermission.accessibility.rawValue, forKey: CerberusSettingsKeys.onboardingCurrentPermission)
     let model = CerberusAppModel(
         startsRuntimeServices: false,
         skipsFoundationModelAvailabilityCheck: true
@@ -331,8 +348,81 @@ private final class FakePermissionCenter: PermissionChecking {
     model.resetOnboarding()
 
     #expect(!model.hasSkippedOnboarding)
-    #expect(!UserDefaults.standard.bool(forKey: key))
+    #expect(!UserDefaults.standard.bool(forKey: CerberusSettingsKeys.onboardingSkipped))
+    #expect(UserDefaults.standard.string(forKey: CerberusSettingsKeys.onboardingCurrentPermission) == nil)
     #expect(!model.permissionSnapshots.isEmpty)
+}
+
+@MainActor
+@Test func appModelOnboardingResumesPersistedPermissionAcrossRelaunch() {
+    let keys = [CerberusSettingsKeys.onboardingSkipped, CerberusSettingsKeys.onboardingCurrentPermission]
+    let prior = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+    defer {
+        for (key, value) in prior {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+
+    UserDefaults.standard.removeObject(forKey: CerberusSettingsKeys.onboardingSkipped)
+    UserDefaults.standard.set(SystemPermission.accessibility.rawValue, forKey: CerberusSettingsKeys.onboardingCurrentPermission)
+    let permissions = FakePermissionCenter(snapshots: [
+        PermissionSnapshot(kind: .microphone, state: .notDetermined),
+        PermissionSnapshot(kind: .accessibility, state: .denied),
+        PermissionSnapshot(kind: .screenRecording, state: .notDetermined)
+    ])
+    let model = CerberusAppModel(
+        permissionCenter: permissions,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    #expect(model.nextPermissionSnapshot?.kind == .accessibility)
+}
+
+@MainActor
+@Test func appModelOnboardingPersistsAndAdvancesRequestedPermission() async throws {
+    let keys = [CerberusSettingsKeys.onboardingSkipped, CerberusSettingsKeys.onboardingCurrentPermission]
+    let prior = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+    defer {
+        for (key, value) in prior {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+
+    for key in keys {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+    let permissions = FakePermissionCenter(
+        snapshots: [
+            PermissionSnapshot(kind: .microphone, state: .notDetermined),
+            PermissionSnapshot(kind: .speechRecognition, state: .notDetermined)
+        ],
+        requestResults: [
+            .microphone: PermissionSnapshot(kind: .microphone, state: .granted)
+        ]
+    )
+    let model = CerberusAppModel(
+        permissionCenter: permissions,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.requestPermission(.microphone)
+    try await waitUntil {
+        model.onboardingCurrentPermissionID == SystemPermission.speechRecognition.rawValue
+    }
+
+    #expect(model.permissionSnapshots.first { $0.kind == .microphone }?.state == .granted)
+    #expect(model.nextPermissionSnapshot?.kind == .speechRecognition)
+    #expect(UserDefaults.standard.string(forKey: CerberusSettingsKeys.onboardingCurrentPermission) == SystemPermission.speechRecognition.rawValue)
 }
 
 @MainActor

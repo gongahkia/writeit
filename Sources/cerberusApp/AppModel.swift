@@ -216,6 +216,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var recentEvents: [String] = []
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
     @Published private(set) var hasSkippedOnboarding = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.onboardingSkipped)
+    @Published private(set) var onboardingCurrentPermissionID = UserDefaults.standard.string(forKey: CerberusSettingsKeys.onboardingCurrentPermission)
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
@@ -544,7 +545,13 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var nextPermissionSnapshot: PermissionSnapshot? {
-        permissionSnapshots.first { $0.state != .granted }
+        if let onboardingCurrentPermissionID,
+           let kind = SystemPermission(rawValue: onboardingCurrentPermissionID),
+           let snapshot = permissionSnapshots.first(where: { $0.kind == kind }),
+           snapshot.state != .granted {
+            return snapshot
+        }
+        return permissionSnapshots.first { $0.state != .granted }
     }
 
     var shouldShowOnboarding: Bool {
@@ -847,6 +854,12 @@ final class CerberusAppModel: ObservableObject {
 
     func refreshPermissions() {
         permissionSnapshots = permissionCenter.currentSnapshots()
+        if permissionSnapshots.allSatisfy({ $0.state == .granted }) {
+            clearOnboardingProgress()
+        } else if let onboardingCurrentPermissionID,
+                  !permissionSnapshots.contains(where: { $0.kind.rawValue == onboardingCurrentPermissionID && $0.state != .granted }) {
+            clearOnboardingProgress()
+        }
     }
 
     func refreshAudioOutputRoute() {
@@ -1102,9 +1115,11 @@ final class CerberusAppModel: ObservableObject {
     }
 
     func requestPermission(_ kind: SystemPermission) {
+        persistOnboardingProgress(kind)
         Task {
             let snapshot = await permissionCenter.request(kind)
             replacePermissionSnapshot(snapshot)
+            updateOnboardingProgress(after: snapshot)
         }
     }
 
@@ -1125,11 +1140,13 @@ final class CerberusAppModel: ObservableObject {
     func skipOnboarding() {
         hasSkippedOnboarding = true
         UserDefaults.standard.set(true, forKey: CerberusSettingsKeys.onboardingSkipped)
+        clearOnboardingProgress()
     }
 
     func resetOnboarding() {
         hasSkippedOnboarding = false
         UserDefaults.standard.set(false, forKey: CerberusSettingsKeys.onboardingSkipped)
+        clearOnboardingProgress()
         refreshPermissions()
     }
 
@@ -1950,6 +1967,30 @@ final class CerberusAppModel: ObservableObject {
         }
 
         permissionSnapshots[index] = snapshot
+    }
+
+    private func persistOnboardingProgress(_ kind: SystemPermission) {
+        onboardingCurrentPermissionID = kind.rawValue
+        UserDefaults.standard.set(kind.rawValue, forKey: CerberusSettingsKeys.onboardingCurrentPermission)
+    }
+
+    private func clearOnboardingProgress() {
+        onboardingCurrentPermissionID = nil
+        UserDefaults.standard.removeObject(forKey: CerberusSettingsKeys.onboardingCurrentPermission)
+    }
+
+    private func updateOnboardingProgress(after snapshot: PermissionSnapshot) {
+        guard !hasSkippedOnboarding else {
+            clearOnboardingProgress()
+            return
+        }
+        if permissionSnapshots.allSatisfy({ $0.state == .granted }) {
+            clearOnboardingProgress()
+            return
+        }
+        if snapshot.state == .granted, let next = permissionSnapshots.first(where: { $0.state != .granted }) {
+            persistOnboardingProgress(next.kind)
+        }
     }
 
     private var enabledToolNames: [String] {
