@@ -331,7 +331,7 @@ final class CerberusAppModel: ObservableObject {
     private let auditLog: AuditLog
     private let assistant: any AppAssistanting
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
-    private let transcriptStore = EncryptedTranscriptStore()
+    private let transcriptStore: EncryptedTranscriptStore
     private let memoryStore = EncryptedMemoryStore()
     private let telemetryStore = LocalTelemetryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
@@ -391,6 +391,7 @@ final class CerberusAppModel: ObservableObject {
         assistant injectedAssistant: (any AppAssistanting)? = nil,
         toolRegistry injectedToolRegistry: ToolRegistry? = nil,
         auditLog injectedAuditLog: AuditLog = AuditLog(),
+        transcriptStore injectedTranscriptStore: EncryptedTranscriptStore = EncryptedTranscriptStore(),
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
@@ -421,6 +422,7 @@ final class CerberusAppModel: ObservableObject {
         self.mcpServerRegistry = mcpServerRegistry
         self.fileSearchScopeStore = fileSearchScopeStore
         self.auditLog = injectedAuditLog
+        self.transcriptStore = injectedTranscriptStore
         self.transcriber = transcriber
         self.wakeWordTranscriber = wakeWordTranscriber
         self.speaker = speaker

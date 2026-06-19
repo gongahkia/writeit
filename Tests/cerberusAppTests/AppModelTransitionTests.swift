@@ -360,6 +360,36 @@ private struct WaitTimeout: Error {}
     #expect(model.recentAuditEntries.first?.toolName == "mail.search")
 }
 
+@MainActor
+@Test func appModelRefreshesTranscriptHistoryFromStore() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("transcripts.jsonl.enc")
+    let store = EncryptedTranscriptStore(fileURL: fileURL, fixedKeyData: Data(repeating: 11, count: 32))
+    try await store.append(TranscriptRecord(
+        timestamp: Date(timeIntervalSince1970: 1),
+        request: "older",
+        response: "Older response."
+    ))
+    try await store.append(TranscriptRecord(
+        timestamp: Date(timeIntervalSince1970: 2),
+        request: "newer",
+        response: "Newer response."
+    ))
+    let model = CerberusAppModel(
+        transcriptStore: store,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.refreshTranscriptRecords()
+    try await waitUntil {
+        model.transcriptRecords.map(\.request) == ["newer", "older"]
+    }
+
+    #expect(model.transcriptRecords.first?.response == "Newer response.")
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 3_000_000_000,
     predicate: @MainActor @escaping () -> Bool
