@@ -1422,6 +1422,111 @@ private func makeHomeTestDirectory() throws -> URL {
     #expect(StubURLProtocol.authorizationHeaders.allSatisfy { $0 == "Bearer token-1" })
 }
 
+@Test func mcpStreamableHTTPClientPrefersConfiguredAuthorizationHeader() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var authorizationHeaders: [String] = []
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            Self.authorizationHeaders.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
+            let body = bodyString(from: request)
+            let statusCode: Int
+            let headers: [String: String]
+            let responseBody: Data
+
+            if body.contains(#""method":"initialize""#) {
+                statusCode = 200
+                headers = [
+                    "Content-Type": "application/json",
+                    "Mcp-Session-Id": "session-1"
+                ]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"stub","version":"1"}}}"#.utf8)
+            } else if body.contains(#""notifications/initialized""#) {
+                statusCode = 202
+                headers = [:]
+                responseBody = Data()
+            } else {
+                statusCode = 200
+                headers = ["Content-Type": "application/json"]
+                responseBody = Data(#"{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"ok"}],"isError":false}}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer { stream.close() }
+
+            var data = Data()
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 1024)
+            defer { buffer.deallocate() }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: 1024)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    let account = "mcp.oauth.test.\(UUID().uuidString)"
+    let store = KeychainSecretStore(account: account)
+    try? store.delete()
+    try store.save(Data("stored-token".utf8))
+    defer {
+        try? store.delete()
+    }
+
+    StubURLProtocol.authorizationHeaders = []
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp"),
+        headers: ["Authorization": "Bearer configured-token"],
+        accessTokenKeychainAccount: account
+    )
+
+    _ = try await MCPStreamableHTTPClient(configuration: configuration, urlSession: urlSession)
+        .callTool(name: "echo", argumentsJSON: "{}")
+
+    #expect(StubURLProtocol.authorizationHeaders.count == 3)
+    #expect(StubURLProtocol.authorizationHeaders.allSatisfy { $0 == "Bearer configured-token" })
+}
+
 @Test func mcpOAuthClientRefreshesAndRotatesStoredToken() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var requestBody = ""
