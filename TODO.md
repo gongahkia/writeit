@@ -152,9 +152,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][safety] Validate `shell.run` requires confirmation even for read-only allowlisted commands.
 - [ ] [P0][safety] Validate `shell.run` uses `ShellExecService.xpc` in the packaged `.app`.
 - [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
-- [ ] [P0][safety] Validate `calendar.create` requires confirmation and rejects invalid duration/end times.
-- [ ] [P0][safety] Validate `reminders.create` requires confirmation and rejects empty titles.
-- [ ] [P0][safety] Validate `reminders.complete` requires confirmation and handles ambiguous matches safely.
 - [ ] [P0][safety] Validate screen tools fail closed without Screen Recording permission.
 - [ ] [P0][safety] Validate prompt-boundary escaping for nested tool payloads from every tool family.
 - [ ] [P0][safety] Validate Keychain deletion forces new encryption/signing keys and produces a clear recovery state.
