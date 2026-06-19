@@ -238,4 +238,3 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 - [ ] [P0][reference] Re-check Apple Foundation Models docs before implementing any model API upgrade: https://developer.apple.com/documentation/foundationmodels/
 - [ ] [P0][reference] Re-check Apple Foundation Models updates before implementing image/vision work: https://developer.apple.com/documentation/updates/foundationmodels
-- [ ] [P0][reference] Re-check GitHub security and analysis docs before public release: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-security-and-analysis-settings-for-your-repository

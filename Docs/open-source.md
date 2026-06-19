@@ -34,7 +34,7 @@ Choose the license before publishing. GitHub license docs were re-checked on 202
 
 Review GitHub's private-to-public visibility effects before changing visibility. GitHub visibility docs were re-checked on 2026-06-19 and still document that code becomes visible, anyone can fork the repository, activity and Actions logs become public, and all push rulesets are disabled by the transition.
 
-Verify push protection. GitHub documents account-level push protection for users as enabled by default and blocking supported secrets from public repositories, but repository-level settings can add stronger bypass controls and alerts.
+Verify security and analysis settings. GitHub security/analysis docs were re-checked on 2026-06-19 and recommend Dependabot alerts, secret scanning, push protection, and code scanning for public repositories; dependency graph remains permanently enabled for public repositories.
 
 Official references:
 
