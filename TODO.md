@@ -203,7 +203,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Screen and multimodal work
 
-- [ ] [P0][screen] Validate `screen.snapshot` writes PNG files under `~/Library/Caches/cerberus/screen-snapshots/`.
 - [ ] [P0][screen] Validate `screen.snapshot` fails closed when Screen Recording is denied.
 - [ ] [P0][screen] Validate `screen.ocr` fails closed when Screen Recording is denied.
 - [ ] [P1][screen][Unverified] Re-check Apple Foundation Models image attachment support before keeping OCR-only screen reasoning.

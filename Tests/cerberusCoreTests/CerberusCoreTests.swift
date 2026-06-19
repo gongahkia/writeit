@@ -31,6 +31,7 @@ import Testing
 
     #expect(supportPath.hasSuffix("/Library/Application Support/cerberus"))
     #expect(cachesPath.hasSuffix("/Library/Caches/cerberus"))
+    #expect(ScreenSnapshotTool.defaultOutputDirectoryURL().standardizedFileURL.path.hasSuffix("/Library/Caches/cerberus/screen-snapshots"))
     #expect((supportFiles + supportDirectories).allSatisfy { $0.standardizedFileURL.path.hasPrefix(supportPath + "/") })
     #expect(cacheDirectories.allSatisfy { $0.standardizedFileURL.path.hasPrefix(cachesPath + "/") })
 }
@@ -556,6 +557,7 @@ import Testing
 
     #expect(FileManager.default.fileExists(atPath: directory.path))
     #expect(FileManager.default.fileExists(atPath: fileURL.path))
+    #expect(fileURL.path.hasSuffix("/Library/Caches/cerberus/screen-snapshots/screen-test.png"))
 }
 
 @Test func screenSnapshotCacheCleanupPrunesOldSnapshotsAndKeepsUnrelatedFiles() throws {
