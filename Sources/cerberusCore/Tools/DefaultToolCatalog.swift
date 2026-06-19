@@ -13,6 +13,8 @@ public enum DefaultToolCatalog {
         [
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarCreateTool()),
+            AnyAssistantTool(CalendarDeleteTool()),
+            AnyAssistantTool(CalendarEditTool()),
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(ContactsTool()),
             AnyAssistantTool(fileSearchTool),

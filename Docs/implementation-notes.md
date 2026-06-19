@@ -42,6 +42,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.
 - `calendar.create` is separate from `calendar.read`, mutates state, and is blocked by confirmation unless approved.
+- `calendar.edit` and `calendar.delete` operate on one matching event and are blocked by confirmation unless approved.
 - `reminders.create` is separate from `reminders.read`, mutates state, and is blocked by confirmation unless approved.
 - `reminders.complete` marks one matching open reminder complete and is blocked by confirmation unless approved.
 - `reminders.edit` and `reminders.delete` operate on one matching reminder and are blocked by confirmation unless approved.

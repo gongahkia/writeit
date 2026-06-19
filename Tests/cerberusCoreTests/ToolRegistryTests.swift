@@ -161,6 +161,8 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(mutatingToolNames == [
         "app.control",
         "calendar.create",
+        "calendar.delete",
+        "calendar.edit",
         "memory.delete",
         "memory.write",
         "music.control",
@@ -324,6 +326,60 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     let start = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:00:00Z"))
     let end = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:45:00Z"))
     #expect(CalendarCreateTool.payload(title: "Dentist", calendarName: "Home", startDate: start, endDate: end).contains("[Home] Dentist"))
+}
+
+@Test func calendarEditToolRequiresConfirmationAndValidatesArguments() throws {
+    let tool = CalendarEditTool()
+    let summaries = DefaultToolCatalog.summaries
+    let summary = try #require(summaries.first { $0.name == "calendar.edit" })
+
+    #expect(summary.mutatesState)
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarEditTool.Arguments(title: " ", newTitle: "Checkup"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarEditTool.Arguments(title: "Dentist"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarEditTool.Arguments(title: "Dentist", newDurationMinutes: 0))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarEditTool.Arguments(
+            title: "Dentist",
+            newStartDateISO8601: "2026-06-16T10:00:00Z",
+            newEndDateISO8601: "2026-06-16T09:00:00Z"
+        ))
+    }
+    try tool.validate(CalendarEditTool.Arguments(
+        title: "Dentist",
+        startDateISO8601: "2026-06-16T09:00:00Z",
+        newTitle: "Checkup",
+        newDurationMinutes: 45
+    ))
+    let start = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:00:00Z"))
+    let end = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:45:00Z"))
+    #expect(CalendarEditTool.payload(title: "Checkup", calendarName: "Home", startDate: start, endDate: end).contains("Edited calendar event: [Home] Checkup"))
+}
+
+@Test func calendarDeleteToolRequiresConfirmationAndValidatesArguments() throws {
+    let tool = CalendarDeleteTool()
+    let summaries = DefaultToolCatalog.summaries
+    let summary = try #require(summaries.first { $0.name == "calendar.delete" })
+
+    #expect(summary.mutatesState)
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarDeleteTool.Arguments(title: " "))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(CalendarDeleteTool.Arguments(title: "Dentist", startDateISO8601: "bad-date"))
+    }
+    try tool.validate(CalendarDeleteTool.Arguments(
+        title: "Dentist",
+        startDateISO8601: "2026-06-16T09:00:00Z"
+    ))
+    let start = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:00:00Z"))
+    let end = try #require(ISO8601DateFormatter().date(from: "2026-06-16T09:45:00Z"))
+    #expect(CalendarDeleteTool.payload(title: "Dentist", calendarName: "Home", startDate: start, endDate: end).contains("Deleted calendar event: [Home] Dentist"))
 }
 
 @Test func remindersCreateToolRequiresConfirmationAndValidatesArguments() async throws {
