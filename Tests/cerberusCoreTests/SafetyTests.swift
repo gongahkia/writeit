@@ -199,15 +199,38 @@ import Testing
     let readTool = MemoryReadTool(store: store)
     let deleteTool = MemoryDeleteTool(store: store)
 
-    _ = try await writeTool.run(arguments: MemoryWriteTool.Arguments(content: "Likes terse status updates", tags: ["preference"]))
+    let writeResult = try await writeTool.run(arguments: MemoryWriteTool.Arguments(
+        content: "Likes terse status updates",
+        tags: ["preference"],
+        scope: MemoryScope.personalPreference.rawValue
+    ))
     let result = try await readTool.run(arguments: MemoryReadTool.Arguments(query: "terse", limit: 5))
     let deleteResult = try await deleteTool.run(arguments: MemoryDeleteTool.Arguments(query: "terse"))
     let emptyResult = try await readTool.run(arguments: MemoryReadTool.Arguments(query: "terse", limit: 5))
 
     #expect(result.spokenSummary == "Found 1 memory.")
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
+    #expect(result.untrustedPayload.contains("[personal_preference]"))
+    #expect(writeResult.metadata["scope"] == "personal_preference")
     #expect(deleteResult.spokenSummary == "Forgot 1 memory.")
     #expect(emptyResult.spokenSummary == "Found 0 memories.")
+}
+
+@Test func memoryRecordDecodesLegacyRecordsWithDefaultScope() throws {
+    let data = Data("""
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "timestamp": "2026-06-19T00:00:00Z",
+      "content": "Uses Neovim",
+      "tags": ["tools"]
+    }
+    """.utf8)
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+
+    let record = try decoder.decode(MemoryRecord.self, from: data)
+
+    #expect(record.scope == .personalPreference)
 }
 
 @Test func keychainSecretStoreSurfacesReadFailures() throws {

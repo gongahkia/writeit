@@ -247,7 +247,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P2][product][Inference] Add Shortcuts integration if users want to call existing automations.
 - [ ] [P2][product][Inference] Add app-specific tool packs for Xcode, Terminal, Safari, Chrome, Calendar, Mail, and Music.
 - [ ] [P2][product][Inference] Add local vector memory only after encrypted memory UX and deletion controls exist.
-- [ ] [P2][product][Inference] Add memory scopes for personal preferences, project facts, and temporary session facts.
 - [ ] [P2][product][Inference] Add project/workspace detection for coding tasks.
 - [ ] [P2][product][Inference] Add background task queue only after cancellation and audit semantics are designed.
 - [ ] [P2][product][Inference] Add multi-turn follow-up context after transcript privacy controls are complete.

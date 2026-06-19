@@ -1,17 +1,48 @@
 import CryptoKit
 import Foundation
 
+public enum MemoryScope: String, Codable, CaseIterable, Sendable {
+    case personalPreference = "personal_preference"
+    case projectFact = "project_fact"
+    case temporarySessionFact = "temporary_session_fact"
+}
+
 public struct MemoryRecord: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let timestamp: Date
     public let content: String
     public let tags: [String]
+    public let scope: MemoryScope
 
-    public init(id: UUID = UUID(), timestamp: Date = Date(), content: String, tags: [String] = []) {
+    public init(
+        id: UUID = UUID(),
+        timestamp: Date = Date(),
+        content: String,
+        tags: [String] = [],
+        scope: MemoryScope = .personalPreference
+    ) {
         self.id = id
         self.timestamp = timestamp
         self.content = content
         self.tags = tags
+        self.scope = scope
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case timestamp
+        case content
+        case tags
+        case scope
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        timestamp = try container.decode(Date.self, forKey: .timestamp)
+        content = try container.decode(String.self, forKey: .content)
+        tags = try container.decode([String].self, forKey: .tags)
+        scope = try container.decodeIfPresent(MemoryScope.self, forKey: .scope) ?? .personalPreference
     }
 }
 
@@ -95,7 +126,7 @@ public actor EncryptedMemoryStore {
                 guard !terms.isEmpty else {
                     return true
                 }
-                let haystack = ([record.content] + record.tags).joined(separator: " ").lowercased()
+                let haystack = ([record.content, record.scope.rawValue] + record.tags).joined(separator: " ").lowercased()
                 return terms.allSatisfy { haystack.contains($0) }
             }
             .sorted { $0.timestamp > $1.timestamp }

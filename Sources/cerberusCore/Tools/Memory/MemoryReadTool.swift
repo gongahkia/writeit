@@ -43,6 +43,6 @@ public struct MemoryReadTool: AssistantTool {
     private func formatRecord(_ record: MemoryRecord) -> String {
         let timestamp = ISO8601DateFormatter().string(from: record.timestamp)
         let tagText = record.tags.isEmpty ? "" : " [\(record.tags.joined(separator: ", "))]"
-        return "- \(timestamp)\(tagText): \(record.content)"
+        return "- \(timestamp) [\(record.scope.rawValue)]\(tagText): \(record.content)"
     }
 }
