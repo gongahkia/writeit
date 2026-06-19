@@ -384,6 +384,38 @@ import Testing
     #expect(snapshots[1].isRead)
 }
 
+@Test func notesSearchToolFormatsReadOnlyResults() async throws {
+    struct StubRunner: NotesSearchRunning {
+        func search(query: String, includeBodySnippet: Bool, limit: Int) async throws -> [NoteSnapshot] {
+            [
+                NoteSnapshot(
+                    title: "Trip plan",
+                    modifiedDate: "Wednesday, June 17, 2026",
+                    bodySnippet: includeBodySnippet ? "Flight at 9." : ""
+                )
+            ]
+        }
+    }
+
+    let tool = NotesSearchTool(runner: StubRunner())
+    let result = try await tool.run(arguments: NotesSearchTool.Arguments(query: "trip", includeBodySnippet: true))
+
+    #expect(result.toolName == "notes.search")
+    #expect(result.spokenSummary == "Found 1 note.")
+    #expect(result.untrustedPayload.contains("Trip plan"))
+    #expect(result.untrustedPayload.contains("Flight at 9."))
+}
+
+@Test func notesAppleScriptRunnerParsesRows() throws {
+    let rows = "Trip plan\tWednesday, June 17, 2026\tFlight at 9.\nIdeas\tThursday, June 18, 2026\t"
+    let snapshots = try NotesAppleScriptRunner.parseRows(rows)
+
+    #expect(snapshots.count == 2)
+    #expect(snapshots[0].title == "Trip plan")
+    #expect(snapshots[0].bodySnippet == "Flight at 9.")
+    #expect(snapshots[1].bodySnippet.isEmpty)
+}
+
 @Test func fileSearchRejectsScopesOutsideHome() throws {
     let tool = FileSearchTool(approvedScopePaths: nil)
 

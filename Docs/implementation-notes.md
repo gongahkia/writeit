@@ -45,6 +45,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `reminders.create` is separate from `reminders.read`, mutates state, and is blocked by confirmation unless approved.
 - `reminders.complete` marks one matching open reminder complete and is blocked by confirmation unless approved.
 - `contacts.search` is read-only and searches local Contacts by name, organization, email, or phone number after Contacts permission is granted.
+- `notes.search` is read-only and searches Notes.app note title/body text through Apple Events.
 - Audit logs are hash-chained and HMAC-signed at `~/Library/Application Support/cerberus/audit.log`.
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.

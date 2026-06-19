@@ -140,6 +140,7 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "mail.search",
         "memory.read",
         "music.now_playing",
+        "notes.search",
         "reminders.read",
         "screen.ocr",
         "screen.snapshot",
