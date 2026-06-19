@@ -663,7 +663,7 @@ struct StatusPanel: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Tool profile", selection: Binding(
+            Picker("Mode", selection: Binding(
                 get: { model.toolProfileID },
                 set: { model.applyToolProfile(id: $0) }
             )) {
@@ -673,13 +673,13 @@ struct StatusPanel: View {
             }
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
-            Toggle("Confirm every tool", isOn: $model.requiresConfirmationForAllTools)
+            Toggle("Confirm every action", isOn: $model.requiresConfirmationForAllTools)
             toolConfirmationOverrides
             Toggle("Wake phrase", isOn: $model.isWakeWordEnabled)
             TextField("Wake phrase", text: $model.wakePhrase)
                 .textFieldStyle(.roundedBorder)
                 .disabled(model.isWakeWordMonitoring)
-            Toggle("Use sound wake model", isOn: $model.prefersSoundWakeWordClassifier)
+            Toggle("Use wake sound detector", isOn: $model.prefersSoundWakeWordClassifier)
                 .disabled(model.isWakeWordMonitoring)
             Text(model.wakeWordMonitorLine)
                 .font(.caption2)
@@ -692,7 +692,7 @@ struct StatusPanel: View {
                 Label("Reset setup", systemImage: "arrow.counterclockwise")
             }
             .buttonStyle(.bordered)
-            Toggle("MCP tool", isOn: $model.isMCPToolEnabled)
+            Toggle("External tools", isOn: $model.isMCPToolEnabled)
             Label(model.mcpListenerStatusLine, systemImage: "network")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -712,20 +712,20 @@ struct StatusPanel: View {
                     }
                 }
             }
-            Toggle("Shell tool", isOn: $model.isShellToolEnabled)
-            Toggle("Propose shell commands only", isOn: $model.isShellProposalMode)
+            Toggle("Terminal commands", isOn: $model.isShellToolEnabled)
+            Toggle("Preview Terminal commands", isOn: $model.isShellProposalMode)
                 .disabled(!model.isShellToolEnabled)
-            Toggle("Mail body search", isOn: $model.allowsMailBodySearch)
-            Text("Allows Mail searches to inspect message body snippets.")
+            Toggle("Mail message contents", isOn: $model.allowsMailBodySearch)
+            Text("Searches can include message text, not just sender and subject.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
-            Toggle("Local-only models", isOn: $model.requiresLocalFoundationModels)
-            Toggle("Use configured adapter", isOn: $model.usesConfiguredAdapter)
+            Toggle("Keep model local", isOn: $model.requiresLocalFoundationModels)
+            Toggle("Use custom model add-on", isOn: $model.usesConfiguredAdapter)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Foundation Models")
+                    Text("Local model")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -737,8 +737,8 @@ struct StatusPanel: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Refresh Foundation Models status")
-                    .help("Refresh Foundation Models status")
+                    .accessibilityLabel("Refresh local model status")
+                    .help("Refresh local model status")
                 }
 
                 Label(model.foundationModelAvailabilityLine, systemImage: "brain")
@@ -889,12 +889,12 @@ struct StatusPanel: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                Toggle("Log gesture validation CSV", isOn: $model.isHeadGestureValidationLoggingEnabled)
+                Toggle("Save gesture test log", isOn: $model.isHeadGestureValidationLoggingEnabled)
                     .font(.caption)
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Enabled tools")
+                Text("Available actions")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(model.enabledToolDisplayText)
@@ -1005,14 +1005,14 @@ struct StatusPanel: View {
                     Button {
                         model.resetAmbientToolAllowlist()
                     } label: {
-                        Label("Reset tool allowlist", systemImage: "arrow.counterclockwise")
+                        Label("Reset actions", systemImage: "arrow.counterclockwise")
                     }
                     .buttonStyle(.bordered)
                     .disabled(model.disabledAmbientToolCount == 0)
                 }
                 .padding(.top, 6)
             } label: {
-                Label("Tool allowlist", systemImage: "checklist")
+                Label("Available actions", systemImage: "checklist")
                     .font(.caption)
             }
         }
@@ -1076,7 +1076,7 @@ struct StatusPanel: View {
             }
             .padding(.top, 6)
         } label: {
-            Label("Tool confirmations", systemImage: "checkmark.shield")
+            Label("Confirm actions", systemImage: "checkmark.shield")
                 .font(.caption)
         }
     }
