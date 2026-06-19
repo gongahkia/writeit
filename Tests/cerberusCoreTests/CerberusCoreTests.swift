@@ -389,10 +389,26 @@ private func temporaryDirectory() throws -> URL {
         for: "Safari",
         allowedToolNames: ["screen.ui_elements"]
     )
+    let musicHints = ActiveApplicationContextPolicy.hints(
+        for: "Music",
+        allowedToolNames: ["music.now_playing", "music.control"]
+    )
 
-    #expect(xcodeHints == ["Prefer project workspace hints and files.search for coding context."])
+    #expect(xcodeHints == ["Xcode tool pack enabled: files.search. Use project and Finder context first; use shell.run only for explicit command requests."])
     #expect(browserHints.isEmpty)
-    #expect(browserUIHints == ["Use screen.ui_elements when visible controls or screen coordinates are needed."])
+    #expect(browserUIHints == ["Safari tool pack enabled: screen.ui_elements. Use browser.tabs for tab context; browser.open_url changes browser state and requires confirmation."])
+    #expect(musicHints == ["Music tool pack enabled: music.now_playing, music.control. Use music.now_playing for status; music.control requires confirmation."])
+}
+
+@Test func appToolPacksCoverTargetApplications() {
+    let packs = AppToolPacks.all
+    let appNames = Set(packs.map(\.appName))
+
+    #expect(appNames == ["Xcode", "Terminal", "Safari", "Chrome", "Calendar", "Mail", "Music", "Finder"])
+    #expect(AppToolPacks.matching(applicationName: "Google Chrome")?.appName == "Chrome")
+    #expect(AppToolPacks.matching(applicationName: "iTerm2")?.appName == "Terminal")
+    #expect(packs.flatMap(\.toolNames).contains("browser.tabs"))
+    #expect(packs.flatMap(\.toolNames).contains("shell.run"))
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {

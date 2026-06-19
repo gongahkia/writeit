@@ -35,7 +35,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Planning context includes the current `NSWorkspace.frontmostApplication` localized name when available.
 - Planning context includes bounded project/workspace hints detected from approved file-search folders using markers such as `Package.swift`, `.xcworkspace`, `.xcodeproj`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and `.git`.
-- Planning context includes per-app policy hints for Xcode, Terminal, Finder, Safari, Chrome, Calendar, Mail, and Music, constrained to currently enabled tools.
+- Planning context includes app-specific tool packs for Xcode, Terminal, Finder, Safari, Chrome, Calendar, Mail, and Music, constrained to currently enabled tools.
 - `files.search` is constrained to user-approved folders selected in Settings; omitted `scopePath` searches all approved folders, while explicit scopes must be inside an approved folder.
 - Settings includes a default-on local-only Foundation Models lock. Current default and adapter profiles pass it; future profile names containing cloud, remote, server, non-local, or PCC markers are blocked before session update.
 - Settings exposes a per-session allowlist for ambient tools; disabled tools are omitted from the planner prompt and execution allowlist.
@@ -53,6 +53,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - App-owned default write paths are centralized under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.
+- `browser.tabs` reads Safari and Chrome tab titles plus sanitized URLs through app Apple Events. `browser.open_url` opens HTTP(S) URLs in Safari or Chrome and is confirmation-gated because it changes browser state. Tab URLs strip user info, query, and fragments before model exposure.
 - `finder.selection` reads the front Finder folder and selected item paths through Finder Apple Events. `finder.reveal` uses `NSWorkspace.activateFileViewerSelecting` for an existing path and is confirmation-gated because it changes Finder UI state.
 - `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
 - `music.now_playing` reads Music.app state, while `music.control` is separate, mutates playback state, and is blocked by confirmation unless approved.

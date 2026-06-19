@@ -13,6 +13,8 @@ public enum DefaultToolCatalog {
     ) -> [AnyAssistantTool] {
         var tools = [
             AnyAssistantTool(AppControlTool()),
+            AnyAssistantTool(BrowserOpenURLTool()),
+            AnyAssistantTool(BrowserTabsTool()),
             AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarDeleteTool()),
             AnyAssistantTool(CalendarEditTool()),
@@ -58,6 +60,7 @@ public enum DefaultToolCatalog {
         mailSearchTool: MailSearchTool = MailSearchTool()
     ) -> [any FoundationModels.Tool] {
         [
+            FoundationModelToolAdapter(BrowserTabsTool(), auditLog: auditLog),
             FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ContactsTool(), auditLog: auditLog),
             FoundationModelToolAdapter(fileSearchTool, auditLog: auditLog),

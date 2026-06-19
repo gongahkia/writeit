@@ -39,36 +39,37 @@ Validate the implementation on a Mac that matches the project requirements.
 18. Run `Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 3 --output .dist/validation/model-loop.json` and record plan plus synthetic tool-output latency.
 19. Add one folder in Settings `File search folders`, ask to search files without a `scopePath`, and confirm only approved folders are searched; remove all folders and confirm `files.search` fails closed.
 20. Ask what is selected in Finder and confirm `finder.selection` returns the front Finder folder and selected item paths; ask to reveal one existing path and confirm `finder.reveal` is proposed only through `awaiting_confirm`.
-21. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", "search my mail for Apple", or "what text is on my screen?".
-22. Ask to pause, resume, skip, or go back in Music and confirm `music.control` is proposed only through `awaiting_confirm`.
-23. Ask to list Shortcuts and confirm `shortcuts.list` returns shortcut names; ask to run a harmless test Shortcut and confirm `shortcuts.run` is proposed only through `awaiting_confirm`.
-24. Disable one ambient tool in Settings `Tool allowlist`, ask for that tool, and confirm cerberus reports it is not enabled; reset the allowlist.
-25. Confirm tool payloads are summarized into a useful spoken response.
-26. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
-27. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
-28. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
-29. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-30. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-31. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
-32. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
-33. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
-34. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, `screen.ocr` emits local Vision text results with bounding boxes, `screen.barcodes` emits local Vision barcode/QR results with bounding boxes, and `screen.ui_elements` emits Accessibility roles/labels/frames; screen capture tools must fail closed when Screen Recording is denied, and `screen.ui_elements` must fail closed when Accessibility is denied.
-35. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-36. Ask to create a calendar event and confirm `calendar.create` is proposed only through `awaiting_confirm`.
-37. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
-38. Ask to complete a reminder and confirm `reminders.complete` is proposed only through `awaiting_confirm`.
-39. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
-40. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-41. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt/OAuth discovery reads run read-only.
-42. With a stdio MCP server that sends `sampling/createMessage`, confirm the panel shows prompt review, then response review, before the MCP tool call completes.
-43. With a stdio MCP server that sends `elicitation/create`, confirm the panel allows accept, decline, and cancel, and invalid accepted JSON fails closed.
-44. With a Streamable HTTP MCP server that supports GET SSE, confirm enabling `MCP tool` starts the listener and routes server sampling/elicitation requests through the panel.
-45. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
-46. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
-47. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-48. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
-49. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
-50. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
+21. Ask what tabs are open in Safari or Chrome and confirm `browser.tabs` returns titles plus sanitized URLs; ask to open an HTTP(S) URL in Safari or Chrome and confirm `browser.open_url` is proposed only through `awaiting_confirm`.
+22. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", "search my mail for Apple", or "what text is on my screen?".
+23. Ask to pause, resume, skip, or go back in Music and confirm `music.control` is proposed only through `awaiting_confirm`.
+24. Ask to list Shortcuts and confirm `shortcuts.list` returns shortcut names; ask to run a harmless test Shortcut and confirm `shortcuts.run` is proposed only through `awaiting_confirm`.
+25. Disable one ambient tool in Settings `Tool allowlist`, ask for that tool, and confirm cerberus reports it is not enabled; reset the allowlist.
+26. Confirm tool payloads are summarized into a useful spoken response.
+27. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
+28. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
+29. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
+30. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
+31. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
+32. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
+33. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
+34. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
+35. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, `screen.ocr` emits local Vision text results with bounding boxes, `screen.barcodes` emits local Vision barcode/QR results with bounding boxes, and `screen.ui_elements` emits Accessibility roles/labels/frames; screen capture tools must fail closed when Screen Recording is denied, and `screen.ui_elements` must fail closed when Accessibility is denied.
+36. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
+37. Ask to create a calendar event and confirm `calendar.create` is proposed only through `awaiting_confirm`.
+38. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
+39. Ask to complete a reminder and confirm `reminders.complete` is proposed only through `awaiting_confirm`.
+40. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
+41. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
+42. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt/OAuth discovery reads run read-only.
+43. With a stdio MCP server that sends `sampling/createMessage`, confirm the panel shows prompt review, then response review, before the MCP tool call completes.
+44. With a stdio MCP server that sends `elicitation/create`, confirm the panel allows accept, decline, and cancel, and invalid accepted JSON fails closed.
+45. With a Streamable HTTP MCP server that supports GET SSE, confirm enabling `MCP tool` starts the listener and routes server sampling/elicitation requests through the panel.
+46. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
+47. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
+48. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
+49. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
+50. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
+51. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
 
 ## Known Follow-Up
 

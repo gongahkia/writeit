@@ -87,6 +87,38 @@ private actor RecordingFinderRevealRunner: FinderRevealRunning {
     }
 }
 
+private actor RecordingBrowserTabsRunner: BrowserTabsRunning {
+    func tabs(for browser: BrowserApp?) async throws -> [BrowserTabSnapshot] {
+        [
+            BrowserTabSnapshot(
+                browser: browser ?? .safari,
+                windowIndex: 1,
+                tabIndex: 1,
+                isActive: true,
+                title: "Docs",
+                url: "https://example.com/docs"
+            ),
+            BrowserTabSnapshot(
+                browser: .chrome,
+                windowIndex: 2,
+                tabIndex: 3,
+                isActive: false,
+                title: "Issue",
+                url: "https://github.com/org/repo/issues/1"
+            )
+        ]
+    }
+}
+
+private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
+    private(set) var calls: [(url: URL, browser: BrowserApp)] = []
+
+    func open(url: URL, in browser: BrowserApp) async throws -> String {
+        calls.append((url, browser))
+        return "Opened \(url.absoluteString) in \(browser.displayName)."
+    }
+}
+
 @Test func registryRunsTypedTool() async throws {
     let registry = try ToolRegistry(tools: [AnyAssistantTool(EchoTool())])
     let invocation = try ToolInvocation(
@@ -168,6 +200,7 @@ private actor RecordingFinderRevealRunner: FinderRevealRunning {
 @Test func defaultNativeToolCatalogIsReadOnly() {
     let readOnlyNativeToolNames = Set(DefaultToolCatalog.readOnlyFoundationModelTools().map(\.name))
     let expectedReadOnlyToolNames: Set<String> = [
+        "browser.tabs",
         "calendar.read",
         "contacts.search",
         "files.search",
@@ -199,6 +232,7 @@ private actor RecordingFinderRevealRunner: FinderRevealRunning {
 
     #expect(mutatingToolNames == [
         "app.control",
+        "browser.open_url",
         "calendar.create",
         "calendar.delete",
         "calendar.edit",
@@ -305,6 +339,47 @@ private actor RecordingFinderRevealRunner: FinderRevealRunning {
 
     let result = try await registry.run(invocation, confirmed: true)
     #expect(result.metadata["dryRun"] == "false")
+}
+
+@Test func browserTabsFormatsSanitizedTabOutput() async throws {
+    let parsed = BrowserAppleScriptTabsRunner.parseRows(
+        "1\t2\ttrue\tSecret\thttps://user:pass@example.com/path?token=abc#frag\n",
+        browser: .safari
+    )
+    #expect(parsed.first?.url == "https://example.com/path")
+
+    let tool = BrowserTabsTool(runner: RecordingBrowserTabsRunner())
+    let result = try await tool.run(arguments: BrowserTabsTool.Arguments(browser: .chrome, limit: 1))
+
+    #expect(result.toolName == "browser.tabs")
+    #expect(result.spokenSummary == "Found 1 browser tab.")
+    #expect(result.untrustedPayload.contains("Chrome window 1 tab 1 active: Docs https://example.com/docs"))
+    #expect(result.metadata["count"] == "1")
+}
+
+@Test func browserOpenURLRequiresConfirmationAndValidatesURL() async throws {
+    let runner = RecordingBrowserOpenURLRunner()
+    let tool = BrowserOpenURLTool(runner: runner)
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: BrowserOpenURLTool.Arguments(url: "https://example.com/path?token=abc", browser: .safari)
+    )
+
+    await #expect(throws: ToolExecutionError.confirmationRequired("browser.open_url")) {
+        _ = try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+    let calls = await runner.calls
+
+    #expect(result.spokenSummary == "Opened https://example.com/path?token=abc in Safari.")
+    #expect(calls.count == 1)
+    #expect(calls.first?.browser == .safari)
+
+    #expect(throws: ToolExecutionError.invalidArguments("url must be http or https")) {
+        try BrowserOpenURLTool.validatedURL("file:///etc/passwd")
+    }
 }
 
 @Test func finderSelectionFormatsSnapshot() async throws {
