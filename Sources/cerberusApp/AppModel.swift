@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 import FoundationModels
 import UniformTypeIdentifiers
@@ -80,6 +81,64 @@ private enum MCPClientRequestDecision: Sendable {
     case decline
     case cancel
 }
+
+@MainActor
+protocol AppTranscribing: AnyObject {
+    var isRunning: Bool { get }
+
+    func start(
+        locale requestedLocale: Locale,
+        onUpdate: @escaping @MainActor @Sendable (TranscriptionUpdate) -> Void
+    ) async throws
+    func stop() async
+    func cancel() async
+}
+
+@MainActor
+protocol AppSpeaking: AnyObject {
+    func setPreferredOutputDevice(_ device: AudioOutputDevice?)
+    func speak(
+        _ text: String,
+        rate: Float,
+        completion: (@MainActor @Sendable () -> Void)?
+    )
+    func stop()
+}
+
+protocol AppAssistanting: Sendable {
+    func updateToolConfiguration(
+        toolSummaries: [ToolSummary],
+        readOnlyNativeTools: [any FoundationModels.Tool]
+    ) async
+    func updateModel(_ model: SystemLanguageModel) async
+    func plan(for request: String, context: AssistantContext) async throws -> AssistantPlan
+    func answerWithReadOnlyTools(for request: String, context: AssistantContext) async throws -> String
+    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String
+    func summarize(toolResult: ToolResult, for request: String) async throws -> String
+}
+
+extension AppTranscribing {
+    func start(
+        onUpdate: @escaping @MainActor @Sendable (TranscriptionUpdate) -> Void
+    ) async throws {
+        try await start(locale: .current, onUpdate: onUpdate)
+    }
+}
+
+extension AppSpeaking {
+    func speak(
+        _ text: String,
+        completion: (@MainActor @Sendable () -> Void)? = nil
+    ) {
+        speak(text, rate: AVSpeechUtteranceDefaultSpeechRate, completion: completion)
+    }
+}
+
+extension Transcriber: AppTranscribing {}
+
+extension Speaker: AppSpeaking {}
+
+extension Assistant: AppAssistanting {}
 
 final class MCPClientRequestBroker: @unchecked Sendable {
     @MainActor weak var model: CerberusAppModel?
@@ -257,10 +316,10 @@ final class CerberusAppModel: ObservableObject {
     @Published var mcpElicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
 
     private let permissionCenter = PermissionCenter()
-    private let transcriber = Transcriber()
-    private let wakeWordTranscriber = Transcriber()
+    private let transcriber: any AppTranscribing
+    private let wakeWordTranscriber: any AppTranscribing
     private let wakeWordSoundClassifier = WakeWordSoundClassifier()
-    private let speaker = Speaker()
+    private let speaker: any AppSpeaking
     private let earconPlayer = EarconPlayer()
     private let hotKeyMonitor = GlobalHotKeyMonitor()
     private let headGestureDetector = HeadGestureDetector()
@@ -270,7 +329,7 @@ final class CerberusAppModel: ObservableObject {
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
     private let auditLog = AuditLog()
-    private let assistant: Assistant
+    private let assistant: any AppAssistanting
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore = EncryptedTranscriptStore()
     private let memoryStore = EncryptedMemoryStore()
@@ -279,6 +338,7 @@ final class CerberusAppModel: ObservableObject {
     private let foundationModelStatusProvider = FoundationModelAvailabilityStatusProvider()
     private let taskNotificationPolicy = LongRunningTaskNotificationPolicy()
     private let taskNotificationScheduler: any LocalTaskNotificationScheduling = UserNotificationTaskScheduler()
+    private let skipsFoundationModelAvailabilityCheck: Bool
     private let mcpServerRegistry: MCPServerRegistry
     private let mcpClientRequestBroker: MCPClientRequestBroker
     private let mcpNativeToolLoader: MCPNativeToolLoader
@@ -323,7 +383,15 @@ final class CerberusAppModel: ObservableObject {
         ]
     }
 
-    init() {
+    init(
+        transcriber: any AppTranscribing = Transcriber(),
+        wakeWordTranscriber: any AppTranscribing = Transcriber(),
+        speaker: any AppSpeaking = Speaker(),
+        assistant injectedAssistant: (any AppAssistanting)? = nil,
+        toolRegistry injectedToolRegistry: ToolRegistry? = nil,
+        startsRuntimeServices: Bool = true,
+        skipsFoundationModelAvailabilityCheck: Bool = false
+    ) {
         let mcpClientRequestBroker = MCPClientRequestBroker()
         let mcpServerRegistry = MCPServerRegistry()
         let fileSearchScopeStore = FileSearchScopeStore()
@@ -350,14 +418,18 @@ final class CerberusAppModel: ObservableObject {
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
         self.fileSearchScopeStore = fileSearchScopeStore
+        self.transcriber = transcriber
+        self.wakeWordTranscriber = wakeWordTranscriber
+        self.speaker = speaker
         self.mcpNativeToolLoader = MCPNativeToolLoader(
             registry: mcpServerRegistry,
             clientRequestHandlers: mcpClientRequestBroker.handlers,
             auditLog: auditLog
         )
         self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
-        toolRegistry = (try? ToolRegistry(tools: tools)) ?? ToolRegistry()
-        assistant = Assistant(
+        self.skipsFoundationModelAvailabilityCheck = skipsFoundationModelAvailabilityCheck
+        toolRegistry = injectedToolRegistry ?? ((try? ToolRegistry(tools: tools)) ?? ToolRegistry())
+        assistant = injectedAssistant ?? Assistant(
             toolSummaries: Self.ambientToolSummaries,
             readOnlyNativeTools: baseReadOnlyNativeTools
         )
@@ -369,11 +441,15 @@ final class CerberusAppModel: ObservableObject {
         refreshFoundationModelStatus()
         refreshScreenSnapshotStatus()
         refreshMCPServerHealthStatus()
-        startAudioOutputRouteMonitor()
+        if startsRuntimeServices {
+            startAudioOutputRouteMonitor()
+        }
         refreshAuditEntries()
         hotKeyMonitor.update(configuration: hotKeyConfiguration)
         updateHeadGestureThresholds()
-        startTriggers()
+        if startsRuntimeServices {
+            startTriggers()
+        }
         refreshConfiguredAdapter()
     }
 
@@ -1469,7 +1545,7 @@ final class CerberusAppModel: ObservableObject {
             if await answerAuditQuestionIfNeeded(request) {
                 return
             }
-            guard foundationModelStatusProvider.isAvailable() else {
+            guard skipsFoundationModelAvailabilityCheck || foundationModelStatusProvider.isAvailable() else {
                 refreshFoundationModelStatus()
                 speak(foundationModelStatusProvider.fallbackText())
                 return

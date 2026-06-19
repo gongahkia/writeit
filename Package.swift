@@ -195,6 +195,11 @@ let package = Package(
             name: "cerberusCoreTests",
             dependencies: ["cerberusCore"],
             path: "Tests/cerberusCoreTests"
+        ),
+        .testTarget(
+            name: "cerberusAppTests",
+            dependencies: ["cerberusApp", "cerberusCore"],
+            path: "Tests/cerberusAppTests"
         )
     ]
 )
