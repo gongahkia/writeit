@@ -661,6 +661,7 @@ struct StatusPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
+            Toggle("Confirm every tool", isOn: $model.requiresConfirmationForAllTools)
             Toggle("Wake phrase", isOn: $model.isWakeWordEnabled)
             TextField("Wake phrase", text: $model.wakePhrase)
                 .textFieldStyle(.roundedBorder)

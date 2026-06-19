@@ -135,6 +135,11 @@ final class CerberusAppModel: ObservableObject {
     @Published var selectedPanelSection: PanelSection = .session
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var requiresConfirmationForAllTools = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.requiresConfirmationForAllTools) {
+        didSet {
+            UserDefaults.standard.set(requiresConfirmationForAllTools, forKey: CerberusSettingsKeys.requiresConfirmationForAllTools)
+        }
+    }
     @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier) {
         didSet {
             UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier)
@@ -1259,7 +1264,7 @@ final class CerberusAppModel: ObservableObject {
                 return
             }
 
-            if plan.requiresConfirmation || mutatingToolNames.contains(plan.toolName) {
+            if requiresConfirmationForAllTools || plan.requiresConfirmation || mutatingToolNames.contains(plan.toolName) {
                 await requestConfirmation(for: plan)
             } else if DefaultToolCatalog.readOnlyToolNames.contains(plan.toolName) {
                 await answerWithNativeReadOnlyTools(for: plan)
