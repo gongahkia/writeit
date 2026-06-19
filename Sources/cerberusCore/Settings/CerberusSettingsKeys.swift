@@ -6,12 +6,14 @@ public enum CerberusSettingsKeys {
     public static let routesSpeechDirectlyToAirPods = "routesSpeechDirectlyToAirPods"
     public static let onboardingSkipped = "onboardingSkipped"
     public static let requiresConfirmationForAllTools = "requiresConfirmationForAllTools"
+    public static let usesConfiguredAdapter = "usesConfiguredAdapter"
 
     public static let persistedKeys = [
         wakePhrase,
         prefersSoundWakeWordClassifier,
         routesSpeechDirectlyToAirPods,
         onboardingSkipped,
-        requiresConfirmationForAllTools
+        requiresConfirmationForAllTools,
+        usesConfiguredAdapter
     ]
 }

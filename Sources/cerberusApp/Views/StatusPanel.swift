@@ -687,6 +687,7 @@ struct StatusPanel: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
+            Toggle("Use configured adapter", isOn: $model.usesConfiguredAdapter)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack {

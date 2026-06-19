@@ -141,6 +141,12 @@ final class CerberusAppModel: ObservableObject {
             UserDefaults.standard.set(requiresConfirmationForAllTools, forKey: CerberusSettingsKeys.requiresConfirmationForAllTools)
         }
     }
+    @Published var usesConfiguredAdapter = UserDefaults.standard.object(forKey: CerberusSettingsKeys.usesConfiguredAdapter) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(usesConfiguredAdapter, forKey: CerberusSettingsKeys.usesConfiguredAdapter)
+            refreshConfiguredAdapter()
+        }
+    }
     @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier) {
         didSet {
             UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier)
@@ -300,7 +306,7 @@ final class CerberusAppModel: ObservableObject {
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         startTriggers()
-        loadConfiguredAdapterIfPresent()
+        refreshConfiguredAdapter()
     }
 
     deinit {
@@ -1668,9 +1674,16 @@ final class CerberusAppModel: ObservableObject {
         return String(decoding: encoded, as: UTF8.self)
     }
 
-    private func loadConfiguredAdapterIfPresent() {
+    private func refreshConfiguredAdapter() {
         Task {
             do {
+                guard usesConfiguredAdapter else {
+                    await assistant.updateModel(.default)
+                    foundationModelAdapterStatusLine = "Adapter disabled"
+                    foundationModelProfile = "default"
+                    return
+                }
+
                 guard let configuredModel = try await adapterLoader.configuredModelAndProfileIfPresent() else {
                     foundationModelAdapterStatusLine = "Adapter config not found"
                     foundationModelProfile = "default"

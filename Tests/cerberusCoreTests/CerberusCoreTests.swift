@@ -42,7 +42,8 @@ import Testing
         "prefersSoundWakeWordClassifier",
         "routesSpeechDirectlyToAirPods",
         "onboardingSkipped",
-        "requiresConfirmationForAllTools"
+        "requiresConfirmationForAllTools",
+        "usesConfiguredAdapter"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }
