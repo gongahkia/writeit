@@ -77,5 +77,6 @@ See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
 See `Docs/architecture.md` for the current app/core/tool/service layout.
 See `Docs/security-model.md` for trust boundaries, execution rules, and reviewer checks.
+See `Docs/threat-model.md` for prompt-injection, tool-misuse, and local-storage threat notes.
 See `Docs/open-source.md` for public repository release checks.
 See `CONTRIBUTING.md` for local setup, validation, signing, and hardware prerequisites.
