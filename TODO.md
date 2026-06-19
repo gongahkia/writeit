@@ -143,7 +143,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Tool safety and confirmation QA
 
-- [ ] [P0][safety] Validate disabled ambient tools are omitted from the planner prompt.
 - [ ] [P0][safety] Validate disabled ambient tools cannot execute through `ToolRegistry`.
 - [ ] [P0][safety] Validate `shell.run` is disabled by default in a fresh app launch.
 - [ ] [P0][safety] Validate enabling `shell.run` requires explicit user action in Settings.

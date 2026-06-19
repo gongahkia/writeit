@@ -197,6 +197,20 @@ import Testing
     #expect(allowlist.filter(summaries).map(\.name) == ["calendar.read", "web.search"])
 }
 
+@Test func disabledAmbientToolsAreOmittedFromPlannerPrompt() {
+    let summaries = [
+        ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false),
+        ToolSummary(name: "web.search", capability: "Search web.", mutatesState: false)
+    ]
+    var allowlist = ToolSessionAllowlist()
+    allowlist.setEnabled("web.search", enabled: false)
+
+    let prompt = SystemPrompt.render(toolSummaries: allowlist.filter(summaries))
+
+    #expect(prompt.contains("calendar.read"))
+    #expect(!prompt.contains("web.search"))
+}
+
 @Test func assistantContextIncludesActiveApplicationName() {
     let context = AssistantContext(
         activeApplicationName: "Xcode",
