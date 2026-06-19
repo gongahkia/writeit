@@ -195,6 +195,28 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(names == ["memory.read"])
 }
 
+@Test func toolProfilesMapToExpectedToolExposure() {
+    let ambientSummaries = [
+        ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false),
+        ToolSummary(name: "calendar.create", capability: "Create event.", mutatesState: true)
+    ]
+
+    let ambient = ToolProfile.ambient.configuration(ambientSummaries: ambientSummaries)
+    let trustedDesk = ToolProfile.trustedDesk.configuration(ambientSummaries: ambientSummaries)
+    let explicitOperator = ToolProfile.explicitOperator.configuration(ambientSummaries: ambientSummaries)
+
+    #expect(ambient.disabledAmbientToolNames == ["calendar.create"])
+    #expect(!ambient.mcpEnabled)
+    #expect(!ambient.shellEnabled)
+    #expect(trustedDesk.disabledAmbientToolNames.isEmpty)
+    #expect(!trustedDesk.mcpEnabled)
+    #expect(!trustedDesk.shellEnabled)
+    #expect(explicitOperator.disabledAmbientToolNames.isEmpty)
+    #expect(explicitOperator.mcpEnabled)
+    #expect(explicitOperator.shellEnabled)
+    #expect(explicitOperator.requiresConfirmationForAllTools)
+}
+
 @Test func toolEnablementKeepsMCPDisabledUntilExplicitlyEnabled() {
     let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
     let mcp = [MCPTool().summary]

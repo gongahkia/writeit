@@ -138,6 +138,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published private var toolConfirmationOverrides: Set<String> = []
     @Published var selectedPanelSection: PanelSection = .session
+    @Published var toolProfileID = ToolProfile.trustedDesk.id
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var isSessionMemoryWriteDisabled = false {
@@ -392,6 +393,10 @@ final class CerberusAppModel: ObservableObject {
         Self.ambientToolSummaries
     }
 
+    var toolProfiles: [ToolProfile] {
+        ToolProfile.allCases
+    }
+
     var disabledAmbientToolCount: Int {
         ambientToolAllowlist.disabledToolNames.count
     }
@@ -451,6 +456,18 @@ final class CerberusAppModel: ObservableObject {
 
     func resetAmbientToolAllowlist() {
         ambientToolAllowlist = ToolSessionAllowlist()
+        syncToolRegistryAllowlist()
+        refreshAssistantToolPrompt()
+    }
+
+    func applyToolProfile(id: String) {
+        let profile = ToolProfile.profile(id: id)
+        let configuration = profile.configuration(ambientSummaries: Self.ambientToolSummaries)
+        toolProfileID = profile.id
+        ambientToolAllowlist = ToolSessionAllowlist(disabledToolNames: configuration.disabledAmbientToolNames)
+        requiresConfirmationForAllTools = configuration.requiresConfirmationForAllTools
+        isMCPToolEnabled = configuration.mcpEnabled
+        isShellToolEnabled = configuration.shellEnabled
         syncToolRegistryAllowlist()
         refreshAssistantToolPrompt()
     }

@@ -238,7 +238,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## V2 and product expansion
 
-- [ ] [P2][product][Inference] Add configurable tool profiles for ambient, trusted desk, and explicit operator modes.
 - [ ] [P2][product][Inference] Add per-app context policies for the active macOS application.
 - [ ] [P2][product][Inference] Add deeper Finder integration if file tasks dominate real usage.
 - [ ] [P2][product][Inference] Add Mail body search only behind explicit opt-in and privacy copy.

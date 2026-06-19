@@ -663,6 +663,14 @@ struct StatusPanel: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Picker("Tool profile", selection: Binding(
+                get: { model.toolProfileID },
+                set: { model.applyToolProfile(id: $0) }
+            )) {
+                ForEach(model.toolProfiles) { profile in
+                    Text(profile.displayName).tag(profile.id)
+                }
+            }
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
             Toggle("Confirm every tool", isOn: $model.requiresConfirmationForAllTools)
