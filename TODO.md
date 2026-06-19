@@ -184,7 +184,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## UX, onboarding, and settings polish
 
 - [ ] [P0][ux] Validate every state transition has the intended earcon on target hardware.
-- [ ] [P0][ux] Validate MCP review controls with long prompts and responses.
 - [ ] [P1][ux] Add keyboard accessibility review for the panel controls.
 - [ ] [P1][ux] Add dynamic type/layout review for long paths and long tool names.
 - [ ] [P1][ux] Add dark/light appearance review screenshots.

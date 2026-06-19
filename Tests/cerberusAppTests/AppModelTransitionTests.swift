@@ -60,10 +60,15 @@ private final class FakeSpeaker: AppSpeaking {
 
 private actor FakeAssistant: AppAssistanting {
     var planResult: AssistantPlan
+    var sampleResult = "sample"
     private(set) var plannedRequests: [String] = []
 
     init(planResult: AssistantPlan) {
         self.planResult = planResult
+    }
+
+    func setSampleResult(_ sampleResult: String) {
+        self.sampleResult = sampleResult
     }
 
     func updateToolConfiguration(
@@ -83,7 +88,7 @@ private actor FakeAssistant: AppAssistanting {
     }
 
     func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
-        "sample"
+        sampleResult
     }
 
     func summarize(toolResult: ToolResult, for request: String) async throws -> String {
@@ -462,6 +467,57 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(model.disabledAmbientToolCount == disabledToolNames.count)
     #expect(disabledToolNames.allSatisfy { !model.isAmbientToolEnabled($0) })
     #expect(disabledToolNames.allSatisfy { !displayText.contains($0) })
+}
+
+@MainActor
+@Test func appModelMCPReviewHandlesLongPromptAndResponseDrafts() async throws {
+    let longPrompt = String(repeating: "long prompt text ", count: 120)
+    let longSystemPrompt = String(repeating: "system detail ", count: 80)
+    let longResponse = String(repeating: "long response text ", count: 140)
+    let assistant = FakeAssistant(planResult: AssistantPlan(
+        intent: .answerDirectly,
+        spokenResponse: "unused",
+        requiresConfirmation: false
+    ))
+    await assistant.setSampleResult(longResponse)
+    let model = CerberusAppModel(
+        assistant: assistant,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+    let request = MCPSamplingRequest(
+        serverName: "long-review",
+        messagesText: longPrompt,
+        systemPrompt: longSystemPrompt,
+        maxTokens: 256,
+        rawParamsJSON: "{}"
+    )
+
+    let responseTask = Task {
+        try await model.handleMCPSamplingRequest(request)
+    }
+    try await waitUntil {
+        model.pendingMCPClientRequest?.kind == .samplingPrompt
+    }
+
+    #expect(model.pendingMCPClientRequest?.summary.contains("long-review") == true)
+    #expect(model.pendingMCPClientRequest?.detail == longSystemPrompt)
+    #expect(model.mcpClientDraft == longPrompt)
+
+    model.approveMCPClientRequest()
+    try await waitUntil {
+        model.pendingMCPClientRequest?.kind == .samplingResponse
+    }
+
+    #expect(model.pendingMCPClientRequest?.summary.contains("long-review") == true)
+    #expect(model.mcpClientDraft == longResponse)
+
+    model.approveMCPClientRequest()
+    let response = try await responseTask.value
+
+    #expect(response.text == longResponse)
+    #expect(model.pendingMCPClientRequest == nil)
+    #expect(model.mcpClientDraft.isEmpty)
 }
 
 @MainActor

@@ -7,6 +7,20 @@ public struct MCPSamplingRequest: Equatable, Sendable {
     public let maxTokens: Int?
     public let rawParamsJSON: String
 
+    public init(
+        serverName: String,
+        messagesText: String,
+        systemPrompt: String?,
+        maxTokens: Int?,
+        rawParamsJSON: String
+    ) {
+        self.serverName = serverName
+        self.messagesText = messagesText
+        self.systemPrompt = systemPrompt
+        self.maxTokens = maxTokens
+        self.rawParamsJSON = rawParamsJSON
+    }
+
     init(serverName: String, params: [String: Any]) {
         self.serverName = serverName
         messagesText = (params["messages"] as? [[String: Any]] ?? [])
