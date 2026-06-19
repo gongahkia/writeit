@@ -146,7 +146,23 @@ public actor AuditLog {
 
     public func signaturesAreValid() throws -> Bool {
         let key = try signingKey()
-        return try entries().allSatisfy { $0.isSignatureValid(using: key) }
+        var previousHash = "genesis"
+        for entry in try entries() {
+            let expectedHash = AuditLogEntry.hash(
+                timestamp: entry.timestamp,
+                toolName: entry.toolName,
+                argumentsSummary: entry.argumentsSummary,
+                resultSummary: entry.resultSummary,
+                previousHash: entry.previousHash
+            )
+            guard entry.previousHash == previousHash,
+                  entry.hash == expectedHash,
+                  entry.isSignatureValid(using: key) else {
+                return false
+            }
+            previousHash = entry.hash
+        }
+        return true
     }
 
     public static func defaultFileURL() -> URL {

@@ -97,6 +97,21 @@ import Testing
     #expect(try await auditLog.signaturesAreValid())
 }
 
+@Test func auditLogDetectsTamperedEntries() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("audit.log")
+    let signingKeyData = Data(repeating: 7, count: 32)
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: signingKeyData)
+
+    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "{}", resultSummary: "ok")
+    let original = try String(contentsOf: fileURL, encoding: .utf8)
+    try original.replacingOccurrences(of: "calendar.read", with: "calendar.create")
+        .write(to: fileURL, atomically: true, encoding: .utf8)
+
+    #expect(try await !auditLog.signaturesAreValid())
+}
+
 @Test func voiceConfirmationParserClassifiesShortApprovalsAndDenials() {
     #expect(VoiceConfirmationParser.decision(in: "yes go ahead") == .accept)
     #expect(VoiceConfirmationParser.decision(in: "do it") == .accept)
