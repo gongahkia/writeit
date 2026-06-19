@@ -807,4 +807,36 @@ private func runScript(
     #expect(summary.total == 2)
     #expect(summary.matches == 1)
     #expect(summary.accuracy == 0.5)
+    #expect(summary.averageResponseTokenF1 > 0.25)
+}
+
+@Test func adapterEvaluationScoresToolSelectionAndTokenOverlap() {
+    let toolCase = AdapterEvaluationCase(
+        prompt: "open calendar",
+        expectedResponse: #"{"intent":"callTool","toolName":"app.control","spokenResponse":"Opening Calendar."}"#
+    )
+    let directCase = AdapterEvaluationCase(
+        prompt: "summarize",
+        expectedResponse: "Opened Calendar and showed today's meetings."
+    )
+    let results = [
+        AdapterEvaluation.result(
+            for: toolCase,
+            actualResponse: #"{"intent":"callTool","toolName":"calendar.read","spokenResponse":"Opening Calendar."}"#
+        ),
+        AdapterEvaluation.result(
+            for: directCase,
+            actualResponse: "Calendar opened and meetings are visible."
+        )
+    ]
+    let summary = AdapterEvaluation.score(results)
+
+    #expect(results[0].expectedToolName == "app.control")
+    #expect(results[0].actualToolName == "calendar.read")
+    #expect(results[0].toolNameMatches == false)
+    #expect(results[1].toolNameMatches == nil)
+    #expect(results[1].responseTokenF1 > 0)
+    #expect(summary.toolSelectionTotal == 1)
+    #expect(summary.toolSelectionMatches == 0)
+    #expect(summary.toolSelectionAccuracy == 0)
 }

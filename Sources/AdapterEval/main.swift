@@ -36,6 +36,11 @@ struct AdapterEvalCommand {
             print("prompt: \(testCase.prompt)")
             print("expected: \(testCase.expectedResponse)")
             print("actual: \(result.actualResponse)")
+            print(String(format: "responseTokenF1: %.4f", result.responseTokenF1))
+            if let expectedToolName = result.expectedToolName {
+                print("expectedTool: \(expectedToolName)")
+                print("actualTool: \(result.actualToolName ?? "none")")
+            }
             print("")
         }
 
@@ -43,6 +48,10 @@ struct AdapterEvalCommand {
         print("total: \(summary.total)")
         print("matches: \(summary.matches)")
         print(String(format: "accuracy: %.4f", summary.accuracy))
+        print(String(format: "responseTokenF1.avg: %.4f", summary.averageResponseTokenF1))
+        print("toolSelection.total: \(summary.toolSelectionTotal)")
+        print("toolSelection.matches: \(summary.toolSelectionMatches)")
+        print(String(format: "toolSelection.accuracy: %.4f", summary.toolSelectionAccuracy))
     }
 }
 
