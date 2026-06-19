@@ -125,9 +125,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Validate tool-output summarization latency with real screen, calendar, mail, file, web, and music tool payloads.
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Define acceptable v1 planning latency from measured hardware output.
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Define acceptable v1 tool-loop latency from measured hardware output.
-- [ ] [P0][model][Unverified] Re-evaluate image-prompt and vision attachment support against the current macOS 26 SDK.
-- [ ] [P0][model][Unverified] Re-evaluate Apple-provided OCRTool and BarcodeReaderTool availability against the current macOS 26 SDK.
-- [ ] [P1][model][Inference] Replace or augment OCR-only screen reasoning if public image prompt APIs are available in the installed SDK.
 - [ ] [P1][model] Add a model benchmark regression baseline to docs after hardware measurements.
 - [ ] [P2][model][Unverified] Re-evaluate Private Cloud Compute model APIs for optional non-local mode only if product scope changes.
 - [ ] [P2][model][Unverified] Re-evaluate dynamic model profile APIs for future quality/latency tradeoffs.
@@ -183,9 +180,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Screen and multimodal work
 
-- [ ] [P1][screen][Unverified] Re-check Apple Foundation Models image attachment support before keeping OCR-only screen reasoning.
-- [ ] [P1][screen][Unverified] Re-check Apple Vision OCRTool availability before maintaining a custom OCR-only prompt path.
-- [ ] [P1][screen][Inference] Add image-prompt based screen answering if public APIs exist in the installed SDK.
 - [ ] [P3][screen][Inference] Add barcode/QR recognition if real screen tasks need it.
 - [ ] [P3][screen][Inference] Add UI-element detection beyond OCR if app-control tasks need coordinates.
 
