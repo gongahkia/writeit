@@ -185,7 +185,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## UX, onboarding, and settings polish
 
 - [ ] [P0][ux] Validate setup banner opens the Access panel when permissions are missing.
-- [ ] [P0][ux] Validate setup skip persists across app relaunch.
 - [ ] [P0][ux] Validate setup reset clears the skip flag and refreshes permissions.
 - [ ] [P0][ux] Validate microphone-active menu bar tint is red while listening.
 - [ ] [P0][ux] Validate microphone-active menu bar tint is red during wake phrase monitoring.

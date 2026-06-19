@@ -200,6 +200,34 @@ private struct WaitTimeout: Error {}
     #expect(model.recentEvents.first == "listening -> idle")
 }
 
+@MainActor
+@Test func appModelSetupSkipPersistsAcrossRelaunch() {
+    let key = CerberusSettingsKeys.onboardingSkipped
+    let prior = UserDefaults.standard.object(forKey: key)
+    defer {
+        if let prior {
+            UserDefaults.standard.set(prior, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
+    UserDefaults.standard.removeObject(forKey: key)
+    let model = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+    model.skipOnboarding()
+
+    let relaunchedModel = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    #expect(relaunchedModel.hasSkippedOnboarding)
+    #expect(UserDefaults.standard.bool(forKey: key))
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 1_000_000_000,
     predicate: @MainActor @escaping () -> Bool
