@@ -1794,6 +1794,28 @@ private func makeHomeTestDirectory() throws -> URL {
     #expect(configurations[0].transport == .streamableHTTP)
 }
 
+@Test func mcpServerRegistryRejectsBlankServerNames() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let configURL = directory.appendingPathComponent("mcp-servers.json")
+    try Data(#"{"servers":[{"name":"  ","transport":"stdio","executable":"/bin/echo"}]}"#.utf8).write(to: configURL)
+
+    await #expect(throws: ToolExecutionError.self) {
+        _ = try await MCPServerRegistry(fileURL: configURL).configurations()
+    }
+}
+
+@Test func mcpServerRegistryRejectsDuplicateServerNames() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let configURL = directory.appendingPathComponent("mcp-servers.json")
+    try Data(#"{"servers":[{"name":"local","transport":"stdio","executable":"/bin/echo"},{"name":"local","transport":"streamable_http","endpointURL":"https://example.com/mcp"}]}"#.utf8).write(to: configURL)
+
+    await #expect(throws: ToolExecutionError.self) {
+        _ = try await MCPServerRegistry(fileURL: configURL).configurations()
+    }
+}
+
 private func fetchLoopbackURL(_ url: URL) async throws -> (Data, URLResponse) {
     var lastError: (any Error)?
     for _ in 0..<5 {
