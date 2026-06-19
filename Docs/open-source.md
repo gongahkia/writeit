@@ -32,7 +32,7 @@ See `SECURITY.md` for vulnerability reporting and local-data handling expectatio
 
 Choose the license before publishing. GitHub license docs were re-checked on 2026-06-19 and still document that a public repository is not automatically open source without a license that grants reuse, modification, and distribution rights. They also recommend putting the license text in a root `LICENSE` file and noting license terms in the README.
 
-Review GitHub's private-to-public visibility effects before changing visibility. GitHub documents that code, activity, Actions logs, and forks become publicly visible, and push rulesets can be disabled by the transition.
+Review GitHub's private-to-public visibility effects before changing visibility. GitHub visibility docs were re-checked on 2026-06-19 and still document that code becomes visible, anyone can fork the repository, activity and Actions logs become public, and all push rulesets are disabled by the transition.
 
 Verify push protection. GitHub documents account-level push protection for users as enabled by default and blocking supported secrets from public repositories, but repository-level settings can add stronger bypass controls and alerts.
 
