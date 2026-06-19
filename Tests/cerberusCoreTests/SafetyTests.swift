@@ -138,6 +138,7 @@ import Testing
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("transcripts.jsonl.enc")
+    let exportURL = fileURL.deletingLastPathComponent().appendingPathComponent("transcripts.json")
     let keyData = Data(repeating: 7, count: 32)
     let store = EncryptedTranscriptStore(fileURL: fileURL, fixedKeyData: keyData)
 
@@ -150,6 +151,10 @@ import Testing
     #expect(records.first?.request == "open calendar")
     #expect(!rawText.contains("open calendar"))
     #expect(!rawText.contains("Opened Calendar."))
+    try await store.exportPlaintextJSON(to: exportURL)
+    #expect(try String(contentsOf: exportURL, encoding: .utf8).contains("open calendar"))
+    try await store.deleteAll()
+    #expect(try await store.records().isEmpty)
 }
 
 @Test func encryptedMemoryStoreSearchesWithoutPlaintext() async throws {

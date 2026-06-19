@@ -311,6 +311,24 @@ struct StatusPanel: View {
                 Spacer()
 
                 Button {
+                    model.exportTranscriptRecords()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .buttonStyle(.plain)
+                .help("Export transcript history")
+                .disabled(model.transcriptRecords.isEmpty)
+
+                Button(role: .destructive) {
+                    model.deleteTranscriptRecords()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
+                .help("Delete transcript history")
+                .disabled(model.transcriptRecords.isEmpty)
+
+                Button {
                     model.refreshTranscriptRecords()
                 } label: {
                     Image(systemName: "arrow.clockwise")

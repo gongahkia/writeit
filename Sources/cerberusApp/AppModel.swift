@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import FoundationModels
+import UniformTypeIdentifiers
 import cerberusCore
 
 struct PendingMCPClientRequest: Identifiable {
@@ -545,6 +546,51 @@ final class CerberusAppModel: ObservableObject {
             do {
                 transcriptRecords = try await transcriptStore.records()
                     .sorted { $0.timestamp > $1.timestamp }
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func exportTranscriptRecords() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "cerberus-transcripts.json"
+        panel.prompt = "Export"
+        panel.message = "Export decrypted transcript history as JSON."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        Task {
+            do {
+                try await transcriptStore.exportPlaintextJSON(to: url)
+                statusLine = "Exported transcript history to \(url.path)"
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func deleteTranscriptRecords() {
+        let alert = NSAlert()
+        alert.messageText = "Delete transcript history?"
+        alert.informativeText = "This removes encrypted transcript history stored by cerberus."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        Task {
+            do {
+                try await transcriptStore.deleteAll()
+                transcriptRecords = []
+                statusLine = "Deleted transcript history."
             } catch {
                 statusLine = error.localizedDescription
             }
