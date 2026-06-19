@@ -437,6 +437,34 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     }
 }
 
+@Test func mcpNativeReadOnlyPolicyExcludesMutatingAndUnannotatedTools() {
+    let allowedToolNames: Set<String> = ["lookup", "write", "unknown"]
+    let readOnly = MCPToolDescriptor(
+        name: "lookup",
+        title: nil,
+        description: nil,
+        inputSchemaJSON: #"{"type":"object"}"#,
+        readOnlyHint: true
+    )
+    let mutating = MCPToolDescriptor(
+        name: "write",
+        title: nil,
+        description: nil,
+        inputSchemaJSON: #"{"type":"object"}"#,
+        readOnlyHint: false
+    )
+    let unannotated = MCPToolDescriptor(
+        name: "unknown",
+        title: nil,
+        description: nil,
+        inputSchemaJSON: #"{"type":"object"}"#
+    )
+
+    #expect(MCPNativeToolExposurePolicy.exposesAsNativeReadOnly(readOnly, allowedToolNames: allowedToolNames))
+    #expect(!MCPNativeToolExposurePolicy.exposesAsNativeReadOnly(mutating, allowedToolNames: allowedToolNames))
+    #expect(!MCPNativeToolExposurePolicy.exposesAsNativeReadOnly(unannotated, allowedToolNames: allowedToolNames))
+}
+
 @Test func mcpConfigurationDecodesNativeReadOnlyAllowlist() throws {
     let data = Data("""
     {"servers":[{"name":"local","executable":"node","nativeReadOnlyTools":["lookup"]}]}

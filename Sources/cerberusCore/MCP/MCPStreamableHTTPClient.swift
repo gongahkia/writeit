@@ -613,7 +613,8 @@ private final class MCPStreamableHTTPSession: @unchecked Sendable {
             name: name,
             title: object["title"] as? String,
             description: object["description"] as? String,
-            inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:])
+            inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:]),
+            readOnlyHint: (object["annotations"] as? [String: Any])?["readOnlyHint"] as? Bool
         )
     }
 

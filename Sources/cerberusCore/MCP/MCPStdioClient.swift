@@ -5,12 +5,20 @@ public struct MCPToolDescriptor: Equatable, Sendable {
     public let title: String?
     public let description: String?
     public let inputSchemaJSON: String
+    public let readOnlyHint: Bool?
 
-    public init(name: String, title: String?, description: String?, inputSchemaJSON: String) {
+    public init(
+        name: String,
+        title: String?,
+        description: String?,
+        inputSchemaJSON: String,
+        readOnlyHint: Bool? = nil
+    ) {
         self.name = name
         self.title = title
         self.description = description
         self.inputSchemaJSON = inputSchemaJSON
+        self.readOnlyHint = readOnlyHint
     }
 }
 
@@ -514,7 +522,8 @@ private final class MCPStdioSession: @unchecked Sendable {
             name: name,
             title: object["title"] as? String,
             description: object["description"] as? String,
-            inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:])
+            inputSchemaJSON: stableJSONString(object["inputSchema"] ?? [:]),
+            readOnlyHint: (object["annotations"] as? [String: Any])?["readOnlyHint"] as? Bool
         )
     }
 

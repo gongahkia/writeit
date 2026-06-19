@@ -152,6 +152,12 @@ public enum MCPDynamicNativeToolSchema {
     }
 }
 
+public enum MCPNativeToolExposurePolicy {
+    public static func exposesAsNativeReadOnly(_ descriptor: MCPToolDescriptor, allowedToolNames: Set<String>) -> Bool {
+        allowedToolNames.contains(descriptor.name) && descriptor.readOnlyHint == true
+    }
+}
+
 public struct MCPNativeToolLoader: Sendable {
     private let registry: MCPServerRegistry
     private let clientRequestHandlers: MCPClientRequestHandlers
@@ -174,7 +180,10 @@ public struct MCPNativeToolLoader: Sendable {
         for configuration in configurations where !configuration.nativeReadOnlyTools.isEmpty {
             let allowedToolNames = Set(configuration.nativeReadOnlyTools)
             let descriptors = try await listTools(for: configuration)
-            for descriptor in descriptors where allowedToolNames.contains(descriptor.name) {
+            for descriptor in descriptors where MCPNativeToolExposurePolicy.exposesAsNativeReadOnly(
+                descriptor,
+                allowedToolNames: allowedToolNames
+            ) {
                 if let tool = try? MCPDynamicNativeToolAdapter(
                     serverName: configuration.name,
                     descriptor: descriptor,
