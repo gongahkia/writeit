@@ -192,7 +192,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][docs] Update `Docs/distribution.md` after the first notarized release succeeds.
 - [ ] [P0][docs] Update `Docs/open-source.md` after the license and repo visibility decisions are complete.
 - [ ] [P0][docs] Update `README.md` with real validated requirements after target-hardware QA.
-- [ ] [P1][docs] Add screenshots of the menu bar panel after UI stabilizes.
 
 ## Tests and CI
 

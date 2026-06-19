@@ -43,6 +43,11 @@ The project is intentionally scoped as a native macOS utility:
 This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app`, applies `Config/cerberus.entitlements`, and embeds `ShellExecService` in `Contents/XPCServices`.
 `Scripts/release_check.sh` verifies Developer ID signing, notarization, demo-video, and open-source release gates.
 
+## Screenshots
+
+![cerberus menu bar panel in light mode](Docs/assets/appearance-review-light.png)
+![cerberus menu bar panel in dark mode](Docs/assets/appearance-review-dark.png)
+
 ## Privacy
 
 Planning, speech transcription, OCR, transcripts, memory, audit logs, wake samples, adapter config, MCP config, and screen snapshots are local by default. Transcripts and memory records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
