@@ -469,11 +469,12 @@ final class CerberusAppModel: ObservableObject {
             executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
         )
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
+        let localTools = (try? LocalToolManifestLoader().loadTools(shellTool: shellTool)) ?? []
         let tools = DefaultToolCatalog.makeTools(
             fileSearchTool: fileSearchTool,
             mailSearchTool: mailSearchTool,
             includesUIElementTool: startsRuntimeServices
-        ) + mcpTools + [AnyAssistantTool(shellTool)]
+        ) + mcpTools + localTools + [AnyAssistantTool(shellTool)]
         let baseReadOnlyNativeTools = injectedAssistant == nil && startsRuntimeServices
             ? DefaultToolCatalog.readOnlyFoundationModelTools(
                 auditLog: injectedAuditLog,

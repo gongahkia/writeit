@@ -13,6 +13,7 @@
 - Mutating built-in tools require confirmation through `ConfirmationGate`.
 - `shell.run` is default-off, requires explicit Settings opt-in, requires confirmation, and revalidates commands in the XPC service.
 - `mcp.call` is confirmation-gated. MCP resources, prompts, OAuth helpers, and trusted `nativeReadOnlyTools` are separate read paths.
+- Local manifest tools must be named `local.*`, load only from the app support manifest, execute only through `ShellTool` command allowlist policy, and remain confirmation-gated.
 - Disabled ambient tools are omitted from planning prompts and rejected by the execution allowlist.
 
 ## Storage Rules

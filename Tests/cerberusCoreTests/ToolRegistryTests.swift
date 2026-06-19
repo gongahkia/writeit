@@ -341,6 +341,62 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
     #expect(result.metadata["dryRun"] == "false")
 }
 
+@Test func localToolManifestLoadsConfirmationGatedCommandTools() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            "local output"
+        }
+    }
+
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let manifestURL = directory.appendingPathComponent("local-tools.json")
+    let manifest = LocalToolManifest(tools: [
+        LocalCommandToolDefinition(
+            name: "local.list_project",
+            capability: "List project files.",
+            command: ShellCommand(executable: "ls")
+        )
+    ])
+    try JSONEncoder().encode(manifest).write(to: manifestURL)
+
+    let shellTool = ShellTool(
+        allowExecution: true,
+        allowlist: CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]]),
+        executor: StubExecutor()
+    )
+    let tools = try LocalToolManifestLoader(manifestURL: manifestURL).loadTools(shellTool: shellTool)
+    let registry = try ToolRegistry(tools: tools)
+    let invocation = ToolInvocation(toolName: "local.list_project", encodedArguments: Data("{}".utf8))
+
+    await #expect(throws: ToolExecutionError.confirmationRequired("local.list_project")) {
+        _ = try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+
+    #expect(tools.map(\.name) == ["local.list_project"])
+    #expect(result.toolName == "local.list_project")
+    #expect(result.untrustedPayload == "local output")
+}
+
+@Test func localToolManifestRejectsUnsafeDefinitions() throws {
+    #expect(throws: ToolExecutionError.invalidArguments("local tool names must start with local. and use letters, numbers, dot, underscore, or dash")) {
+        try LocalCommandToolDefinition(
+            name: "shell.run",
+            capability: "Bad",
+            command: ShellCommand(executable: "ls")
+        ).validate()
+    }
+    #expect(throws: ToolExecutionError.denied("Executable is not allowlisted: curl")) {
+        try LocalCommandToolDefinition(
+            name: "local.fetch",
+            capability: "Fetch data.",
+            command: ShellCommand(executable: "curl", arguments: ["https://example.com"])
+        ).validate()
+    }
+}
+
 @Test func browserTabsFormatsSanitizedTabOutput() async throws {
     let parsed = BrowserAppleScriptTabsRunner.parseRows(
         "1\t2\ttrue\tSecret\thttps://user:pass@example.com/path?token=abc#frag\n",

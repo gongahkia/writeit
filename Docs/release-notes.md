@@ -12,6 +12,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - AirPods motion trigger path with head-gesture validation logging and evaluator scripts
 - Foundation Models planning path with native read-only tool adapter support and benchmark tooling
 - confirmation-gated tool registry for mutating built-in tools
+- confirmation-gated local `local.*` tool manifest registration through shell allowlist policy
 - app-specific tool-pack hints for Xcode, Terminal, Safari, Chrome, Calendar, Mail, Music, and Finder
 - audited cancellable background task queue primitive
 - read-only Safari/Chrome tab context plus confirmation-gated browser URL opening

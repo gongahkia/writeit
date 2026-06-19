@@ -17,4 +17,5 @@ The primary local data risks are plaintext transcripts, plaintext memory, tamper
 - A user can approve a risky action after misleading context; confirmation copy must stay explicit.
 - Apple Events depend on target app behavior and system Automation prompts.
 - MCP servers are external trust boundaries and should be enabled only for trusted configs.
+- Local manifest tools are an extension boundary; they can only wrap allowlisted shell commands and still require confirmation.
 - Screen snapshots may include sensitive visible content until cache pruning or user deletion.
