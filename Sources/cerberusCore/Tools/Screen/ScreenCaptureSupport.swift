@@ -4,8 +4,49 @@ import ImageIO
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
+public enum ScreenCaptureScope: String, Codable, Sendable {
+    case mainDisplay = "main_display"
+    case activeWindow = "active_window"
+
+    static func parse(_ rawValue: String?) throws -> ScreenCaptureScope {
+        let value = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value, !value.isEmpty else {
+            return .mainDisplay
+        }
+        guard let scope = ScreenCaptureScope(rawValue: value) else {
+            throw ToolExecutionError.invalidArguments("Screen capture scope must be main_display or active_window.")
+        }
+        return scope
+    }
+
+    var spokenDescription: String {
+        switch self {
+        case .mainDisplay:
+            "the main display"
+        case .activeWindow:
+            "the active window"
+        }
+    }
+}
+
+struct CapturedScreenImage {
+    let image: CGImage
+    let scope: ScreenCaptureScope
+    let sourceDescription: String
+}
+
 enum ScreenCaptureSupport {
-    static func captureMainDisplayImage() async throws -> CGImage {
+    static func captureImage(scope: ScreenCaptureScope) async throws -> CapturedScreenImage {
+        switch scope {
+        case .mainDisplay:
+            let image = try await captureMainDisplayImage()
+            return CapturedScreenImage(image: image, scope: scope, sourceDescription: "main display")
+        case .activeWindow:
+            return try await captureActiveWindowImage()
+        }
+    }
+
+    private static func captureMainDisplayImage() async throws -> CGImage {
         let bounds = CGDisplayBounds(CGMainDisplayID())
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -19,6 +60,38 @@ enum ScreenCaptureSupport {
                 }
             }
         }
+    }
+
+    private static func captureActiveWindowImage() async throws -> CapturedScreenImage {
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        guard let window = content.windows.first(where: { $0.isActive && $0.isOnScreen && $0.windowLayer == 0 }) else {
+            throw ToolExecutionError.denied("No active window is available for screen capture.")
+        }
+
+        let filter = SCContentFilter(desktopIndependentWindow: window)
+        let configuration = SCStreamConfiguration()
+        let scale = CGFloat(filter.pointPixelScale)
+        let contentRect = filter.contentRect.isEmpty ? window.frame : filter.contentRect
+        configuration.width = max(1, Int((contentRect.width * scale).rounded()))
+        configuration.height = max(1, Int((contentRect.height * scale).rounded()))
+        configuration.capturesAudio = false
+        configuration.ignoreShadowsSingleWindow = false
+
+        let image = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CGImage, any Error>) in
+            SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration) { image, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let image {
+                    continuation.resume(returning: image)
+                } else {
+                    continuation.resume(throwing: ToolExecutionError.denied("Could not capture the active window."))
+                }
+            }
+        }
+
+        let title = window.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sourceDescription = title?.isEmpty == false ? "active window: \(title!)" : "active window"
+        return CapturedScreenImage(image: image, scope: .activeWindow, sourceDescription: sourceDescription)
     }
 
     static func writePNG(_ image: CGImage, to fileURL: URL) throws {

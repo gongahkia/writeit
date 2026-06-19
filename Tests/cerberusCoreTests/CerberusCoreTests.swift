@@ -651,7 +651,8 @@ import Testing
         imageSize: CGSize(width: 400, height: 200)
     )
 
-    #expect(payload.contains("Image: 400x200"))
+    #expect(payload.contains("image: 400x200"))
+    #expect(payload.contains("scope: main_display"))
     #expect(payload.contains("normalizedBox: x=0.25 y=0.50 w=0.50 h=0.25"))
     #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
 }
@@ -665,8 +666,17 @@ import Testing
 
     #expect(payload.contains("Screen snapshot saved."))
     #expect(payload.contains("file: /tmp/cerberus-screen.png"))
+    #expect(payload.contains("scope: main_display"))
     #expect(payload.contains("image: 1440x900"))
     #expect(payload.contains("screen.ocr"))
+}
+
+@Test func screenCaptureScopeParsesActiveWindow() throws {
+    #expect(try ScreenCaptureScope.parse(nil) == .mainDisplay)
+    #expect(try ScreenCaptureScope.parse("active_window") == .activeWindow)
+    #expect(throws: ToolExecutionError.self) {
+        try ScreenCaptureScope.parse("everything")
+    }
 }
 
 @Test func screenSnapshotWriteCreatesOutputDirectory() throws {

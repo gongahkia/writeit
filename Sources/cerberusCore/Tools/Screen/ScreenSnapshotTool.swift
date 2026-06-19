@@ -5,13 +5,17 @@ import FoundationModels
 public struct ScreenSnapshotTool: AssistantTool {
     @Generable
     public struct Arguments: Codable, Sendable {
-        public init() {}
+        public let scope: String?
+
+        public init(scope: String? = nil) {
+            self.scope = scope
+        }
     }
 
     public let name = "screen.snapshot"
-    public let capability = "Capture the main display to a local PNG file for user-visible screen context."
+    public let capability = "Capture the main display or active window to a local PNG file for user-visible screen context."
     public let mutatesState = false
-    public let argumentSchema = #"{}"#
+    public let argumentSchema = #"{"scope":"main_display|active_window"}"#
 
     private let outputDirectoryURL: URL
     private let cachePolicy: ScreenSnapshotCachePolicy
@@ -32,7 +36,9 @@ public struct ScreenSnapshotTool: AssistantTool {
             throw ToolExecutionError.denied("Screen Recording access is not granted.")
         }
 
-        let image = try await ScreenCaptureSupport.captureMainDisplayImage()
+        let requestedScope = try ScreenCaptureScope.parse(arguments.scope)
+        let capture = try await ScreenCaptureSupport.captureImage(scope: requestedScope)
+        let image = capture.image
         let fileURL = outputDirectoryURL
             .appendingPathComponent(Self.fileName(for: Date()), isDirectory: false)
         try ScreenCaptureSupport.writePNG(image, to: fileURL)
@@ -42,20 +48,33 @@ public struct ScreenSnapshotTool: AssistantTool {
         return ToolResult(
             toolName: name,
             succeeded: true,
-            spokenSummary: "Captured the main display.",
-            untrustedPayload: Self.payload(fileURL: fileURL, imageSize: imageSize),
+            spokenSummary: "Captured \(capture.scope.spokenDescription).",
+            untrustedPayload: Self.payload(
+                fileURL: fileURL,
+                imageSize: imageSize,
+                scope: capture.scope,
+                sourceDescription: capture.sourceDescription
+            ),
             metadata: [
                 "imagePath": fileURL.path,
                 "imageWidth": "\(image.width)",
-                "imageHeight": "\(image.height)"
+                "imageHeight": "\(image.height)",
+                "scope": capture.scope.rawValue
             ]
         )
     }
 
-    static func payload(fileURL: URL, imageSize: CGSize) -> String {
+    static func payload(
+        fileURL: URL,
+        imageSize: CGSize,
+        scope: ScreenCaptureScope = .mainDisplay,
+        sourceDescription: String = "main display"
+    ) -> String {
         """
         Screen snapshot saved.
         file: \(fileURL.path)
+        scope: \(scope.rawValue)
+        source: \(sourceDescription)
         image: \(Int(imageSize.width))x\(Int(imageSize.height))
         Use screen.ocr when the model needs screen text because this macOS FoundationModels SDK exposes text prompts only.
         """
