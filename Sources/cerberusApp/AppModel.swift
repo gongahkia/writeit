@@ -58,6 +58,11 @@ struct PendingMCPClientRequest: Identifiable {
 
 private let defaultHeadGestureCooldownSeconds = 1.2
 
+enum MenuBarStatusTint: Equatable {
+    case red
+    case primary
+}
+
 struct MCPClientElicitationFieldDraft: Identifiable {
     let field: MCPElicitationField
     var value: String
@@ -469,6 +474,10 @@ final class CerberusAppModel: ObservableObject {
 
     var isMicrophoneActive: Bool {
         state.isMicrophoneActive || isConfirmationVoiceActive || isWakeWordMonitoring
+    }
+
+    var menuBarStatusTint: MenuBarStatusTint {
+        isMicrophoneActive ? .red : .primary
     }
 
     var nextPermissionSnapshot: PermissionSnapshot? {

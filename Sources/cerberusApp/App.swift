@@ -49,7 +49,7 @@ private struct MenuBarStatusIcon: View {
         } icon: {
             Image(systemName: model.menuBarSystemImage)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(model.isMicrophoneActive ? .red : .primary)
+                .foregroundStyle(model.menuBarStatusTint == .red ? Color.red : Color.primary)
         }
         .accessibilityLabel("cerberus \(model.state.displayName)")
     }

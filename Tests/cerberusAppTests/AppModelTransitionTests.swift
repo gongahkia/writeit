@@ -202,6 +202,22 @@ private struct WaitTimeout: Error {}
 }
 
 @MainActor
+@Test func appModelMenuBarTintIsRedWhileListening() async throws {
+    let transcriber = FakeTranscriber()
+    let model = CerberusAppModel(
+        transcriber: transcriber,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.startListening()
+    try await waitUntil { transcriber.isRunning }
+
+    #expect(model.state == .listening)
+    #expect(model.menuBarStatusTint == .red)
+}
+
+@MainActor
 @Test func appModelSetupSkipPersistsAcrossRelaunch() {
     let key = CerberusSettingsKeys.onboardingSkipped
     let prior = UserDefaults.standard.object(forKey: key)
