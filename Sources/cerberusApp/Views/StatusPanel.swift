@@ -43,6 +43,7 @@ struct StatusPanel: View {
             }
         }
         .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private var header: some View {

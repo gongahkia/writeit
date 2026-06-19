@@ -184,7 +184,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## UX, onboarding, and settings polish
 
 - [ ] [P0][ux] Validate every state transition has the intended earcon on target hardware.
-- [ ] [P1][ux] Add dark/light appearance review screenshots.
 - [ ] [P2][ux][Inference] Add onboarding progress persistence per permission if setup flow becomes longer.
 
 ## Docs, demo, and release assets
