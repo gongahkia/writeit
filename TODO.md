@@ -281,7 +281,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## Tests and CI
 
 - [ ] [P0][tests] Keep `swift test` passing before every release.
-- [ ] [P1][tests] Add tests for settings persistence keys.
 - [ ] [P1][tests] Add tests for wake-word monitor fallback state strings.
 - [ ] [P1][tests] Add tests for direct AirPods route selection with fake CoreAudio devices.
 - [ ] [P1][tests] Add tests for silence auto-run scheduling using injectable clocks.

@@ -35,6 +35,16 @@ import Testing
     #expect(cacheDirectories.allSatisfy { $0.standardizedFileURL.path.hasPrefix(cachesPath + "/") })
 }
 
+@Test func settingsPersistenceKeysStayStableAndUnique() {
+    #expect(CerberusSettingsKeys.persistedKeys == [
+        "wakePhrase",
+        "prefersSoundWakeWordClassifier",
+        "routesSpeechDirectlyToAirPods",
+        "onboardingSkipped"
+    ])
+    #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
+}
+
 @Test func appInfoPlistDeclaresRequiredUsageDescriptions() throws {
     let plist = try loadPlist("Sources/cerberusApp/Resources/Info.plist")
     let usageDescriptionKeys = [

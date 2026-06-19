@@ -102,7 +102,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var statusLine = "Ready"
     @Published private(set) var recentEvents: [String] = []
     @Published private(set) var permissionSnapshots: [PermissionSnapshot] = []
-    @Published private(set) var hasSkippedOnboarding = UserDefaults.standard.bool(forKey: CerberusAppModel.onboardingSkippedDefaultsKey)
+    @Published private(set) var hasSkippedOnboarding = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.onboardingSkipped)
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
@@ -122,9 +122,9 @@ final class CerberusAppModel: ObservableObject {
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
-    @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusAppModel.prefersSoundWakeWordClassifierDefaultsKey) {
+    @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier) {
         didSet {
-            UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: Self.prefersSoundWakeWordClassifierDefaultsKey)
+            UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier)
             if isWakeWordEnabled {
                 restartWakeWordMonitoring()
             } else {
@@ -132,15 +132,15 @@ final class CerberusAppModel: ObservableObject {
             }
         }
     }
-    @Published var routesSpeechDirectlyToAirPods = UserDefaults.standard.bool(forKey: CerberusAppModel.directAirPodsSpeechDefaultsKey) {
+    @Published var routesSpeechDirectlyToAirPods = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.routesSpeechDirectlyToAirPods) {
         didSet {
-            UserDefaults.standard.set(routesSpeechDirectlyToAirPods, forKey: Self.directAirPodsSpeechDefaultsKey)
+            UserDefaults.standard.set(routesSpeechDirectlyToAirPods, forKey: CerberusSettingsKeys.routesSpeechDirectlyToAirPods)
             refreshPreferredSpeechOutputDevice()
         }
     }
-    @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusAppModel.wakePhraseDefaultsKey) ?? "hey cerberus" {
+    @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusSettingsKeys.wakePhrase) ?? "hey cerberus" {
         didSet {
-            UserDefaults.standard.set(wakePhrase, forKey: Self.wakePhraseDefaultsKey)
+            UserDefaults.standard.set(wakePhrase, forKey: CerberusSettingsKeys.wakePhrase)
         }
     }
     @Published var isWakeWordEnabled = false {
@@ -218,11 +218,6 @@ final class CerberusAppModel: ObservableObject {
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
     private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
     private static let shellToolSummary = ShellTool().summary
-    private static let wakePhraseDefaultsKey = "wakePhrase"
-    private static let prefersSoundWakeWordClassifierDefaultsKey = "prefersSoundWakeWordClassifier"
-    private static let directAirPodsSpeechDefaultsKey = "routesSpeechDirectlyToAirPods"
-    private static let onboardingSkippedDefaultsKey = "onboardingSkipped"
-
     private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
         [
             AnyAssistantTool(MCPTool(runner: MCPConfiguredToolRunner(clientRequestHandlers: clientRequestHandlers))),
@@ -592,12 +587,12 @@ final class CerberusAppModel: ObservableObject {
 
     func skipOnboarding() {
         hasSkippedOnboarding = true
-        UserDefaults.standard.set(true, forKey: Self.onboardingSkippedDefaultsKey)
+        UserDefaults.standard.set(true, forKey: CerberusSettingsKeys.onboardingSkipped)
     }
 
     func resetOnboarding() {
         hasSkippedOnboarding = false
-        UserDefaults.standard.set(false, forKey: Self.onboardingSkippedDefaultsKey)
+        UserDefaults.standard.set(false, forKey: CerberusSettingsKeys.onboardingSkipped)
         refreshPermissions()
     }
 
