@@ -14,7 +14,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - encrypted local transcript and memory storage
 - default-off shell execution routed through `ShellExecService.xpc`
 - default-off MCP bridge for stdio and Streamable HTTP servers, including OAuth PKCE support
-- local screen snapshot and OCR tool path
+- local screen snapshot, OCR, and barcode/QR tool path
 - adapter dataset export, evaluation, and training orchestration scripts
 - release packaging, open-source readiness, demo recording, and release smoke scripts
 

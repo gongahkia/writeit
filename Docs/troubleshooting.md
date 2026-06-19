@@ -10,7 +10,7 @@ Confirm macOS 26 and Xcode 26 are installed, then grant Microphone and Speech Re
 
 ## Screen Recording Denied
 
-Grant Screen Recording in System Settings, then relaunch cerberus. `screen.snapshot` and `screen.ocr` fail closed until `CGPreflightScreenCaptureAccess()` reports access.
+Grant Screen Recording in System Settings, then relaunch cerberus. `screen.snapshot`, `screen.ocr`, and `screen.barcodes` fail closed until `CGPreflightScreenCaptureAccess()` reports access.
 
 ## Mail Automation Denied
 

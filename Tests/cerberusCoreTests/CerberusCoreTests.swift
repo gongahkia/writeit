@@ -1,6 +1,7 @@
 import Foundation
 import CoreAudio
 import CoreGraphics
+import CoreImage
 import Testing
 @testable import cerberusCore
 
@@ -889,6 +890,33 @@ private func temporaryDirectory() throws -> URL {
     #expect(!payload.contains("person@example.com"))
 }
 
+@Test func screenBarcodePayloadIncludesNormalizedAndPixelBoxes() {
+    let payload = ScreenBarcodeTool.payload(
+        for: [
+            ScreenBarcodeObservation(
+                payloadString: "https://example.com",
+                symbology: "QR",
+                confidence: 0.93,
+                boundingBox: CGRect(x: 0.25, y: 0.50, width: 0.50, height: 0.25)
+            )
+        ],
+        imageSize: CGSize(width: 400, height: 200)
+    )
+
+    #expect(payload.contains("https://example.com"))
+    #expect(payload.contains("symbology: QR"))
+    #expect(payload.contains("normalizedBox: x=0.25 y=0.50 w=0.50 h=0.25"))
+    #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
+}
+
+@Test func screenBarcodeDetectorReadsGeneratedQRCode() throws {
+    let image = try makeQRCodeImage(payload: "cerberus-qr-test")
+    let observations = try ScreenBarcodeTool(hasScreenCaptureAccess: { true }).detectBarcodes(in: image, limit: 5)
+
+    #expect(observations.contains { $0.payloadString == "cerberus-qr-test" })
+    #expect(observations.contains { $0.symbology.lowercased().contains("qr") })
+}
+
 @Test func contactsSearchToolFormatsReadOnlyResults() async throws {
     let tool = ContactsTool(records: [
         ContactSearchRecord(
@@ -1040,6 +1068,41 @@ private func makeTestImage(width: Int = 1, height: Int = 1) throws -> CGImage {
         intent: .defaultIntent
     ) else {
         throw ToolExecutionError.denied("Could not create test image.")
+    }
+    return image
+}
+
+private func makeQRCodeImage(payload: String, side: Int = 256) throws -> CGImage {
+    guard let filter = CIFilter(name: "CIQRCodeGenerator") else {
+        throw ToolExecutionError.denied("Could not create QR filter.")
+    }
+    filter.setValue(Data(payload.utf8), forKey: "inputMessage")
+    filter.setValue("M", forKey: "inputCorrectionLevel")
+    guard let output = filter.outputImage else {
+        throw ToolExecutionError.denied("Could not create QR image.")
+    }
+
+    let scale = CGFloat(side) / output.extent.width
+    let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+    guard let qrImage = CIContext().createCGImage(scaled, from: scaled.extent),
+          let context = CGContext(
+        data: nil,
+        width: side + 64,
+        height: side + 64,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else {
+        throw ToolExecutionError.denied("Could not render QR image.")
+    }
+
+    context.setFillColor(CGColor(gray: 1, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: side + 64, height: side + 64))
+    context.interpolationQuality = .none
+    context.draw(qrImage, in: CGRect(x: 32, y: 32, width: side, height: side))
+    guard let image = context.makeImage() else {
+        throw ToolExecutionError.denied("Could not render QR image.")
     }
     return image
 }

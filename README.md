@@ -27,7 +27,7 @@ The project is intentionally scoped as a native macOS utility:
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation
 - Music.app now-playing reads and confirmation-gated playback controls
-- local screen snapshots plus text OCR with bounding boxes for "what is on my screen?" requests
+- local screen snapshots plus text OCR and barcode/QR detection with bounding boxes for "what is on my screen?" requests
 - default-off MCP bridge for configured stdio or Streamable HTTP servers, including OAuth PKCE browser handoff
 - optional prebuilt FoundationModels adapter loading plus transcript JSONL export/eval and Apple toolkit orchestration
 - shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
@@ -62,7 +62,7 @@ Tool egress happens only through the tool the user enables or requests: Apple Ev
 - Speech Recognition: runs SpeechAnalyzer/SpeechTranscriber transcription.
 - Calendar: reads events and creates events after confirmation.
 - Reminders: reads reminders and creates/completes reminders after confirmation.
-- Screen Recording: captures local screen snapshots and OCR text boxes.
+- Screen Recording: captures local screen snapshots, OCR text boxes, and barcode/QR results.
 - Automation: talks to Mail, Music, and app-control targets through Apple Events.
 - Network Client: contacts allowlisted web search endpoints and configured MCP HTTP/OAuth servers.
 

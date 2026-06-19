@@ -142,6 +142,7 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "music.now_playing",
         "notes.search",
         "reminders.read",
+        "screen.barcodes",
         "screen.ocr",
         "screen.snapshot",
         "web.search"
@@ -554,12 +555,16 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
 @Test func screenToolsFailClosedWithoutScreenRecordingPermission() async {
     let snapshotTool = ScreenSnapshotTool(hasScreenCaptureAccess: { false })
     let ocrTool = ScreenOCRTool(hasScreenCaptureAccess: { false })
+    let barcodeTool = ScreenBarcodeTool(hasScreenCaptureAccess: { false })
 
     await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
         _ = try await snapshotTool.run(arguments: ScreenSnapshotTool.Arguments())
     }
     await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
         _ = try await ocrTool.run(arguments: ScreenOCRTool.Arguments())
+    }
+    await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
+        _ = try await barcodeTool.run(arguments: ScreenBarcodeTool.Arguments())
     }
 }
 
