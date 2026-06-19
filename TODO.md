@@ -125,8 +125,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Validate tool-output summarization latency with real screen, calendar, mail, file, web, and music tool payloads.
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Define acceptable v1 planning latency from measured hardware output.
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Define acceptable v1 tool-loop latency from measured hardware output.
-- [ ] [P0][model] Re-check installed FoundationModels swiftinterface before each SDK bump.
-- [ ] [P0][model] Re-check Apple Foundation Models docs before each SDK bump.
 - [ ] [P0][model][Unverified] Re-evaluate image-prompt and vision attachment support against the current macOS 26 SDK.
 - [ ] [P0][model][Unverified] Re-evaluate Apple-provided OCRTool and BarcodeReaderTool availability against the current macOS 26 SDK.
 - [ ] [P1][model][Inference] Replace or augment OCR-only screen reasoning if public image prompt APIs are available in the installed SDK.

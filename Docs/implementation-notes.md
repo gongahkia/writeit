@@ -64,6 +64,8 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 
 ## Current Platform Assumptions
 
+- FoundationModels reference re-check on 2026-06-19 used Xcode's `MacOSX26.5.sdk` plus the arm64e macOS swiftinterface at `MacOSX.sdk/System/Library/Frameworks/FoundationModels.framework/Versions/A/Modules/FoundationModels.swiftmodule/arm64e-apple-macos.swiftinterface` (`ff2285670b0966addb9827dc895a3ee3c9db6e186baae62c034fed012632aacc`, 1501 lines). The interface exposes `SystemLanguageModel.Availability`, `LanguageModelSession`, `PromptRepresentable`, `Tool`, `DynamicGenerationSchema`, token counting, and `SystemLanguageModel.Adapter` loading/compilation APIs; a symbol scan did not find public `CGImage`, `NSImage`, or image prompt input APIs in that macOS interface.
+- Apple Foundation Models docs were re-checked on 2026-06-19 at `https://developer.apple.com/documentation/foundationmodels/` and `https://developer.apple.com/documentation/updates/foundationmodels`. The static responses require JavaScript; Apple search snippets still describe Foundation Models tool calling and updated Foundation Models Instruments, with no verified doc evidence changing the current OCR-first screen approach.
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
 - Foundation Models latency is measurable through `Scripts/benchmark_model.sh`; target-hardware results are not bundled.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription; AirPods/noisy-room quality is measured through the local benchmark script and still needs target-hardware runs.
