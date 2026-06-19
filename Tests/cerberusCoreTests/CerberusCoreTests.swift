@@ -171,6 +171,45 @@ import Testing
     #expect(machine.state == .idle)
 }
 
+@Test func delayedTaskSchedulerRunsAfterInjectedSleep() async {
+    let sleeper = ManualSleeper()
+    let counter = AsyncCounter()
+    let scheduler = DelayedTaskScheduler { nanoseconds in
+        try await sleeper.sleep(nanoseconds)
+    }
+
+    let task = scheduler.schedule(afterNanoseconds: 42) {
+        await counter.increment()
+    }
+
+    await sleeper.waitForPendingSleep()
+    #expect(await sleeper.delays() == [42])
+    await sleeper.resumeNext()
+    await counter.waitForValue(1)
+    #expect(await counter.value() == 1)
+    task.cancel()
+}
+
+@Test func delayedTaskSchedulerSkipsCancelledOperation() async {
+    let sleeper = ManualSleeper()
+    let counter = AsyncCounter()
+    let scheduler = DelayedTaskScheduler { nanoseconds in
+        try await sleeper.sleep(nanoseconds)
+    }
+
+    let task = scheduler.schedule(afterNanoseconds: 84) {
+        await counter.increment()
+    }
+
+    await sleeper.waitForPendingSleep()
+    task.cancel()
+    await sleeper.resumeNext()
+    await Task.yield()
+
+    #expect(await sleeper.delays() == [84])
+    #expect(await counter.value() == 0)
+}
+
 @Test func earconMapperDistinguishesSameDestinationTransitions() {
     let speechDone = AssistantTransition(from: .speaking, event: .speechFinished, to: .idle)
     let speechCancel = AssistantTransition(from: .speaking, event: .cancelRequested, to: .idle)
@@ -1029,4 +1068,48 @@ private func runScript(
     #expect(summary.toolSelectionTotal == 1)
     #expect(summary.toolSelectionMatches == 0)
     #expect(summary.toolSelectionAccuracy == 0)
+}
+
+private actor ManualSleeper {
+    private var recordedDelays: [UInt64] = []
+    private var continuations: [CheckedContinuation<Void, any Error>] = []
+
+    func sleep(_ nanoseconds: UInt64) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            recordedDelays.append(nanoseconds)
+            continuations.append(continuation)
+        }
+    }
+
+    func delays() -> [UInt64] {
+        recordedDelays
+    }
+
+    func waitForPendingSleep() async {
+        while continuations.isEmpty {
+            await Task.yield()
+        }
+    }
+
+    func resumeNext() {
+        continuations.removeFirst().resume()
+    }
+}
+
+private actor AsyncCounter {
+    private var count = 0
+
+    func increment() {
+        count += 1
+    }
+
+    func value() -> Int {
+        count
+    }
+
+    func waitForValue(_ target: Int) async {
+        while count < target {
+            await Task.yield()
+        }
+    }
 }

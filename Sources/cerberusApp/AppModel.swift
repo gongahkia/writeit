@@ -277,6 +277,7 @@ final class CerberusAppModel: ObservableObject {
     private var adapterFailureCircuitBreaker = AdapterFailureCircuitBreaker()
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
+    private let delayedTaskScheduler = DelayedTaskScheduler()
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
@@ -1301,12 +1302,10 @@ final class CerberusAppModel: ObservableObject {
         }
 
         let timeout = silenceTimeoutNanoseconds
-        silenceTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: timeout)
-            guard !Task.isCancelled else {
-                return
+        silenceTask = delayedTaskScheduler.schedule(afterNanoseconds: timeout) { [weak self] in
+            await MainActor.run {
+                self?.finishListeningAndProcess()
             }
-            self?.finishListeningAndProcess()
         }
     }
 
@@ -1360,12 +1359,10 @@ final class CerberusAppModel: ObservableObject {
     private func scheduleConfirmationVoiceTimeout() {
         confirmationVoiceTimeoutTask?.cancel()
         let timeout = confirmationVoiceTimeoutNanoseconds
-        confirmationVoiceTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: timeout)
-            guard !Task.isCancelled else {
-                return
+        confirmationVoiceTimeoutTask = delayedTaskScheduler.schedule(afterNanoseconds: timeout) { [weak self] in
+            await MainActor.run {
+                self?.stopConfirmationVoiceCapture()
             }
-            self?.stopConfirmationVoiceCapture()
         }
     }
 
