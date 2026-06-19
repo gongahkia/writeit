@@ -205,9 +205,14 @@ public struct MailSearchTool: AssistantTool {
     public let argumentSchema = #"{"query":"optional subject or sender terms","mailboxName":"optional mailbox, default inbox","unreadOnly":false,"includeBodySnippet":false,"limit":5}"#
 
     private let runner: any MailSearchRunning
+    private let allowBodySearch: @Sendable () -> Bool
 
-    public init(runner: any MailSearchRunning = MailAppleScriptRunner()) {
+    public init(
+        runner: any MailSearchRunning = MailAppleScriptRunner(),
+        allowBodySearch: @escaping @Sendable () -> Bool = { false }
+    ) {
         self.runner = runner
+        self.allowBodySearch = allowBodySearch
     }
 
     public func validate(_ arguments: Arguments) throws {
@@ -221,6 +226,9 @@ public struct MailSearchTool: AssistantTool {
         let limit = ToolArgumentSupport.clampLimit(arguments.limit, default: 5, maximum: 10)
         let query = arguments.query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let mailboxName = arguments.mailboxName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !arguments.includeBodySnippet || allowBodySearch() else {
+            throw ToolExecutionError.denied("Mail body search is disabled. Enable Mail body search in Settings to include message body snippets.")
+        }
         let messages = try await runner.search(
             query: query,
             mailboxName: mailboxName?.isEmpty == true ? nil : mailboxName,

@@ -6,13 +6,16 @@ public enum DefaultToolCatalog {
         makeTools()
     }
 
-    public static func makeTools(fileSearchTool: FileSearchTool = FileSearchTool()) -> [AnyAssistantTool] {
+    public static func makeTools(
+        fileSearchTool: FileSearchTool = FileSearchTool(),
+        mailSearchTool: MailSearchTool = MailSearchTool()
+    ) -> [AnyAssistantTool] {
         [
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(fileSearchTool),
-            AnyAssistantTool(MailSearchTool()),
+            AnyAssistantTool(mailSearchTool),
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
             AnyAssistantTool(MusicControlTool()),
@@ -34,12 +37,13 @@ public enum DefaultToolCatalog {
 
     public static func readOnlyFoundationModelTools(
         auditLog: AuditLog? = nil,
-        fileSearchTool: FileSearchTool = FileSearchTool()
+        fileSearchTool: FileSearchTool = FileSearchTool(),
+        mailSearchTool: MailSearchTool = MailSearchTool()
     ) -> [any FoundationModels.Tool] {
         [
             FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
             FoundationModelToolAdapter(fileSearchTool, auditLog: auditLog),
-            FoundationModelToolAdapter(MailSearchTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(mailSearchTool, auditLog: auditLog),
             FoundationModelToolAdapter(MemoryReadTool(), auditLog: auditLog),
             FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),
             FoundationModelToolAdapter(RemindersTool(), auditLog: auditLog),

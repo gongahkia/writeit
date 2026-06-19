@@ -307,7 +307,7 @@ import Testing
         }
     }
 
-    let tool = MailSearchTool(runner: StubRunner())
+    let tool = MailSearchTool(runner: StubRunner(), allowBodySearch: { true })
     let result = try await tool.run(
         arguments: MailSearchTool.Arguments(query: "developer", includeBodySnippet: true)
     )
@@ -316,6 +316,34 @@ import Testing
     #expect(result.untrustedPayload.contains("Apple <noreply@apple.com>"))
     #expect(result.untrustedPayload.contains("New SDK notes"))
     #expect(result.metadata["mailbox"] == "inbox")
+}
+
+@Test func mailSearchToolRequiresOptInForBodySearch() async throws {
+    struct StubRunner: MailSearchRunning {
+        func search(
+            query: String,
+            mailboxName: String?,
+            unreadOnly: Bool,
+            includeBodySnippet: Bool,
+            limit: Int
+        ) async throws -> [MailMessageSnapshot] {
+            [
+                MailMessageSnapshot(
+                    dateReceived: "Tuesday, June 16, 2026",
+                    sender: "Apple <noreply@apple.com>",
+                    subject: "Developer update",
+                    isRead: false,
+                    bodySnippet: includeBodySnippet ? "body" : ""
+                )
+            ]
+        }
+    }
+
+    let tool = MailSearchTool(runner: StubRunner())
+
+    await #expect(throws: ToolExecutionError.denied("Mail body search is disabled. Enable Mail body search in Settings to include message body snippets.")) {
+        _ = try await tool.run(arguments: MailSearchTool.Arguments(query: "developer", includeBodySnippet: true))
+    }
 }
 
 @Test func mailAppleScriptRunnerParsesRows() throws {

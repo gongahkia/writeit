@@ -180,6 +180,12 @@ final class CerberusAppModel: ObservableObject {
             refreshPreferredSpeechOutputDevice()
         }
     }
+    @Published var allowsMailBodySearch = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.allowsMailBodySearch) {
+        didSet {
+            UserDefaults.standard.set(allowsMailBodySearch, forKey: CerberusSettingsKeys.allowsMailBodySearch)
+            refreshAssistantToolPrompt()
+        }
+    }
     @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusSettingsKeys.wakePhrase) ?? "hey cerberus" {
         didSet {
             UserDefaults.standard.set(wakePhrase, forKey: CerberusSettingsKeys.wakePhrase)
@@ -312,6 +318,11 @@ final class CerberusAppModel: ObservableObject {
         let mcpServerRegistry = MCPServerRegistry()
         let fileSearchScopeStore = FileSearchScopeStore()
         let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
+        let mailSearchTool = MailSearchTool(
+            allowBodySearch: {
+                UserDefaults.standard.bool(forKey: CerberusSettingsKeys.allowsMailBodySearch)
+            }
+        )
         let shellTool = ShellTool(
             allowExecution: true,
             forceDryRun: {
@@ -320,10 +331,11 @@ final class CerberusAppModel: ObservableObject {
             executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
         )
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
-        let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
+        let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool, mailSearchTool: mailSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
         let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(
             auditLog: auditLog,
-            fileSearchTool: fileSearchTool
+            fileSearchTool: fileSearchTool,
+            mailSearchTool: mailSearchTool
         )
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry

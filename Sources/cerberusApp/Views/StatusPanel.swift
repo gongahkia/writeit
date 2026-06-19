@@ -715,6 +715,11 @@ struct StatusPanel: View {
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
             Toggle("Propose shell commands only", isOn: $model.isShellProposalMode)
                 .disabled(!model.isShellToolEnabled)
+            Toggle("Mail body search", isOn: $model.allowsMailBodySearch)
+            Text("Allows Mail searches to inspect message body snippets.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
             Toggle("Use configured adapter", isOn: $model.usesConfiguredAdapter)
 
             VStack(alignment: .leading, spacing: 6) {

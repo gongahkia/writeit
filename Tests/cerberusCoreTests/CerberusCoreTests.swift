@@ -46,7 +46,8 @@ import Testing
         "usesConfiguredAdapter",
         "hotKeyConfigurationID",
         "shellProposalMode",
-        "headGestureCooldownSeconds"
+        "headGestureCooldownSeconds",
+        "allowsMailBodySearch"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }
