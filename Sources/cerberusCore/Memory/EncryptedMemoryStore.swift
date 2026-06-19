@@ -116,22 +116,7 @@ public actor EncryptedMemoryStore {
     }
 
     public func search(query: String, limit: Int) throws -> [MemoryRecord] {
-        let terms = query
-            .lowercased()
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-
-        return try records()
-            .filter { record in
-                guard !terms.isEmpty else {
-                    return true
-                }
-                let haystack = ([record.content, record.scope.rawValue] + record.tags).joined(separator: " ").lowercased()
-                return terms.allSatisfy { haystack.contains($0) }
-            }
-            .sorted { $0.timestamp > $1.timestamp }
-            .prefix(limit)
-            .map { $0 }
+        MemoryVectorIndex.ranked(records: try records(), query: query, limit: limit)
     }
 
     @discardableResult

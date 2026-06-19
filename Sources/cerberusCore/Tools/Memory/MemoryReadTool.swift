@@ -14,7 +14,7 @@ public struct MemoryReadTool: AssistantTool {
     }
 
     public let name = "memory.read"
-    public let capability = "Read encrypted local memory records by keyword."
+    public let capability = "Read encrypted local memory records by local vector-ranked keyword query."
     public let mutatesState = false
     public let argumentSchema = #"{"query":"optional keyword terms","limit":5}"#
 

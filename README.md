@@ -26,6 +26,7 @@ The project is intentionally scoped as a native macOS utility:
 - reminder completion is a separate mutating tool and requires confirmation
 - Apple Shortcuts listing is read-only, while running a Shortcut is confirmation-gated
 - encrypted local transcripts and memory records
+- local vector-ranked memory search without network embedding calls
 - read-only Finder selection/context plus confirmation-gated Finder reveal
 - app-specific tool packs for Xcode, Terminal, Safari, Chrome, Calendar, Mail, Music, and Finder
 - read-only Mail.app subject/sender search through macOS Automation

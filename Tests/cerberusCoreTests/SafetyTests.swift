@@ -190,6 +190,34 @@ import Testing
     #expect(try await store.records().isEmpty)
 }
 
+@Test func encryptedMemoryStoreRanksMemoryWithLocalVectors() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("memory.jsonl.enc")
+    let store = EncryptedMemoryStore(fileURL: fileURL, fixedKeyData: Data(repeating: 5, count: 32))
+    let older = Date(timeIntervalSince1970: 1_000)
+    let newer = Date(timeIntervalSince1970: 2_000)
+
+    try await store.append(MemoryRecord(
+        timestamp: older,
+        content: "Prefers morning standups",
+        tags: ["work"],
+        scope: .personalPreference
+    ))
+    try await store.append(MemoryRecord(
+        timestamp: newer,
+        content: "Uses Neovim for editing",
+        tags: ["tools"],
+        scope: .projectFact
+    ))
+
+    let standupResults = try await store.search(query: "standup", limit: 5)
+    let toolResults = try await store.search(query: "project tools", limit: 5)
+
+    #expect(standupResults.map(\.content) == ["Prefers morning standups"])
+    #expect(toolResults.first?.content == "Uses Neovim for editing")
+}
+
 @Test func memoryToolsReadAndWriteEncryptedRecords() async throws {
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)

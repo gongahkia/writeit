@@ -51,7 +51,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Audit logs are hash-chained and HMAC-signed at `~/Library/Application Support/cerberus/audit.log`.
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
-- Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
+- Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key. Memory reads rank local records with an in-process sparse token vector index; no embedding service or network call is used.
 - App-owned default write paths are centralized under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.
 - `browser.tabs` reads Safari and Chrome tab titles plus sanitized URLs through app Apple Events. `browser.open_url` opens HTTP(S) URLs in Safari or Chrome and is confirmation-gated because it changes browser state. Tab URLs strip user info, query, and fragments before model exposure.
 - `finder.selection` reads the front Finder folder and selected item paths through Finder Apple Events. `finder.reveal` uses `NSWorkspace.activateFileViewerSelecting` for an existing path and is confirmation-gated because it changes Finder UI state.

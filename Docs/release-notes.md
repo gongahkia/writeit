@@ -17,6 +17,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - read-only Finder selection context plus confirmation-gated Finder reveal
 - read-only Shortcuts listing plus confirmation-gated Shortcut execution
 - encrypted local transcript and memory storage
+- local vector-ranked memory search
 - default-off shell execution routed through `ShellExecService.xpc`
 - default-off MCP bridge for stdio and Streamable HTTP servers, including OAuth PKCE support
 - local screen snapshot, OCR, barcode/QR, and UI element geometry tool path
