@@ -1467,7 +1467,8 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: currentActiveApplicationName(),
                 allowedToolNames: enabledToolNames,
-                fileSearchScopePaths: fileSearchScopePaths
+                fileSearchScopePaths: fileSearchScopePaths,
+                projectWorkspaceHints: detectedProjectWorkspaces()
             )
             let startedAt = Date()
             var succeeded = false
@@ -1552,7 +1553,8 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: currentActiveApplicationName(),
                 allowedToolNames: Array(readOnlyNames).sorted(),
-                fileSearchScopePaths: fileSearchScopePaths
+                fileSearchScopePaths: fileSearchScopePaths,
+                projectWorkspaceHints: detectedProjectWorkspaces()
             )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordModelSuccess()
@@ -1765,6 +1767,10 @@ final class CerberusAppModel: ObservableObject {
 
     private func currentActiveApplicationName() -> String? {
         NSWorkspace.shared.frontmostApplication?.localizedName
+    }
+
+    private func detectedProjectWorkspaces() -> [ProjectWorkspaceHint] {
+        ProjectWorkspaceDetector.detect(in: fileSearchScopePaths)
     }
 
     private var enabledToolSummaries: [ToolSummary] {

@@ -274,18 +274,60 @@ import Testing
     let context = AssistantContext(
         activeApplicationName: "Xcode",
         allowedToolNames: ["files.search"],
-        fileSearchScopePaths: ["/Users/example/Documents"]
+        fileSearchScopePaths: ["/Users/example/Documents"],
+        projectWorkspaceHints: [
+            ProjectWorkspaceHint(
+                name: "cerberus",
+                path: "/Users/example/cerberus",
+                kind: "swift_package",
+                marker: "Package.swift"
+            )
+        ]
     )
 
     #expect(context.promptFragment.contains("Active app: Xcode"))
     #expect(context.promptFragment.contains("Allowed tools: files.search"))
     #expect(context.promptFragment.contains("File search folders: /Users/example/Documents"))
+    #expect(context.promptFragment.contains("Project workspaces:"))
+    #expect(context.promptFragment.contains("- cerberus (swift_package): /Users/example/cerberus [Package.swift]"))
 }
 
 @Test func assistantContextWarnsWhenFileSearchHasNoApprovedFolders() {
     let context = AssistantContext(allowedToolNames: ["files.search"])
 
     #expect(context.promptFragment.contains("File search folders: none approved"))
+}
+
+@Test func projectWorkspaceDetectorFindsMarkersInApprovedRootsAndChildren() throws {
+    let root = try temporaryDirectory()
+    let swiftRoot = root.appendingPathComponent("SwiftApp", isDirectory: true)
+    let nodeRoot = root.appendingPathComponent("WebApp", isDirectory: true)
+    try FileManager.default.createDirectory(at: swiftRoot, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: nodeRoot, withIntermediateDirectories: true)
+    try Data().write(to: swiftRoot.appendingPathComponent("Package.swift"))
+    try Data().write(to: nodeRoot.appendingPathComponent("package.json"))
+
+    let hints = ProjectWorkspaceDetector.detect(in: [root.path])
+
+    #expect(hints.contains {
+        $0.name == "SwiftApp"
+            && $0.path.hasSuffix("/SwiftApp")
+            && $0.kind == "swift_package"
+            && $0.marker == "Package.swift"
+    })
+    #expect(hints.contains {
+        $0.name == "WebApp"
+            && $0.path.hasSuffix("/WebApp")
+            && $0.kind == "node_package"
+            && $0.marker == "package.json"
+    })
+}
+
+private func temporaryDirectory() throws -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-tests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {

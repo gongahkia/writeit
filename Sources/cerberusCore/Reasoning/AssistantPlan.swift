@@ -60,15 +60,18 @@ public struct AssistantContext: Equatable, Sendable {
     public let activeApplicationName: String?
     public let allowedToolNames: [String]
     public let fileSearchScopePaths: [String]
+    public let projectWorkspaceHints: [ProjectWorkspaceHint]
 
     public init(
         activeApplicationName: String? = nil,
         allowedToolNames: [String] = [],
-        fileSearchScopePaths: [String] = []
+        fileSearchScopePaths: [String] = [],
+        projectWorkspaceHints: [ProjectWorkspaceHint] = []
     ) {
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
         self.fileSearchScopePaths = fileSearchScopePaths
+        self.projectWorkspaceHints = projectWorkspaceHints
     }
 
     public var promptFragment: String {
@@ -90,6 +93,11 @@ public struct AssistantContext: Equatable, Sendable {
             } else {
                 lines.append("File search folders: \(fileSearchScopePaths.joined(separator: ", "))")
             }
+        }
+
+        if !projectWorkspaceHints.isEmpty {
+            lines.append("Project workspaces:")
+            lines += projectWorkspaceHints.map(\.promptLine)
         }
 
         return lines.joined(separator: "\n")
