@@ -252,6 +252,56 @@ private struct WaitTimeout: Error {}
     #expect(!model.permissionSnapshots.isEmpty)
 }
 
+@MainActor
+@Test func appModelSettingsPersistExpectedTogglesAcrossRelaunch() {
+    let keys = CerberusSettingsKeys.persistedKeys
+    let priorValues = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
+    defer {
+        for (key, value) in priorValues {
+            if let value {
+                UserDefaults.standard.set(value, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+    }
+
+    for key in keys {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
+    let model = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+    model.requiresConfirmationForAllTools = true
+    model.requiresLocalFoundationModels = false
+    model.usesConfiguredAdapter = false
+    model.hotKeyConfigurationID = HotKeyConfiguration.commandOptionSpace.id
+    model.prefersSoundWakeWordClassifier = true
+    model.routesSpeechDirectlyToAirPods = true
+    model.allowsMailBodySearch = true
+    model.wakePhrase = "hello cerberus"
+    model.isShellProposalMode = false
+    model.headGestureCooldownSeconds = 0.8
+
+    let relaunchedModel = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    #expect(relaunchedModel.requiresConfirmationForAllTools)
+    #expect(!relaunchedModel.requiresLocalFoundationModels)
+    #expect(!relaunchedModel.usesConfiguredAdapter)
+    #expect(relaunchedModel.hotKeyConfigurationID == HotKeyConfiguration.commandOptionSpace.id)
+    #expect(relaunchedModel.prefersSoundWakeWordClassifier)
+    #expect(relaunchedModel.routesSpeechDirectlyToAirPods)
+    #expect(relaunchedModel.allowsMailBodySearch)
+    #expect(relaunchedModel.wakePhrase == "hello cerberus")
+    #expect(!relaunchedModel.isShellProposalMode)
+    #expect(relaunchedModel.headGestureCooldownSeconds == 0.8)
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 1_000_000_000,
     predicate: @MainActor @escaping () -> Bool
