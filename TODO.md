@@ -143,7 +143,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Tool safety and confirmation QA
 
-- [ ] [P0][safety] Validate disabled ambient tools cannot execute through `ToolRegistry`.
 - [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
 - [ ] [P0][safety] Validate screen tools fail closed without Screen Recording permission.
 - [ ] [P1][safety] Add a user-visible clear/reset control for audit history if product policy allows deletion.

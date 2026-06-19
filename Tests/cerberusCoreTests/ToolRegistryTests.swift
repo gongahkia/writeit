@@ -66,6 +66,22 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(result.spokenSummary == "hello")
 }
 
+@Test func registryDeniesDisabledAmbientTools() async throws {
+    let registry = try ToolRegistry(
+        tools: [AnyAssistantTool(EchoTool())],
+        toolAllowlist: ToolSessionAllowlist(disabledToolNames: ["test.echo"])
+    )
+    let invocation = try ToolInvocation(
+        toolName: "test.echo",
+        arguments: EchoTool.Arguments(text: "hello")
+    )
+
+    await #expect(throws: ToolExecutionError.denied("test.echo is not enabled.")) {
+        _ = try await registry.run(invocation)
+    }
+    #expect(await registry.summaries().isEmpty)
+}
+
 @Test func foundationModelToolAdapterRunsAssistantTool() async throws {
     let adapter = FoundationModelToolAdapter(EchoTool())
 

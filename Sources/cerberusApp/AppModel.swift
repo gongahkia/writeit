@@ -320,11 +320,17 @@ final class CerberusAppModel: ObservableObject {
         var allowlist = ambientToolAllowlist
         allowlist.setEnabled(toolName, enabled: enabled)
         ambientToolAllowlist = allowlist
+        Task {
+            await toolRegistry.setToolEnabled(toolName, enabled: enabled)
+        }
         refreshAssistantToolPrompt()
     }
 
     func resetAmbientToolAllowlist() {
         ambientToolAllowlist = ToolSessionAllowlist()
+        Task {
+            await toolRegistry.resetToolAllowlist()
+        }
         refreshAssistantToolPrompt()
     }
 
