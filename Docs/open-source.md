@@ -38,6 +38,8 @@ Verify security and analysis settings. GitHub security/analysis docs were re-che
 
 Current GitHub state checked on 2026-06-19 for `gongahkia/cerberus`: repository visibility is `PRIVATE`; Dependabot alerts return HTTP 204 and Dependabot security updates report `enabled=true`, `paused=false`. Secret scanning and push protection could not be enabled through the repository API because GitHub returned `Secret scanning is not available for this repository`.
 
+GitHub settings were reviewed on 2026-06-19 before public release. The repository is private with default branch `main`; Issues, Projects, Wiki, and forking are enabled; merge, squash, and rebase merges are enabled; auto-merge and delete-branch-on-merge are disabled; Actions are enabled with all actions allowed, SHA pinning not required, and default workflow token permissions set to read. GitHub Actions has no runs and no artifacts, so there are no hosted logs or artifacts to scrub before the first public release.
+
 Official references:
 
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
