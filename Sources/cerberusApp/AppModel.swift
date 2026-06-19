@@ -106,7 +106,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var pendingConfirmation: PendingConfirmation?
     @Published private(set) var isConfirmationVoiceActive = false
     @Published private(set) var isWakeWordMonitoring = false
-    @Published private(set) var wakeWordMonitorLine = "Wake phrase uses speech transcription"
+    @Published private(set) var wakeWordMonitorLine = WakeWordMonitorStatusLine.speechTranscription
     @Published private(set) var audioOutputRouteLine = "Output route unknown"
     @Published private(set) var speechOutputRoutingLine = "Speech follows system output"
     @Published private(set) var isAudioOutputLikelyAirPods = false
@@ -834,7 +834,7 @@ final class CerberusAppModel: ObservableObject {
 
     private func startSpeechWakeWordMonitoring() {
         isWakeWordMonitoring = true
-        wakeWordMonitorLine = "Wake phrase uses speech transcription"
+        wakeWordMonitorLine = WakeWordMonitorStatusLine.speechTranscription
         statusLine = "Wake phrase armed."
         Task {
             do {
@@ -853,7 +853,7 @@ final class CerberusAppModel: ObservableObject {
         let configuration: WakeWordSoundClassifierConfiguration
         do {
             guard let loadedConfiguration = try WakeWordSoundClassifierConfigurationLoader.loadIfPresent() else {
-                wakeWordMonitorLine = "Sound wake model config not found; using speech phrase"
+                wakeWordMonitorLine = WakeWordMonitorStatusLine.soundModelConfigMissingUsingSpeechPhrase
                 return false
             }
             configuration = loadedConfiguration
@@ -863,7 +863,7 @@ final class CerberusAppModel: ObservableObject {
         }
 
         isWakeWordMonitoring = true
-        wakeWordMonitorLine = "Sound wake model armed"
+        wakeWordMonitorLine = WakeWordMonitorStatusLine.soundModelArmed
         statusLine = "Wake sound model armed."
         Task {
             do {
@@ -899,8 +899,8 @@ final class CerberusAppModel: ObservableObject {
 
         let topClassification = classifications.max { $0.confidence < $1.confidence }
         wakeWordMonitorLine = topClassification.map {
-            "Sound wake matched \($0.identifier) \(Int($0.confidence * 100))%"
-        } ?? "Sound wake matched"
+            WakeWordMonitorStatusLine.soundMatched(identifier: $0.identifier, confidence: $0.confidence)
+        } ?? WakeWordMonitorStatusLine.soundMatched
 
         Task {
             await stopWakeWordMonitoringAndWait()
@@ -943,12 +943,12 @@ final class CerberusAppModel: ObservableObject {
         if prefersSoundWakeWordClassifier {
             let configURL = WakeWordSoundClassifierConfigurationLoader.defaultFileURL()
             if FileManager.default.fileExists(atPath: configURL.path) {
-                wakeWordMonitorLine = "Sound wake model configured"
+                wakeWordMonitorLine = WakeWordMonitorStatusLine.soundModelConfigured
             } else {
-                wakeWordMonitorLine = "Sound wake model config missing"
+                wakeWordMonitorLine = WakeWordMonitorStatusLine.soundModelConfigMissing
             }
         } else {
-            wakeWordMonitorLine = "Wake phrase uses speech transcription"
+            wakeWordMonitorLine = WakeWordMonitorStatusLine.speechTranscription
         }
     }
 

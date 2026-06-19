@@ -45,6 +45,16 @@ import Testing
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }
 
+@Test func wakeWordMonitorStatusLinesStayStable() {
+    #expect(WakeWordMonitorStatusLine.speechTranscription == "Wake phrase uses speech transcription")
+    #expect(WakeWordMonitorStatusLine.soundModelConfigured == "Sound wake model configured")
+    #expect(WakeWordMonitorStatusLine.soundModelConfigMissing == "Sound wake model config missing")
+    #expect(WakeWordMonitorStatusLine.soundModelConfigMissingUsingSpeechPhrase == "Sound wake model config not found; using speech phrase")
+    #expect(WakeWordMonitorStatusLine.soundModelArmed == "Sound wake model armed")
+    #expect(WakeWordMonitorStatusLine.soundMatched == "Sound wake matched")
+    #expect(WakeWordMonitorStatusLine.soundMatched(identifier: "hey_cerberus", confidence: 0.873) == "Sound wake matched hey_cerberus 87%")
+}
+
 @Test func appInfoPlistDeclaresRequiredUsageDescriptions() throws {
     let plist = try loadPlist("Sources/cerberusApp/Resources/Info.plist")
     let usageDescriptionKeys = [
