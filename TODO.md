@@ -144,7 +144,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## Tool safety and confirmation QA
 
 - [ ] [P0][safety] Validate disabled ambient tools cannot execute through `ToolRegistry`.
-- [ ] [P0][safety] Validate `shell.run` uses `ShellExecService.xpc` in the packaged `.app`.
 - [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
 - [ ] [P0][safety] Validate screen tools fail closed without Screen Recording permission.
 - [ ] [P0][safety] Validate prompt-boundary escaping for nested tool payloads from every tool family.

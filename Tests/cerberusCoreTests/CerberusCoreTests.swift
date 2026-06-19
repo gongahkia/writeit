@@ -98,6 +98,12 @@ import Testing
     ])
 }
 
+@Test func shellXPCExecutorMatchesEmbeddedServiceIdentifier() throws {
+    let xpcInfo = try loadPlist("Config/ShellExecService-Info.plist")
+
+    #expect(xpcInfo["CFBundleIdentifier"] as? String == ShellXPCCommandExecutor().serviceName)
+}
+
 @Test func demoRecorderCheckModeAcceptsRenderedDemoPath() throws {
     let result = try runScript(
         "Scripts/record_demo.sh",
