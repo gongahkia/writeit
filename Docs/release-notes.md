@@ -13,6 +13,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - Foundation Models planning path with native read-only tool adapter support and benchmark tooling
 - confirmation-gated tool registry for mutating built-in tools
 - app-specific tool-pack hints for Xcode, Terminal, Safari, Chrome, Calendar, Mail, Music, and Finder
+- audited cancellable background task queue primitive
 - read-only Safari/Chrome tab context plus confirmation-gated browser URL opening
 - read-only Finder selection context plus confirmation-gated Finder reveal
 - read-only Shortcuts listing plus confirmation-gated Shortcut execution

@@ -21,6 +21,7 @@ The project is intentionally scoped as a native macOS utility:
 - per-session tool allowlist settings for the ambient tool surface
 - file search is limited to Settings-approved folders
 - tool implementations are audited, read-default, and confirmation-gated for risky actions
+- cancellable background task queue records terminal states into the audit log
 - calendar event creation is a separate mutating tool and requires confirmation
 - reminder creation is a separate mutating tool and requires confirmation
 - reminder completion is a separate mutating tool and requires confirmation

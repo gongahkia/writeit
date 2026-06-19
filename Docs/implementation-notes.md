@@ -50,6 +50,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `notes.search` is read-only and searches Notes.app note title/body text through Apple Events.
 - Audit logs are hash-chained and HMAC-signed at `~/Library/Application Support/cerberus/audit.log`.
 - The panel shows the last 5 audit entries and answers "what did cerberus just do?" from the audit log.
+- Background work uses `BackgroundTaskQueue` for queued/running/succeeded/failed/cancelled task records; terminal states can append `background.task` audit entries, and cancellation marks queued/running work as cancelled.
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key. Memory reads rank local records with an in-process sparse token vector index; no embedding service or network call is used.
 - App-owned default write paths are centralized under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.

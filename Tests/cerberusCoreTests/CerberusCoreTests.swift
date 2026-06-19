@@ -5,6 +5,8 @@ import CoreImage
 import Testing
 @testable import cerberusCore
 
+private struct WaitTimeout: Error {}
+
 @Test func appMetadataIsStable() {
     #expect(CerberusCore.appName == "cerberus")
     #expect(CerberusCore.bundleIdentifier == "dev.gongahkia.cerberus")
@@ -238,6 +240,51 @@ import Testing
     #expect(await counter.value() == 0)
 }
 
+@Test func backgroundTaskQueueRunsAndAuditsCompletion() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("background-audit.log")
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 6, count: 32))
+    let queue = BackgroundTaskQueue(auditLog: auditLog)
+
+    let id = await queue.enqueue(displayName: "export", argumentsSummary: "dataset") {
+        "wrote dataset"
+    }
+
+    try await waitUntilBackgroundTask(queue, id: id, status: .succeeded)
+    let record = try #require(await queue.record(id: id))
+    let entries = try await auditLog.entries()
+
+    #expect(record.resultSummary == "wrote dataset")
+    #expect(entries.last?.toolName == "background.task")
+    #expect(entries.last?.argumentsSummary == "export: dataset")
+    #expect(entries.last?.resultSummary == "succeeded: wrote dataset")
+}
+
+@Test func backgroundTaskQueueCancelsPendingWork() async throws {
+    let sleeper = ManualSleeper()
+    let counter = AsyncCounter()
+    let queue = BackgroundTaskQueue()
+
+    let id = await queue.enqueue(displayName: "slow export") {
+        try await sleeper.sleep(100)
+        try Task.checkCancellation()
+        await counter.increment()
+        return "done"
+    }
+
+    while await queue.record(id: id)?.status != .running {
+        await Task.yield()
+    }
+    await sleeper.waitForPendingSleep()
+    await queue.cancel(id: id)
+    await sleeper.resumeNext()
+    try await waitUntilBackgroundTask(queue, id: id, status: .cancelled)
+
+    #expect(await counter.value() == 0)
+    #expect(await queue.record(id: id)?.resultSummary == "cancelled")
+}
+
 @Test func earconMapperDistinguishesSameDestinationTransitions() {
     let speechDone = AssistantTransition(from: .speaking, event: .speechFinished, to: .idle)
     let speechCancel = AssistantTransition(from: .speaking, event: .cancelRequested, to: .idle)
@@ -252,6 +299,20 @@ import Testing
     #expect(EarconMapper.earcon(for: confirmDenied) != EarconMapper.earcon(for: speechCancel))
     #expect(EarconMapper.earcon(for: responseReady) == .speaking)
     #expect(EarconMapper.earcon(for: executionFinished) == .toolResult)
+}
+
+private func waitUntilBackgroundTask(
+    _ queue: BackgroundTaskQueue,
+    id: UUID,
+    status: BackgroundTaskStatus
+) async throws {
+    for _ in 0..<1_000 {
+        if await queue.record(id: id)?.status == status {
+            return
+        }
+        await Task.yield()
+    }
+    throw WaitTimeout()
 }
 
 @Test func systemPromptDocumentsUntrustedToolOutput() {

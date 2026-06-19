@@ -168,7 +168,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## V2 and product expansion
 
-- [ ] [P2][product][Inference] Add background task queue only after cancellation and audit semantics are designed.
 - [ ] [P2][product][Inference] Add plugin-like local tool registration only after security model review.
 - [ ] [P3][product][Speculation] Explore iOS companion only as a separate project.
 - [ ] [P3][product][Speculation] Explore non-AirPods trigger surfaces only if AirPods validation is weak.
