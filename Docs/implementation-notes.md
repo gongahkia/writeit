@@ -53,6 +53,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Transcripts are AES-GCM encrypted at `~/Library/Application Support/cerberus/transcripts.jsonl.enc` with a Keychain-stored key.
 - Memory records are AES-GCM encrypted at `~/Library/Application Support/cerberus/memory.jsonl.enc` with a separate Keychain-stored key.
 - App-owned default write paths are centralized under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.
+- `finder.selection` reads the front Finder folder and selected item paths through Finder Apple Events. `finder.reveal` uses `NSWorkspace.activateFileViewerSelecting` for an existing path and is confirmation-gated because it changes Finder UI state.
 - `mail.search` reads Mail.app messages through Apple Events and is limited to subject/sender search unless body snippets are explicitly requested.
 - `music.now_playing` reads Music.app state, while `music.control` is separate, mutates playback state, and is blocked by confirmation unless approved.
 - `shortcuts.list` shells directly to `/usr/bin/shortcuts list` as a read-only inventory tool through the app-owned tool loop. `shortcuts.run` shells directly to `/usr/bin/shortcuts run` with argument arrays and optional temp-file input; it is mutating and remains confirmation-gated.

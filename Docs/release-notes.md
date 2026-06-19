@@ -12,6 +12,7 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - AirPods motion trigger path with head-gesture validation logging and evaluator scripts
 - Foundation Models planning path with native read-only tool adapter support and benchmark tooling
 - confirmation-gated tool registry for mutating built-in tools
+- read-only Finder selection context plus confirmation-gated Finder reveal
 - read-only Shortcuts listing plus confirmation-gated Shortcut execution
 - encrypted local transcript and memory storage
 - default-off shell execution routed through `ShellExecService.xpc`

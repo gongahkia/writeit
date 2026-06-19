@@ -69,6 +69,24 @@ private actor RecordingShortcutsRunner: ShortcutsRunning {
     }
 }
 
+private actor RecordingFinderSelectionRunner: FinderSelectionRunning {
+    func snapshot() async throws -> FinderSnapshot {
+        FinderSnapshot(
+            frontFolderPath: "/Users/example/Desktop",
+            selectedPaths: ["/Users/example/Desktop/a.txt", "/Users/example/Desktop/b.txt"]
+        )
+    }
+}
+
+private actor RecordingFinderRevealRunner: FinderRevealRunning {
+    private(set) var paths: [String] = []
+
+    func reveal(path: String) async throws -> String {
+        paths.append(path)
+        return "Revealed \(path) in Finder."
+    }
+}
+
 @Test func registryRunsTypedTool() async throws {
     let registry = try ToolRegistry(tools: [AnyAssistantTool(EchoTool())])
     let invocation = try ToolInvocation(
@@ -153,6 +171,7 @@ private actor RecordingShortcutsRunner: ShortcutsRunning {
         "calendar.read",
         "contacts.search",
         "files.search",
+        "finder.selection",
         "mail.search",
         "memory.read",
         "music.now_playing",
@@ -183,6 +202,7 @@ private actor RecordingShortcutsRunner: ShortcutsRunning {
         "calendar.create",
         "calendar.delete",
         "calendar.edit",
+        "finder.reveal",
         "memory.delete",
         "memory.write",
         "music.control",
@@ -285,6 +305,43 @@ private actor RecordingShortcutsRunner: ShortcutsRunning {
 
     let result = try await registry.run(invocation, confirmed: true)
     #expect(result.metadata["dryRun"] == "false")
+}
+
+@Test func finderSelectionFormatsSnapshot() async throws {
+    let tool = FinderSelectionTool(runner: RecordingFinderSelectionRunner())
+    let result = try await tool.run(arguments: FinderSelectionTool.Arguments())
+
+    #expect(result.toolName == "finder.selection")
+    #expect(result.spokenSummary == "Finder has 2 selected items.")
+    #expect(result.untrustedPayload.contains("Front folder: /Users/example/Desktop"))
+    #expect(result.untrustedPayload.contains("- /Users/example/Desktop/a.txt"))
+    #expect(result.metadata["selectedCount"] == "2")
+}
+
+@Test func finderRevealRequiresConfirmation() async throws {
+    let runner = RecordingFinderRevealRunner()
+    let tool = FinderRevealTool(runner: runner)
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: FinderRevealTool.Arguments(path: "/tmp/report.pdf")
+    )
+
+    await #expect(throws: ToolExecutionError.confirmationRequired("finder.reveal")) {
+        _ = try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+    let paths = await runner.paths
+
+    #expect(result.spokenSummary == "Revealed /tmp/report.pdf in Finder.")
+    #expect(paths == ["/tmp/report.pdf"])
+}
+
+@Test func finderRevealRejectsBlankPath() {
+    #expect(throws: ToolExecutionError.invalidArguments("path is required")) {
+        try FinderRevealTool().validate(FinderRevealTool.Arguments(path: " "))
+    }
 }
 
 @Test func shortcutsListFormatsRunnerOutput() async throws {
