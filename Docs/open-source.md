@@ -36,6 +36,8 @@ Review GitHub's private-to-public visibility effects before changing visibility.
 
 Verify security and analysis settings. GitHub security/analysis docs were re-checked on 2026-06-19 and recommend Dependabot alerts, secret scanning, push protection, and code scanning for public repositories; dependency graph remains permanently enabled for public repositories.
 
+Current GitHub state checked on 2026-06-19 for `gongahkia/cerberus`: repository visibility is `PRIVATE`; Dependabot alerts return HTTP 204 and Dependabot security updates report `enabled=true`, `paused=false`. Secret scanning and push protection could not be enabled through the repository API because GitHub returned `Secret scanning is not available for this repository`.
+
 Official references:
 
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository

@@ -32,7 +32,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][oss] Run `Scripts/open_source_check.sh license` after adding the license.
 - [ ] [P0][oss][manual] Review GitHub Actions logs and artifacts for sensitive paths or data before making the repository public.
 - [ ] [P0][oss][manual] Review GitHub repository settings before making the repository public.
-- [ ] [P0][oss][manual] Enable or verify Dependabot alerts for the public repository.
 - [ ] [P0][oss][manual] Enable or verify secret scanning for the public repository.
 - [ ] [P0][oss][manual] Enable or verify push protection for the public repository.
 - [ ] [P0][oss][manual] Enable or verify code scanning if the repo will accept outside contributions.
