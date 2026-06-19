@@ -132,3 +132,5 @@ Not implemented:
 - adapter training
 
 Apple's adapter training toolkit is a separate Python workflow. It requires prompt/response JSONL data, train/eval splits, Python 3.11+, toolkit downloads tied to a specific system-model version, and separate adapters for model-version updates. `Scripts/train_adapter.sh` orchestrates the toolkit after you download it; it cannot train without the toolkit assets. I cannot verify a local FoundationModels Swift training API in the installed SDK; the exposed Swift API supports adapter loading, compilation, compatibility lookup, and cleanup.
+
+Apple's adapter training page was re-checked on 2026-06-19 at `https://developer.apple.com/apple-intelligence/foundation-models-adapter/`. Apple documents version 26.0.0 as the last toolkit release, compatible with macOS/iOS/iPadOS/visionOS 26 and not 27 or later. Downloading any toolkit version requires Apple Developer Program membership and accepting the toolkit terms. Local training also requires Apple silicon with at least 32 GB memory or a Linux GPU machine, Python 3.11+, quality prompt/response data, and separate adapters for every system model version.
