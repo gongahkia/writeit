@@ -30,7 +30,7 @@ See `SECURITY.md` for vulnerability reporting and local-data handling expectatio
 
 ## Manual Decisions
 
-Choose the license before publishing. GitHub documents that a public repository is not automatically open source without a license that grants reuse, modification, and distribution rights.
+Choose the license before publishing. GitHub license docs were re-checked on 2026-06-19 and still document that a public repository is not automatically open source without a license that grants reuse, modification, and distribution rights. They also recommend putting the license text in a root `LICENSE` file and noting license terms in the README.
 
 Review GitHub's private-to-public visibility effects before changing visibility. GitHub documents that code, activity, Actions logs, and forks become publicly visible, and push rulesets can be disabled by the transition.
 
