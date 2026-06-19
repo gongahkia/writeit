@@ -112,4 +112,21 @@ enum ScreenCaptureSupport {
             throw ToolExecutionError.denied("Could not write screen snapshot file.")
         }
     }
+
+    static func crop(_ image: CGImage, to region: ScreenOCRRegion) throws -> CGImage {
+        guard region != .full else {
+            return image
+        }
+
+        let cropRect = CGRect(
+            x: (region.x * Double(image.width)).rounded(.down),
+            y: (region.y * Double(image.height)).rounded(.down),
+            width: max(1, (region.width * Double(image.width)).rounded()),
+            height: max(1, (region.height * Double(image.height)).rounded())
+        ).integral
+        guard let croppedImage = image.cropping(to: cropRect) else {
+            throw ToolExecutionError.invalidArguments("Screen OCR region could not be cropped.")
+        }
+        return croppedImage
+    }
 }

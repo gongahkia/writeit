@@ -719,8 +719,22 @@ import Testing
 
     #expect(payload.contains("image: 400x200"))
     #expect(payload.contains("scope: main_display"))
+    #expect(payload.contains("region: x=0.00 y=0.00 w=1.00 h=1.00"))
     #expect(payload.contains("normalizedBox: x=0.25 y=0.50 w=0.50 h=0.25"))
     #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
+}
+
+@Test func screenOCRRegionParsesAndCropsImage() throws {
+    let region = try ScreenOCRRegion.parse(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+    let image = try ScreenCaptureSupport.crop(makeTestImage(width: 80, height: 40), to: region)
+
+    #expect(region.description == "x=0.25 y=0.25 w=0.50 h=0.50")
+    #expect(image.width == 40)
+    #expect(image.height == 20)
+    #expect(try ScreenOCRRegion.parse(x: nil, y: nil, width: nil, height: nil) == .full)
+    #expect(throws: ToolExecutionError.self) {
+        try ScreenOCRRegion.parse(x: 0, y: 0, width: 1.1, height: 1)
+    }
 }
 
 @Test func screenOCRPayloadRedactsSensitiveText() {
@@ -860,15 +874,15 @@ import Testing
     #expect(FileManager.default.fileExists(atPath: unrelated.path))
 }
 
-private func makeTestImage() throws -> CGImage {
-    let bytes = Data([255, 255, 255, 255])
+private func makeTestImage(width: Int = 1, height: Int = 1) throws -> CGImage {
+    let bytes = Data(repeating: 255, count: width * height * 4)
     guard let provider = CGDataProvider(data: bytes as CFData),
           let image = CGImage(
-        width: 1,
-        height: 1,
+        width: width,
+        height: height,
         bitsPerComponent: 8,
         bitsPerPixel: 32,
-        bytesPerRow: 4,
+        bytesPerRow: width * 4,
         space: CGColorSpaceCreateDeviceRGB(),
         bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
         provider: provider,
