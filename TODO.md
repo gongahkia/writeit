@@ -300,7 +300,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][docs] Run `Scripts/release_check.sh demo`.
 - [ ] [P0][docs] Add a short demo script covering trigger, speech, one read-only tool, one confirmation-gated tool, and audit review.
 - [ ] [P1][docs] Add screenshots of the menu bar panel after UI stabilizes.
-- [ ] [P1][docs] Add a privacy section explaining local processing, tool egress, and stored encrypted files.
 - [ ] [P1][docs] Add a permissions section explaining Accessibility, Input Monitoring, Microphone, Speech Recognition, Calendar, Reminders, Screen Recording, Automation, and Network Client.
 - [ ] [P1][docs] Add a troubleshooting section for Foundation Models unavailable.
 - [ ] [P1][docs] Add a troubleshooting section for SpeechAnalyzer unavailable.

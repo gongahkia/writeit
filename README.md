@@ -43,6 +43,12 @@ The project is intentionally scoped as a native macOS utility:
 This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app`, applies `Config/cerberus.entitlements`, and embeds `ShellExecService` in `Contents/XPCServices`.
 `Scripts/release_check.sh` verifies Developer ID signing, notarization, demo-video, and open-source release gates.
 
+## Privacy
+
+Planning, speech transcription, OCR, transcripts, memory, audit logs, wake samples, adapter config, MCP config, and screen snapshots are local by default. Transcripts and memory records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
+
+Tool egress happens only through the tool the user enables or requests: Apple Events for Mail/Music/app control, EventKit for Calendar/Reminders, approved folders for file search, configured MCP servers, allowlisted web domains, and the default-off shell XPC service. Mutating built-in tools and `mcp.call` require confirmation before execution.
+
 ## Development Notes
 
 Primary validation is `swift test` on macOS with Xcode 26.
