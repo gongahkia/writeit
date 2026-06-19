@@ -888,6 +888,56 @@ final class CerberusAppModel: ObservableObject {
         updateHeadGestureThresholds()
     }
 
+    func exportHeadGestureThresholdProfile() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "cerberus-head-gesture-profile.json"
+        panel.prompt = "Export"
+        panel.message = "Export AirPods gesture thresholds as JSON."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            let profile = try HeadGestureThresholdProfile(
+                nodThreshold: headNodThreshold,
+                shakeThreshold: headShakeThreshold,
+                cooldownSeconds: headGestureCooldownSeconds
+            )
+            try profile.write(to: url)
+            statusLine = "Exported AirPods gesture profile to \(url.path)"
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
+    func importHeadGestureThresholdProfile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Import"
+        panel.message = "Choose a cerberus AirPods gesture profile JSON file."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            let profile = try HeadGestureThresholdProfile.read(from: url)
+            headNodThreshold = profile.nodThreshold
+            headShakeThreshold = profile.shakeThreshold
+            headGestureCooldownSeconds = profile.cooldownSeconds
+            updateHeadGestureThresholds()
+            statusLine = "Imported AirPods gesture profile from \(url.path)"
+        } catch {
+            statusLine = error.localizedDescription
+        }
+    }
+
     func approvePendingConfirmation() {
         stopConfirmationVoiceCapture()
         Task {

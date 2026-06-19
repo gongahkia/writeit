@@ -280,6 +280,30 @@ import Testing
     #expect(classifier.classify(pitch: 1.4, yaw: 0, at: start.addingTimeInterval(2.0)) == nil)
 }
 
+@Test func headGestureThresholdProfileRoundTripsJSON() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let fileURL = directory.appendingPathComponent("profile.json")
+    let profile = try HeadGestureThresholdProfile(
+        nodThreshold: 0.4,
+        shakeThreshold: 0.5,
+        cooldownSeconds: 1.7
+    )
+
+    try profile.write(to: fileURL)
+
+    #expect(try HeadGestureThresholdProfile.read(from: fileURL) == profile)
+}
+
+@Test func headGestureThresholdProfileRejectsInvalidValues() throws {
+    #expect(throws: HeadGestureThresholdProfileError.invalidValue("nodThreshold")) {
+        try HeadGestureThresholdProfile(nodThreshold: 0.1, shakeThreshold: 0.5, cooldownSeconds: 1.7)
+    }
+    #expect(throws: HeadGestureThresholdProfileError.invalidValue("cooldownSeconds")) {
+        try HeadGestureThresholdProfile(nodThreshold: 0.4, shakeThreshold: 0.5, cooldownSeconds: 3.5)
+    }
+}
+
 @Test func headGestureValidationLogWritesCSV() async throws {
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)

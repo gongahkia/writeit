@@ -847,6 +847,21 @@ struct StatusPanel: View {
                 gestureSlider("Nod", value: $model.headNodThreshold)
                 gestureSlider("Shake", value: $model.headShakeThreshold)
                 cooldownSlider("Cooldown", value: $model.headGestureCooldownSeconds)
+                HStack {
+                    Button {
+                        model.exportHeadGestureThresholdProfile()
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        model.importHeadGestureThresholdProfile()
+                    } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Toggle("Log gesture validation CSV", isOn: $model.isHeadGestureValidationLoggingEnabled)
                     .font(.caption)
             }
