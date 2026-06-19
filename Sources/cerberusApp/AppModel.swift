@@ -129,6 +129,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published private(set) var mcpServerHealthLines: [MCPServerHealthLine] = []
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
+    @Published private(set) var foundationModelAvailabilityDetailLine = "Refresh to check Apple Intelligence state"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
     @Published private(set) var foundationModelProfile = "default"
     @Published private(set) var screenSnapshotStatusLine = "Screen snapshots not checked"
@@ -660,6 +661,7 @@ final class CerberusAppModel: ObservableObject {
 
     func refreshFoundationModelStatus() {
         foundationModelAvailabilityLine = foundationModelStatusProvider.statusLine()
+        foundationModelAvailabilityDetailLine = foundationModelStatusProvider.diagnosticText()
     }
 
     private func refreshPreferredSpeechOutputDevice() {

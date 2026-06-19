@@ -732,6 +732,11 @@ struct StatusPanel: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
 
+                Text(model.foundationModelAvailabilityDetailLine)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+
                 Label(model.foundationModelAdapterStatusLine, systemImage: "shippingbox")
                     .font(.caption)
                     .foregroundStyle(.secondary)

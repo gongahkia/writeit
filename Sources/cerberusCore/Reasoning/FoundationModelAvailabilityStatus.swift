@@ -15,6 +15,10 @@ public struct FoundationModelAvailabilityStatusProvider: Sendable {
         Self.fallbackText(for: availability())
     }
 
+    public func diagnosticText() -> String {
+        Self.diagnosticText(for: availability())
+    }
+
     public func isAvailable() -> Bool {
         Self.isAvailable(availability())
     }
@@ -63,6 +67,26 @@ public struct FoundationModelAvailabilityStatusProvider: Sendable {
             }
         @unknown default:
             "Foundation Models status is unknown. Check System Settings and try again."
+        }
+    }
+
+    public static func diagnosticText(for availability: SystemLanguageModel.Availability) -> String {
+        switch availability {
+        case .available:
+            "Local model planning is ready."
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible:
+                "This Mac does not report Foundation Models eligibility; use an Apple Intelligence capable target Mac."
+            case .appleIntelligenceNotEnabled:
+                "Open System Settings and enable Apple Intelligence before running model planning."
+            case .modelNotReady:
+                "Keep the Mac online and unlocked until Apple Intelligence finishes downloading its local model."
+            @unknown default:
+                "Check Apple Intelligence state in System Settings, then refresh this status."
+            }
+        @unknown default:
+            "Refresh after confirming Apple Intelligence state in System Settings."
         }
     }
 }

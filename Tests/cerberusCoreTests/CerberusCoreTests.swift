@@ -895,8 +895,11 @@ private func runScript(
     #expect(!disabled.isAvailable())
     #expect(disabled.statusLine() == "Foundation Models unavailable: Apple Intelligence not enabled")
     #expect(disabled.fallbackText() == "Apple Intelligence is not enabled. Turn it on in System Settings to use model planning.")
+    #expect(disabled.diagnosticText().contains("enable Apple Intelligence"))
     #expect(pendingDownload.fallbackText() == "The local model is not ready yet. Finish the Apple Intelligence model download, then try again.")
+    #expect(pendingDownload.diagnosticText().contains("finishes downloading"))
     #expect(ineligible.fallbackText() == "Foundation Models are unavailable on this Mac.")
+    #expect(ineligible.diagnosticText().contains("Apple Intelligence capable target Mac"))
 }
 
 @Test func adapterTrainingDatasetExporterWritesPromptResponseJSONL() throws {
