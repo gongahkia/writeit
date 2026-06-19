@@ -26,6 +26,8 @@ Scripts/record_demo.sh
 
 The script builds `.dist/cerberus.app` if needed, opens it, and writes `.dist/demo/cerberus-demo.mov`.
 
+Use `Docs/demo-script.md` for the trigger, speech, read-only tool, confirmation-gated tool, and audit-review sequence.
+
 Preflight without starting screen recording:
 
 ```sh
