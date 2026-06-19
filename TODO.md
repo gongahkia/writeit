@@ -289,7 +289,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][tests] Add tests for confirmation voice timeout using injectable clocks.
 - [ ] [P1][tests] Add tests for app model transitions using fake transcriber, speaker, assistant, and tools.
 - [ ] [P1][tests] Add tests for packaged app bundle file layout.
-- [ ] [P1][tests] Add tests for adapter dataset privacy/redaction once redaction exists.
 - [ ] [P1][tests] Add tests for MCP config validation edge cases.
 - [ ] [P1][tests] Add tests for MCP OAuth config precedence.
 - [ ] [P1][tests] Add tests for file-search approved-folder persistence failures.
