@@ -403,6 +403,31 @@ import Testing
     #expect(policy.completionNotification(for: record)?.title == "mail.search failed")
 }
 
+@Test func localTelemetryStoreWritesJSONLRecords() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("telemetry.jsonl")
+    let store = LocalTelemetryStore(fileURL: fileURL)
+    let record = LocalTelemetryRecord(
+        id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+        timestamp: Date(timeIntervalSince1970: 1_000),
+        category: .toolExecution,
+        name: "shell.run",
+        durationSeconds: 1.25,
+        succeeded: true,
+        qualitySignal: "success",
+        modelProfile: "default"
+    )
+
+    try await store.append(record)
+
+    #expect(try await store.records() == [record])
+    let text = try String(contentsOf: fileURL, encoding: .utf8)
+    #expect(text.contains(#""category":"tool_execution""#))
+    #expect(!text.contains("request"))
+    #expect(!text.contains("arguments"))
+}
+
 @Test func toolOutputSummarizationFallbackUsesSpokenSummaryWhenSummarizerFails() async {
     let result = ToolResult(
         toolName: "files.search",

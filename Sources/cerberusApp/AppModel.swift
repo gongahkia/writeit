@@ -236,6 +236,7 @@ final class CerberusAppModel: ObservableObject {
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore = EncryptedTranscriptStore()
     private let memoryStore = EncryptedMemoryStore()
+    private let telemetryStore = LocalTelemetryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
     private let foundationModelStatusProvider = FoundationModelAvailabilityStatusProvider()
     private let taskNotificationPolicy = LongRunningTaskNotificationPolicy()
@@ -386,6 +387,7 @@ final class CerberusAppModel: ObservableObject {
             AppDataLocation(name: "Audit log", url: AuditLog.defaultFileURL()),
             AppDataLocation(name: "Transcripts", url: EncryptedTranscriptStore.defaultFileURL()),
             AppDataLocation(name: "Memories", url: EncryptedMemoryStore.defaultFileURL()),
+            AppDataLocation(name: "Telemetry", url: LocalTelemetryStore.defaultFileURL()),
             AppDataLocation(name: "Wake samples", url: WakeWordSampleDataset.defaultDirectoryURL()),
             AppDataLocation(name: "Adapter config", url: FoundationModelAdapterLoader.defaultFileURL()),
             AppDataLocation(name: "MCP config", url: MCPServerRegistry.defaultFileURL()),
@@ -1298,8 +1300,19 @@ final class CerberusAppModel: ObservableObject {
                 allowedToolNames: enabledToolNames,
                 fileSearchScopePaths: fileSearchScopePaths
             )
+            let startedAt = Date()
+            var succeeded = false
+            defer {
+                recordTelemetry(
+                    category: .planning,
+                    name: "assistant.plan",
+                    startedAt: startedAt,
+                    succeeded: succeeded
+                )
+            }
             let plan = try await assistant.plan(for: request, context: context)
             recordModelSuccess()
+            succeeded = true
             await handle(plan)
         } catch {
             handleModelFailure(error)
@@ -1350,6 +1363,12 @@ final class CerberusAppModel: ObservableObject {
         let startedAt = Date()
         var succeeded = false
         defer {
+            recordTelemetry(
+                category: .toolExecution,
+                name: "native.\(plan.toolName)",
+                startedAt: startedAt,
+                succeeded: succeeded
+            )
             notifyLongRunningTaskIfNeeded(
                 id: "native-\(plan.toolName)-\(startedAt.timeIntervalSince1970)",
                 displayName: plan.toolName,
@@ -1396,6 +1415,12 @@ final class CerberusAppModel: ObservableObject {
         let startedAt = Date()
         var succeeded = false
         defer {
+            recordTelemetry(
+                category: .toolExecution,
+                name: plan.toolName,
+                startedAt: startedAt,
+                succeeded: succeeded
+            )
             notifyLongRunningTaskIfNeeded(
                 id: "tool-\(plan.toolName)-\(startedAt.timeIntervalSince1970)",
                 displayName: plan.toolName,
@@ -1473,6 +1498,21 @@ final class CerberusAppModel: ObservableObject {
         }
         Task {
             await taskNotificationScheduler.deliver(notification)
+        }
+    }
+
+    private func recordTelemetry(category: LocalTelemetryCategory, name: String, startedAt: Date, succeeded: Bool) {
+        let duration = max(0, Date().timeIntervalSince(startedAt))
+        let record = LocalTelemetryRecord(
+            category: category,
+            name: name,
+            durationSeconds: duration,
+            succeeded: succeeded,
+            qualitySignal: succeeded ? "success" : "error",
+            modelProfile: foundationModelProfile
+        )
+        Task {
+            try? await telemetryStore.append(record)
         }
     }
 
