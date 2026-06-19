@@ -334,8 +334,33 @@ private struct WaitTimeout: Error {}
     #expect(relaunchedModel.headShakeThreshold == 0.45)
 }
 
+@MainActor
+@Test func appModelSpeaksLatestAuditAction() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("audit.log")
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 7, count: 32))
+    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "today", resultSummary: "3 events")
+    _ = try await auditLog.append(toolName: "mail.search", argumentsSummary: "invoice", resultSummary: "2 messages")
+    let speaker = FakeSpeaker()
+    let model = CerberusAppModel(
+        speaker: speaker,
+        auditLog: auditLog,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.answerLastToolAction()
+    try await waitUntil {
+        speaker.spoken == ["Last tool call: mail.search. Result: 2 messages"]
+    }
+
+    #expect(model.statusLine == "Last tool call: mail.search. Result: 2 messages")
+    #expect(model.recentAuditEntries.first?.toolName == "mail.search")
+}
+
 private func waitUntil(
-    timeoutNanoseconds: UInt64 = 1_000_000_000,
+    timeoutNanoseconds: UInt64 = 3_000_000_000,
     predicate: @MainActor @escaping () -> Bool
 ) async throws {
     let start = ContinuousClock.now

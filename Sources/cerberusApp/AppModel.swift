@@ -328,7 +328,7 @@ final class CerberusAppModel: ObservableObject {
     private let fileSearchScopeStore: FileSearchScopeStore
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
-    private let auditLog = AuditLog()
+    private let auditLog: AuditLog
     private let assistant: any AppAssistanting
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore = EncryptedTranscriptStore()
@@ -389,6 +389,7 @@ final class CerberusAppModel: ObservableObject {
         speaker: any AppSpeaking = Speaker(),
         assistant injectedAssistant: (any AppAssistanting)? = nil,
         toolRegistry injectedToolRegistry: ToolRegistry? = nil,
+        auditLog injectedAuditLog: AuditLog = AuditLog(),
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
@@ -411,20 +412,21 @@ final class CerberusAppModel: ObservableObject {
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
         let tools = DefaultToolCatalog.makeTools(fileSearchTool: fileSearchTool, mailSearchTool: mailSearchTool) + mcpTools + [AnyAssistantTool(shellTool)]
         let baseReadOnlyNativeTools = DefaultToolCatalog.readOnlyFoundationModelTools(
-            auditLog: auditLog,
+            auditLog: injectedAuditLog,
             fileSearchTool: fileSearchTool,
             mailSearchTool: mailSearchTool
         )
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
         self.fileSearchScopeStore = fileSearchScopeStore
+        self.auditLog = injectedAuditLog
         self.transcriber = transcriber
         self.wakeWordTranscriber = wakeWordTranscriber
         self.speaker = speaker
         self.mcpNativeToolLoader = MCPNativeToolLoader(
             registry: mcpServerRegistry,
             clientRequestHandlers: mcpClientRequestBroker.handlers,
-            auditLog: auditLog
+            auditLog: injectedAuditLog
         )
         self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
         self.skipsFoundationModelAvailabilityCheck = skipsFoundationModelAvailabilityCheck

@@ -193,7 +193,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][ux] Validate `Recent transitions` remains useful after repeated long sessions.
 - [ ] [P0][ux] Validate transcript history refresh after real app sessions.
 - [ ] [P0][ux] Validate audit panel refresh after real tool calls.
-- [ ] [P0][ux] Validate "What did cerberus just do?" speaks the latest audit action.
 - [ ] [P0][ux] Validate File Search folder add/remove flows.
 - [ ] [P0][ux] Validate tool allowlist disclosure layout with all current tools enabled.
 - [ ] [P0][ux] Validate tool allowlist layout with several disabled tools.
