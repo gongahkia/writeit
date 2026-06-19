@@ -302,6 +302,38 @@ private struct WaitTimeout: Error {}
     #expect(relaunchedModel.headGestureCooldownSeconds == 0.8)
 }
 
+@MainActor
+@Test func appModelSessionSettingsResetAcrossRelaunch() {
+    let model = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+    model.toolProfileID = ToolProfile.explicitOperator.id
+    model.isAutoSilenceEnabled = false
+    model.isVoiceConfirmationEnabled = false
+    model.isSessionMemoryWriteDisabled = true
+    model.isMCPToolEnabled = true
+    model.isShellToolEnabled = true
+    model.isHeadGestureValidationLoggingEnabled = true
+    model.headNodThreshold = 0.9
+    model.headShakeThreshold = 0.9
+
+    let relaunchedModel = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    #expect(relaunchedModel.toolProfileID == ToolProfile.trustedDesk.id)
+    #expect(relaunchedModel.isAutoSilenceEnabled)
+    #expect(relaunchedModel.isVoiceConfirmationEnabled)
+    #expect(!relaunchedModel.isSessionMemoryWriteDisabled)
+    #expect(!relaunchedModel.isMCPToolEnabled)
+    #expect(!relaunchedModel.isShellToolEnabled)
+    #expect(!relaunchedModel.isHeadGestureValidationLoggingEnabled)
+    #expect(relaunchedModel.headNodThreshold == 0.35)
+    #expect(relaunchedModel.headShakeThreshold == 0.45)
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 1_000_000_000,
     predicate: @MainActor @escaping () -> Bool
