@@ -53,6 +53,22 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     }
 }
 
+private actor RecordingShortcutsRunner: ShortcutsRunning {
+    private(set) var listCalls: [(folderName: String?, showIdentifiers: Bool)] = []
+    private(set) var runCalls: [(name: String, inputText: String?)] = []
+
+    func list(folderName: String?, showIdentifiers: Bool) async throws -> String {
+        listCalls.append((folderName, showIdentifiers))
+        return "Morning Routine\nNight Routine\n"
+    }
+
+    func run(name: String, inputPath: URL?) async throws -> String {
+        let inputText = inputPath.flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+        runCalls.append((name, inputText))
+        return "done"
+    }
+}
+
 @Test func registryRunsTypedTool() async throws {
     let registry = try ToolRegistry(tools: [AnyAssistantTool(EchoTool())])
     let invocation = try ToolInvocation(
@@ -146,9 +162,10 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "screen.ocr",
         "screen.snapshot",
         "screen.ui_elements",
+        "shortcuts.list",
         "web.search"
     ]
-    let expectedNativeToolNames = expectedReadOnlyToolNames.subtracting(["screen.ui_elements"])
+    let expectedNativeToolNames = expectedReadOnlyToolNames.subtracting(["screen.ui_elements", "shortcuts.list"])
 
     #expect(DefaultToolCatalog.readOnlyToolNames == expectedReadOnlyToolNames)
     #expect(readOnlyNativeToolNames == expectedNativeToolNames)
@@ -172,7 +189,8 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "reminders.complete",
         "reminders.create",
         "reminders.delete",
-        "reminders.edit"
+        "reminders.edit",
+        "shortcuts.run"
     ])
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
@@ -267,6 +285,49 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
 
     let result = try await registry.run(invocation, confirmed: true)
     #expect(result.metadata["dryRun"] == "false")
+}
+
+@Test func shortcutsListFormatsRunnerOutput() async throws {
+    let runner = RecordingShortcutsRunner()
+    let tool = ShortcutsListTool(runner: runner)
+    let result = try await tool.run(arguments: ShortcutsListTool.Arguments(folderName: "Work", showIdentifiers: true))
+    let calls = await runner.listCalls
+
+    #expect(result.toolName == "shortcuts.list")
+    #expect(result.spokenSummary == "Found 2 shortcuts.")
+    #expect(result.untrustedPayload == "Morning Routine\nNight Routine")
+    #expect(calls.count == 1)
+    #expect(calls.first?.folderName == "Work")
+    #expect(calls.first?.showIdentifiers == true)
+}
+
+@Test func shortcutsRunRequiresConfirmationAndPassesInput() async throws {
+    let runner = RecordingShortcutsRunner()
+    let tool = ShortcutsRunTool(runner: runner)
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: ShortcutsRunTool.Arguments(shortcutName: "Send Report", inputText: "hello")
+    )
+
+    await #expect(throws: ToolExecutionError.confirmationRequired("shortcuts.run")) {
+        _ = try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+    let calls = await runner.runCalls
+
+    #expect(result.spokenSummary == "Ran shortcut Send Report.")
+    #expect(result.untrustedPayload == "done")
+    #expect(calls.count == 1)
+    #expect(calls.first?.name == "Send Report")
+    #expect(calls.first?.inputText == "hello")
+}
+
+@Test func shortcutsRunRejectsBlankShortcutName() {
+    #expect(throws: ToolExecutionError.invalidArguments("shortcutName is required")) {
+        try ShortcutsRunTool().validate(ShortcutsRunTool.Arguments(shortcutName: " "))
+    }
 }
 
 @Test func shellXPCExecutorFailsClosedWhenServiceBundleIsMissing() async throws {

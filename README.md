@@ -24,6 +24,7 @@ The project is intentionally scoped as a native macOS utility:
 - calendar event creation is a separate mutating tool and requires confirmation
 - reminder creation is a separate mutating tool and requires confirmation
 - reminder completion is a separate mutating tool and requires confirmation
+- Apple Shortcuts listing is read-only, while running a Shortcut is confirmation-gated
 - encrypted local transcripts and memory records
 - read-only Mail.app subject/sender search through macOS Automation
 - Music.app now-playing reads and confirmation-gated playback controls

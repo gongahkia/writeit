@@ -175,6 +175,7 @@ private final class FakePermissionCenter: PermissionChecking {
 
 @MainActor
 @Test func appModelRequiresConfirmationThenExecutesMutatingTool() async throws {
+    let transcriber = FakeTranscriber()
     let speaker = FakeSpeaker()
     let assistant = FakeAssistant(planResult: AssistantPlan(
         intent: .callTool,
@@ -186,6 +187,7 @@ private final class FakePermissionCenter: PermissionChecking {
     ))
     let registry = try ToolRegistry(tools: [AnyAssistantTool(StubTool(name: "app.control", mutatesState: true))])
     let model = CerberusAppModel(
+        transcriber: transcriber,
         speaker: speaker,
         assistant: assistant,
         toolRegistry: registry,

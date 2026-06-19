@@ -34,6 +34,8 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(ScreenBarcodeTool()),
             AnyAssistantTool(ScreenOCRTool()),
             AnyAssistantTool(ScreenSnapshotTool()),
+            AnyAssistantTool(ShortcutsListTool()),
+            AnyAssistantTool(ShortcutsRunTool()),
             AnyAssistantTool(WebSearchTool())
         ]
         if includesUIElementTool {
