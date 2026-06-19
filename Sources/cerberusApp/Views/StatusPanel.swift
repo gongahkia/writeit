@@ -19,6 +19,7 @@ struct StatusPanel: View {
                 recentEvents
             case .history:
                 history
+                memories
             case .audit:
                 audit
             case .permissions:
@@ -406,6 +407,64 @@ struct StatusPanel: View {
         }
     }
 
+    private var memories: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Memories")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    model.exportMemoryRecords()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .buttonStyle(.plain)
+                .help("Export memories")
+                .disabled(model.memoryRecords.isEmpty)
+
+                Button(role: .destructive) {
+                    model.deleteMemoryRecords()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
+                .help("Delete memories")
+                .disabled(model.memoryRecords.isEmpty)
+
+                Button {
+                    model.refreshMemoryRecords()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Refresh memories")
+            }
+
+            if model.memoryRecords.isEmpty {
+                Text("No memories yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(model.memoryRecords.prefix(20)) { record in
+                            memoryRow(record)
+                        }
+                    }
+                }
+                .frame(maxHeight: 160)
+            }
+        }
+        .task {
+            model.refreshMemoryRecords()
+        }
+    }
+
     private func auditRow(_ entry: AuditLogEntry) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -452,6 +511,29 @@ struct StatusPanel: View {
             Text(record.response)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+    }
+
+    private func memoryRow(_ record: MemoryRecord) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(record.timestamp, style: .time)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                if !record.tags.isEmpty {
+                    Text(record.tags.joined(separator: ", "))
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Text(record.content)
+                .font(.caption)
                 .lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

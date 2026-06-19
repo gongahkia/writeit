@@ -113,6 +113,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var isAudioOutputLikelyAirPods = false
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
+    @Published private(set) var memoryRecords: [MemoryRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
@@ -200,6 +201,7 @@ final class CerberusAppModel: ObservableObject {
     private let assistant: Assistant
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore = EncryptedTranscriptStore()
+    private let memoryStore = EncryptedMemoryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
     private let foundationModelStatusProvider = FoundationModelAvailabilityStatusProvider()
     private let mcpServerRegistry: MCPServerRegistry
@@ -591,6 +593,62 @@ final class CerberusAppModel: ObservableObject {
                 try await transcriptStore.deleteAll()
                 transcriptRecords = []
                 statusLine = "Deleted transcript history."
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func refreshMemoryRecords() {
+        Task {
+            do {
+                memoryRecords = try await memoryStore.records()
+                    .sorted { $0.timestamp > $1.timestamp }
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func exportMemoryRecords() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "cerberus-memories.json"
+        panel.prompt = "Export"
+        panel.message = "Export decrypted memory records as JSON."
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        Task {
+            do {
+                try await memoryStore.exportPlaintextJSON(to: url)
+                statusLine = "Exported memories to \(url.path)"
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
+    func deleteMemoryRecords() {
+        let alert = NSAlert()
+        alert.messageText = "Delete memories?"
+        alert.informativeText = "This removes encrypted memory records stored by cerberus."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        Task {
+            do {
+                try await memoryStore.deleteAll()
+                memoryRecords = []
+                statusLine = "Deleted memories."
             } catch {
                 statusLine = error.localizedDescription
             }

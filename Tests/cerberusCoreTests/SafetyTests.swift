@@ -161,6 +161,7 @@ import Testing
     let fileURL = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("memory.jsonl.enc")
+    let exportURL = fileURL.deletingLastPathComponent().appendingPathComponent("memory.json")
     let keyData = Data(repeating: 9, count: 32)
     let store = EncryptedMemoryStore(fileURL: fileURL, fixedKeyData: keyData)
 
@@ -173,6 +174,10 @@ import Testing
     #expect(results.map(\.content) == ["Uses Neovim"])
     #expect(!rawText.contains("Neovim"))
     #expect(!rawText.contains("standups"))
+    try await store.exportPlaintextJSON(to: exportURL)
+    #expect(try String(contentsOf: exportURL, encoding: .utf8).contains("Uses Neovim"))
+    try await store.deleteAll()
+    #expect(try await store.records().isEmpty)
 }
 
 @Test func memoryToolsReadAndWriteEncryptedRecords() async throws {

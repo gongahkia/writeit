@@ -99,6 +99,22 @@ public actor EncryptedMemoryStore {
             .map { $0 }
     }
 
+    public func exportPlaintextJSON(to outputURL: URL) throws {
+        let data = try encoder.encode(records())
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: outputURL, options: .atomic)
+    }
+
+    public func deleteAll() throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: fileURL)
+    }
+
     public static func defaultFileURL() -> URL {
         CerberusDirectories.applicationSupportFile("memory.jsonl.enc")
     }
