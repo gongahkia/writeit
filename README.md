@@ -75,5 +75,6 @@ See `Docs/airpods.md` for AirPods motion troubleshooting.
 See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, MCP OAuth, and shell XPC recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
+See `Docs/architecture.md` for the current app/core/tool/service layout.
 See `Docs/open-source.md` for public repository release checks.
 See `CONTRIBUTING.md` for local setup, validation, signing, and hardware prerequisites.
