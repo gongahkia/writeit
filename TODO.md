@@ -133,7 +133,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][model] Add a model benchmark regression baseline to docs after hardware measurements.
 - [ ] [P2][model][Unverified] Re-evaluate Private Cloud Compute model APIs for optional non-local mode only if product scope changes.
 - [ ] [P2][model][Unverified] Re-evaluate dynamic model profile APIs for future quality/latency tradeoffs.
-- [ ] [P2][model][Inference] Add a local-only hard lock setting if future SDKs expose non-local model choices.
 
 ## Tool safety and confirmation QA
 

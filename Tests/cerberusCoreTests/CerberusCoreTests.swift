@@ -43,6 +43,7 @@ import Testing
         "routesSpeechDirectlyToAirPods",
         "onboardingSkipped",
         "requiresConfirmationForAllTools",
+        "requiresLocalFoundationModels",
         "usesConfiguredAdapter",
         "hotKeyConfigurationID",
         "shellProposalMode",
@@ -1013,6 +1014,15 @@ private func runScript(
     #expect(pendingDownload.diagnosticText().contains("finishes downloading"))
     #expect(ineligible.fallbackText() == "Foundation Models are unavailable on this Mac.")
     #expect(ineligible.diagnosticText().contains("Apple Intelligence capable target Mac"))
+}
+
+@Test func foundationModelPrivacyLockAllowsOnlyLocalProfilesWhenRequired() {
+    #expect(FoundationModelPrivacyLock.allows(profile: "default", requiresLocalOnly: true))
+    #expect(FoundationModelPrivacyLock.allows(profile: "adapter:demo", requiresLocalOnly: true))
+    #expect(!FoundationModelPrivacyLock.allows(profile: "private_cloud:demo", requiresLocalOnly: true))
+    #expect(!FoundationModelPrivacyLock.allows(profile: "remote:demo", requiresLocalOnly: true))
+    #expect(FoundationModelPrivacyLock.allows(profile: "remote:demo", requiresLocalOnly: false))
+    #expect(FoundationModelPrivacyLock.statusLine(requiresLocalOnly: true) == "Local-only model lock enabled")
 }
 
 @Test func adapterTrainingDatasetExporterWritesPromptResponseJSONL() throws {

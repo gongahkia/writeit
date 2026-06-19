@@ -6,6 +6,7 @@ public enum CerberusSettingsKeys {
     public static let routesSpeechDirectlyToAirPods = "routesSpeechDirectlyToAirPods"
     public static let onboardingSkipped = "onboardingSkipped"
     public static let requiresConfirmationForAllTools = "requiresConfirmationForAllTools"
+    public static let requiresLocalFoundationModels = "requiresLocalFoundationModels"
     public static let usesConfiguredAdapter = "usesConfiguredAdapter"
     public static let hotKeyConfigurationID = "hotKeyConfigurationID"
     public static let shellProposalMode = "shellProposalMode"
@@ -18,6 +19,7 @@ public enum CerberusSettingsKeys {
         routesSpeechDirectlyToAirPods,
         onboardingSkipped,
         requiresConfirmationForAllTools,
+        requiresLocalFoundationModels,
         usesConfiguredAdapter,
         hotKeyConfigurationID,
         shellProposalMode,

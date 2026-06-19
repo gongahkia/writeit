@@ -131,6 +131,9 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAvailabilityDetailLine = "Refresh to check Apple Intelligence state"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
+    @Published private(set) var foundationModelPrivacyStatusLine = FoundationModelPrivacyLock.statusLine(
+        requiresLocalOnly: UserDefaults.standard.object(forKey: CerberusSettingsKeys.requiresLocalFoundationModels) as? Bool ?? true
+    )
     @Published private(set) var foundationModelProfile = "default"
     @Published private(set) var screenSnapshotStatusLine = "Screen snapshots not checked"
     @Published private(set) var screenSnapshotCount = 0
@@ -150,6 +153,13 @@ final class CerberusAppModel: ObservableObject {
     @Published var requiresConfirmationForAllTools = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.requiresConfirmationForAllTools) {
         didSet {
             UserDefaults.standard.set(requiresConfirmationForAllTools, forKey: CerberusSettingsKeys.requiresConfirmationForAllTools)
+        }
+    }
+    @Published var requiresLocalFoundationModels = UserDefaults.standard.object(forKey: CerberusSettingsKeys.requiresLocalFoundationModels) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(requiresLocalFoundationModels, forKey: CerberusSettingsKeys.requiresLocalFoundationModels)
+            foundationModelPrivacyStatusLine = FoundationModelPrivacyLock.statusLine(requiresLocalOnly: requiresLocalFoundationModels)
+            refreshConfiguredAdapter()
         }
     }
     @Published var usesConfiguredAdapter = UserDefaults.standard.object(forKey: CerberusSettingsKeys.usesConfiguredAdapter) as? Bool ?? true {
@@ -2040,6 +2050,16 @@ final class CerberusAppModel: ObservableObject {
                 guard let configuredModel = try await adapterLoader.configuredModelAndProfileIfPresent() else {
                     foundationModelAdapterStatusLine = "Adapter config not found"
                     foundationModelProfile = "default"
+                    return
+                }
+                guard FoundationModelPrivacyLock.allows(
+                    profile: configuredModel.profile,
+                    requiresLocalOnly: requiresLocalFoundationModels
+                ) else {
+                    await assistant.updateModel(.default)
+                    foundationModelProfile = "default"
+                    foundationModelAdapterStatusLine = "Adapter blocked by local-only lock"
+                    statusLine = "Blocked non-local FoundationModels profile."
                     return
                 }
 

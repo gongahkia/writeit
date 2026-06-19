@@ -37,6 +37,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - Planning context includes bounded project/workspace hints detected from approved file-search folders using markers such as `Package.swift`, `.xcworkspace`, `.xcodeproj`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and `.git`.
 - Planning context includes per-app policy hints for Xcode, Terminal, Finder, Safari, Chrome, Calendar, Mail, and Music, constrained to currently enabled tools.
 - `files.search` is constrained to user-approved folders selected in Settings; omitted `scopePath` searches all approved folders, while explicit scopes must be inside an approved folder.
+- Settings includes a default-on local-only Foundation Models lock. Current default and adapter profiles pass it; future profile names containing cloud, remote, server, non-local, or PCC markers are blocked before session update.
 - Settings exposes a per-session allowlist for ambient tools; disabled tools are omitted from the planner prompt and execution allowlist.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.
 - Mutating plans can be confirmed by button, nod/shake, or short voice yes/no phrases.

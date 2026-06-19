@@ -720,6 +720,7 @@ struct StatusPanel: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+            Toggle("Local-only models", isOn: $model.requiresLocalFoundationModels)
             Toggle("Use configured adapter", isOn: $model.usesConfiguredAdapter)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -751,6 +752,11 @@ struct StatusPanel: View {
                     .lineLimit(3)
 
                 Label(model.foundationModelAdapterStatusLine, systemImage: "shippingbox")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Label(model.foundationModelPrivacyStatusLine, systemImage: "lock")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
