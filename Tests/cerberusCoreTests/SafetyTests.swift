@@ -1677,6 +1677,106 @@ private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @
     #expect(discovery.authorizationServer.registrationEndpoint?.absoluteString == "https://auth.example.com/register")
 }
 
+@Test func mcpOAuthClientRegistersDynamicClientWhenNoStaticID() async throws {
+    final class StubURLProtocol: URLProtocol {
+        nonisolated(unsafe) static var registrationRequestBody = ""
+
+        override class func canInit(with request: URLRequest) -> Bool {
+            true
+        }
+
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            request
+        }
+
+        override func startLoading() {
+            let url = request.url!
+            let responseBody: Data
+
+            if url.host == "example.com" {
+                responseBody = Data(#"{"resource":"https://example.com/mcp","authorization_servers":["https://auth.example.com"]}"#.utf8)
+            } else if url.path == "/.well-known/oauth-authorization-server" {
+                responseBody = Data(#"{"issuer":"https://auth.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token","registration_endpoint":"https://auth.example.com/register","scopes_supported":["read"],"code_challenge_methods_supported":["S256"]}"#.utf8)
+            } else {
+                Self.registrationRequestBody = bodyString(from: request)
+                responseBody = Data(#"{"client_id":"dynamic-client-1"}"#.utf8)
+            }
+
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: responseBody)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+
+        override func stopLoading() {}
+
+        private func bodyString(from request: URLRequest) -> String {
+            if let body = request.httpBody {
+                return String(data: body, encoding: .utf8) ?? ""
+            }
+
+            guard let stream = request.httpBodyStream else {
+                return ""
+            }
+
+            stream.open()
+            defer {
+                stream.close()
+            }
+
+            var data = Data()
+            let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 1024)
+            defer {
+                buffer.deallocate()
+            }
+
+            while stream.hasBytesAvailable {
+                let read = stream.read(buffer, maxLength: 1024)
+                if read > 0 {
+                    data.append(buffer, count: read)
+                } else {
+                    break
+                }
+            }
+
+            return String(data: data, encoding: .utf8) ?? ""
+        }
+    }
+
+    let service = "cerberus.tests.\(UUID().uuidString)"
+    let registrationStore = KeychainSecretStore(service: service, account: MCPOAuthKeychainAccount.clientRegistration(serverName: "remote"))
+    defer {
+        try? registrationStore.delete()
+    }
+
+    let sessionConfiguration = URLSessionConfiguration.ephemeral
+    sessionConfiguration.protocolClasses = [StubURLProtocol.self]
+    let urlSession = URLSession(configuration: sessionConfiguration)
+    let configuration = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://example.com/mcp"),
+        protectedResourceMetadataURL: URL(string: "https://example.com/.well-known/oauth-protected-resource"),
+        oauthRedirectURI: "http://127.0.0.1:8765/callback",
+        oauthScopes: ["read"]
+    )
+
+    let result = try await MCPOAuthClient(urlSession: urlSession, keychainService: service)
+        .start(configuration: configuration, scopes: [])
+    let registrationData = try #require(try registrationStore.data())
+    let storedRegistration = try JSONDecoder().decode(MCPOAuthClientRegistration.self, from: registrationData)
+
+    #expect(result.clientID == "dynamic-client-1")
+    #expect(storedRegistration.clientID == "dynamic-client-1")
+    #expect(StubURLProtocol.registrationRequestBody.contains(#""redirect_uris":["http:\/\/127.0.0.1:8765\/callback"]"#))
+    #expect(StubURLProtocol.registrationRequestBody.contains(#""token_endpoint_auth_method":"none""#))
+}
+
 @Test func mcpStreamableHTTPClientAttachesStoredBearerToken() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var authorizationHeaders: [String] = []

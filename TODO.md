@@ -126,20 +126,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][model][blocked: Apple Intelligence capable Mac] Define acceptable v1 tool-loop latency from measured hardware output.
 - [ ] [P1][model] Add a model benchmark regression baseline to docs after hardware measurements.
 
-## Tool safety and confirmation QA
-
-
-## MCP validation
-
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth protected-resource discovery.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth dynamic client registration when supported.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth static client ID path when dynamic registration is unavailable.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth PKCE authorization URL opens in the browser.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth localhost callback capture.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth token exchange and Keychain storage.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth refresh-token rotation.
-- [ ] [P0][mcp][blocked: OAuth MCP server] Validate stored bearer token attachment to later HTTP calls.
-
 ## Adapter training and data
 
 - [ ] [P0][adapter][blocked: real transcripts] Generate enough real transcript history for adapter dataset export.
