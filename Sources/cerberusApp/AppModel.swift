@@ -238,6 +238,8 @@ final class CerberusAppModel: ObservableObject {
     private let memoryStore = EncryptedMemoryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
     private let foundationModelStatusProvider = FoundationModelAvailabilityStatusProvider()
+    private let taskNotificationPolicy = LongRunningTaskNotificationPolicy()
+    private let taskNotificationScheduler: any LocalTaskNotificationScheduling = UserNotificationTaskScheduler()
     private let mcpServerRegistry: MCPServerRegistry
     private let mcpClientRequestBroker: MCPClientRequestBroker
     private let mcpNativeToolLoader: MCPNativeToolLoader
@@ -1345,6 +1347,16 @@ final class CerberusAppModel: ObservableObject {
 
     private func answerWithNativeReadOnlyTools(for plan: AssistantPlan) async {
         apply(.executionStarted(plan.toolName))
+        let startedAt = Date()
+        var succeeded = false
+        defer {
+            notifyLongRunningTaskIfNeeded(
+                id: "native-\(plan.toolName)-\(startedAt.timeIntervalSince1970)",
+                displayName: plan.toolName,
+                startedAt: startedAt,
+                succeeded: succeeded
+            )
+        }
 
         do {
             let request = activeRequest ?? plan.spokenResponse
@@ -1364,6 +1376,7 @@ final class CerberusAppModel: ObservableObject {
             )
             refreshAuditEntries()
             speakToolResult(response)
+            succeeded = true
         } catch {
             _ = try? await auditLog.append(
                 toolName: plan.toolName,
@@ -1380,6 +1393,16 @@ final class CerberusAppModel: ObservableObject {
         if transitionToExecuting {
             apply(.executionStarted(plan.toolName))
         }
+        let startedAt = Date()
+        var succeeded = false
+        defer {
+            notifyLongRunningTaskIfNeeded(
+                id: "tool-\(plan.toolName)-\(startedAt.timeIntervalSince1970)",
+                displayName: plan.toolName,
+                startedAt: startedAt,
+                succeeded: succeeded
+            )
+        }
 
         do {
             let invocation = try makeInvocation(from: plan)
@@ -1393,6 +1416,7 @@ final class CerberusAppModel: ObservableObject {
             )
             refreshAuditEntries()
             speakToolResult(spokenResponse)
+            succeeded = true
         } catch {
             _ = try? await auditLog.append(
                 toolName: plan.toolName,
@@ -1433,6 +1457,22 @@ final class CerberusAppModel: ObservableObject {
         apply(.executionFinished(response))
         speaker.speak(response) { [weak self] in
             self?.finishSpeaking()
+        }
+    }
+
+    private func notifyLongRunningTaskIfNeeded(id: String, displayName: String, startedAt: Date, succeeded: Bool) {
+        let record = LongRunningTaskRecord(
+            id: id,
+            displayName: displayName,
+            startedAt: startedAt,
+            finishedAt: Date(),
+            succeeded: succeeded
+        )
+        guard let notification = taskNotificationPolicy.completionNotification(for: record) else {
+            return
+        }
+        Task {
+            await taskNotificationScheduler.deliver(notification)
         }
     }
 

@@ -362,6 +362,47 @@ import Testing
     #expect(summary.line(label: "plan").contains("plan: count=4"))
 }
 
+@Test func longRunningTaskNotificationPolicyUsesDurationThreshold() {
+    let policy = LongRunningTaskNotificationPolicy(minimumDuration: 30)
+    let startedAt = Date(timeIntervalSince1970: 100)
+
+    let shortRecord = LongRunningTaskRecord(
+        id: "short",
+        displayName: "shell.run",
+        startedAt: startedAt,
+        finishedAt: startedAt.addingTimeInterval(29),
+        succeeded: true
+    )
+    let longRecord = LongRunningTaskRecord(
+        id: "long",
+        displayName: "shell.run",
+        startedAt: startedAt,
+        finishedAt: startedAt.addingTimeInterval(31),
+        succeeded: true
+    )
+
+    #expect(policy.completionNotification(for: shortRecord) == nil)
+    #expect(policy.completionNotification(for: longRecord) == LongRunningTaskNotification(
+        identifier: "cerberus.long-running.long",
+        title: "shell.run finished",
+        body: "Completed after 31 seconds."
+    ))
+}
+
+@Test func longRunningTaskNotificationPolicyReportsFailure() {
+    let policy = LongRunningTaskNotificationPolicy(minimumDuration: 1)
+    let startedAt = Date(timeIntervalSince1970: 100)
+    let record = LongRunningTaskRecord(
+        id: "failed",
+        displayName: "mail.search",
+        startedAt: startedAt,
+        finishedAt: startedAt.addingTimeInterval(2),
+        succeeded: false
+    )
+
+    #expect(policy.completionNotification(for: record)?.title == "mail.search failed")
+}
+
 @Test func toolOutputSummarizationFallbackUsesSpokenSummaryWhenSummarizerFails() async {
     let result = ToolResult(
         toolName: "files.search",

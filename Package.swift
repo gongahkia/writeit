@@ -78,6 +78,7 @@ let package = Package(
                 .linkedFramework("Speech"),
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("UniformTypeIdentifiers"),
+                .linkedFramework("UserNotifications"),
                 .linkedFramework("Vision")
             ]
         ),
