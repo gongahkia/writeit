@@ -194,7 +194,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][screen][Unverified] Re-check Apple Vision OCRTool availability before maintaining a custom OCR-only prompt path.
 - [ ] [P1][screen][Inference] Add image-prompt based screen answering if public APIs exist in the installed SDK.
 - [ ] [P2][screen][Inference] Add region selection for screen OCR if whole-screen OCR is too noisy.
-- [ ] [P2][screen][Inference] Add redaction for notification banners and sensitive fields before model ingress.
 - [ ] [P3][screen][Inference] Add barcode/QR recognition if real screen tasks need it.
 - [ ] [P3][screen][Inference] Add UI-element detection beyond OCR if app-control tasks need coordinates.
 

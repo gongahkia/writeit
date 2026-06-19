@@ -657,6 +657,35 @@ import Testing
     #expect(payload.contains("pixelBox: x=100.00 y=50.00 w=200.00 h=50.00"))
 }
 
+@Test func screenOCRPayloadRedactsSensitiveText() {
+    let payload = ScreenOCRTool.payload(
+        for: [
+            ScreenTextObservation(
+                text: "Verification code 123456",
+                confidence: 0.9,
+                boundingBox: CGRect(x: 0, y: 0, width: 1, height: 1)
+            ),
+            ScreenTextObservation(
+                text: "Message from Alex",
+                confidence: 0.9,
+                boundingBox: CGRect(x: 0, y: 0, width: 1, height: 1)
+            ),
+            ScreenTextObservation(
+                text: "email me at person@example.com",
+                confidence: 0.9,
+                boundingBox: CGRect(x: 0, y: 0, width: 1, height: 1)
+            )
+        ],
+        imageSize: CGSize(width: 100, height: 100)
+    )
+
+    #expect(payload.contains("[redacted sensitive field]"))
+    #expect(payload.contains("[redacted notification]"))
+    #expect(payload.contains("[redacted email]"))
+    #expect(!payload.contains("123456"))
+    #expect(!payload.contains("person@example.com"))
+}
+
 @Test func screenSnapshotPayloadIncludesFileAndDimensions() {
     let fileURL = URL(fileURLWithPath: "/tmp/cerberus-screen.png")
     let payload = ScreenSnapshotTool.payload(

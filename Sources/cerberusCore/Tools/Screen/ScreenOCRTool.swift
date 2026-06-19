@@ -71,7 +71,7 @@ public struct ScreenOCRTool: AssistantTool {
 
         return ([header] + observations.map { observation in
             let pixelRect = observation.pixelRect(in: imageSize)
-            return "- \(observation.text) [confidence: \(format(observation.confidence)), normalizedBox: \(format(observation.boundingBox)), pixelBox: \(format(pixelRect))]"
+            return "- \(ScreenTextRedactor.redact(observation.text)) [confidence: \(format(observation.confidence)), normalizedBox: \(format(observation.boundingBox)), pixelBox: \(format(pixelRect))]"
         }).joined(separator: "\n")
     }
 
