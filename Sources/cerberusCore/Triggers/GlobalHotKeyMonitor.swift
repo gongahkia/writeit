@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-public struct HotKeyModifiers: Equatable, Sendable {
+public struct HotKeyModifiers: Codable, Equatable, Sendable {
     public let control: Bool
     public let option: Bool
     public let command: Bool
@@ -22,17 +22,57 @@ public struct HotKeyModifiers: Equatable, Sendable {
     }
 }
 
+public struct HotKeyConfiguration: Codable, Equatable, Identifiable, Sendable {
+    public let id: String
+    public let displayName: String
+    public let keyCode: UInt16
+    public let modifiers: HotKeyModifiers
+
+    public init(id: String, displayName: String, keyCode: UInt16, modifiers: HotKeyModifiers) {
+        self.id = id
+        self.displayName = displayName
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+    }
+
+    public static let controlOptionSpace = HotKeyConfiguration(
+        id: "control-option-space",
+        displayName: "Control Option Space",
+        keyCode: 49,
+        modifiers: HotKeyModifiers(control: true, option: true)
+    )
+    public static let controlShiftSpace = HotKeyConfiguration(
+        id: "control-shift-space",
+        displayName: "Control Shift Space",
+        keyCode: 49,
+        modifiers: HotKeyModifiers(control: true, shift: true)
+    )
+    public static let commandOptionSpace = HotKeyConfiguration(
+        id: "command-option-space",
+        displayName: "Command Option Space",
+        keyCode: 49,
+        modifiers: HotKeyModifiers(option: true, command: true)
+    )
+    public static let presets = [
+        controlOptionSpace,
+        controlShiftSpace,
+        commandOptionSpace
+    ]
+
+    public static func preset(id: String) -> HotKeyConfiguration {
+        presets.first { $0.id == id } ?? controlOptionSpace
+    }
+}
+
 @MainActor
 public final class GlobalHotKeyMonitor {
-    private let keyCode: UInt16
-    private let modifiers: HotKeyModifiers
+    private var configuration: HotKeyConfiguration
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var onTrigger: (@MainActor @Sendable () -> Void)?
 
-    public init(keyCode: UInt16 = 49, modifiers: HotKeyModifiers = HotKeyModifiers(control: true, option: true)) {
-        self.keyCode = keyCode
-        self.modifiers = modifiers
+    public init(configuration: HotKeyConfiguration = .controlOptionSpace) {
+        self.configuration = configuration
     }
 
     public var isRunning: Bool {
@@ -63,6 +103,16 @@ public final class GlobalHotKeyMonitor {
         }
     }
 
+    public func update(configuration: HotKeyConfiguration) {
+        let trigger = onTrigger
+        let wasRunning = isRunning
+        stop()
+        self.configuration = configuration
+        if wasRunning, let trigger {
+            start(onTrigger: trigger)
+        }
+    }
+
     public func stop() {
         if let globalMonitor {
             NSEvent.removeMonitor(globalMonitor)
@@ -77,7 +127,7 @@ public final class GlobalHotKeyMonitor {
     }
 
     private func handle(keyCode: UInt16, modifiers: HotKeyModifiers) {
-        guard keyCode == self.keyCode, modifiers == self.modifiers else {
+        guard keyCode == configuration.keyCode, modifiers == configuration.modifiers else {
             return
         }
         onTrigger?()

@@ -43,9 +43,17 @@ import Testing
         "routesSpeechDirectlyToAirPods",
         "onboardingSkipped",
         "requiresConfirmationForAllTools",
-        "usesConfiguredAdapter"
+        "usesConfiguredAdapter",
+        "hotKeyConfigurationID"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
+}
+
+@Test func hotKeyConfigurationPresetsStayStable() {
+    #expect(HotKeyConfiguration.controlOptionSpace.displayName == "Control Option Space")
+    #expect(HotKeyConfiguration.preset(id: "control-shift-space").displayName == "Control Shift Space")
+    #expect(HotKeyConfiguration.preset(id: "missing") == .controlOptionSpace)
+    #expect(Set(HotKeyConfiguration.presets.map(\.id)).count == HotKeyConfiguration.presets.count)
 }
 
 @Test func wakeWordMonitorStatusLinesStayStable() {

@@ -763,11 +763,11 @@ struct StatusPanel: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Hotkey")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Control Option Space")
-                    .font(.caption.monospaced())
+                Picker("Hotkey", selection: $model.hotKeyConfigurationID) {
+                    ForEach(model.hotKeyPresets) { preset in
+                        Text(preset.displayName).tag(preset.id)
+                    }
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {

@@ -147,6 +147,12 @@ final class CerberusAppModel: ObservableObject {
             refreshConfiguredAdapter()
         }
     }
+    @Published var hotKeyConfigurationID = UserDefaults.standard.string(forKey: CerberusSettingsKeys.hotKeyConfigurationID) ?? HotKeyConfiguration.controlOptionSpace.id {
+        didSet {
+            UserDefaults.standard.set(hotKeyConfigurationID, forKey: CerberusSettingsKeys.hotKeyConfigurationID)
+            hotKeyMonitor.update(configuration: hotKeyConfiguration)
+        }
+    }
     @Published var prefersSoundWakeWordClassifier = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier) {
         didSet {
             UserDefaults.standard.set(prefersSoundWakeWordClassifier, forKey: CerberusSettingsKeys.prefersSoundWakeWordClassifier)
@@ -306,6 +312,7 @@ final class CerberusAppModel: ObservableObject {
         refreshScreenSnapshotStatus()
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
+        hotKeyMonitor.update(configuration: hotKeyConfiguration)
         startTriggers()
         refreshConfiguredAdapter()
     }
@@ -354,6 +361,14 @@ final class CerberusAppModel: ObservableObject {
 
     var toolConfirmationOverrideCount: Int {
         toolConfirmationOverrides.count
+    }
+
+    var hotKeyPresets: [HotKeyConfiguration] {
+        HotKeyConfiguration.presets
+    }
+
+    var hotKeyConfiguration: HotKeyConfiguration {
+        HotKeyConfiguration.preset(id: hotKeyConfigurationID)
     }
 
     var appDataLocations: [AppDataLocation] {
