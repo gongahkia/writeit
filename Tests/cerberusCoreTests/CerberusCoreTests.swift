@@ -282,7 +282,8 @@ import Testing
                 kind: "swift_package",
                 marker: "Package.swift"
             )
-        ]
+        ],
+        activeApplicationHints: ["Prefer project workspace hints and files.search for coding context."]
     )
 
     #expect(context.promptFragment.contains("Active app: Xcode"))
@@ -290,6 +291,8 @@ import Testing
     #expect(context.promptFragment.contains("File search folders: /Users/example/Documents"))
     #expect(context.promptFragment.contains("Project workspaces:"))
     #expect(context.promptFragment.contains("- cerberus (swift_package): /Users/example/cerberus [Package.swift]"))
+    #expect(context.promptFragment.contains("Active app policies:"))
+    #expect(context.promptFragment.contains("- Prefer project workspace hints and files.search for coding context."))
 }
 
 @Test func assistantContextWarnsWhenFileSearchHasNoApprovedFolders() {
@@ -328,6 +331,20 @@ private func temporaryDirectory() throws -> URL {
         .appendingPathComponent("cerberus-tests-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
+}
+
+@Test func activeApplicationContextPolicyReturnsAllowedToolHintsOnly() {
+    let xcodeHints = ActiveApplicationContextPolicy.hints(
+        for: "Xcode",
+        allowedToolNames: ["files.search"]
+    )
+    let browserHints = ActiveApplicationContextPolicy.hints(
+        for: "Safari",
+        allowedToolNames: ["calendar.read"]
+    )
+
+    #expect(xcodeHints == ["Prefer project workspace hints and files.search for coding context."])
+    #expect(browserHints.isEmpty)
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {

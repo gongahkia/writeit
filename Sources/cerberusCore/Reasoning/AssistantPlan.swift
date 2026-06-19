@@ -61,17 +61,20 @@ public struct AssistantContext: Equatable, Sendable {
     public let allowedToolNames: [String]
     public let fileSearchScopePaths: [String]
     public let projectWorkspaceHints: [ProjectWorkspaceHint]
+    public let activeApplicationHints: [String]
 
     public init(
         activeApplicationName: String? = nil,
         allowedToolNames: [String] = [],
         fileSearchScopePaths: [String] = [],
-        projectWorkspaceHints: [ProjectWorkspaceHint] = []
+        projectWorkspaceHints: [ProjectWorkspaceHint] = [],
+        activeApplicationHints: [String] = []
     ) {
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
         self.fileSearchScopePaths = fileSearchScopePaths
         self.projectWorkspaceHints = projectWorkspaceHints
+        self.activeApplicationHints = activeApplicationHints
     }
 
     public var promptFragment: String {
@@ -98,6 +101,11 @@ public struct AssistantContext: Equatable, Sendable {
         if !projectWorkspaceHints.isEmpty {
             lines.append("Project workspaces:")
             lines += projectWorkspaceHints.map(\.promptLine)
+        }
+
+        if !activeApplicationHints.isEmpty {
+            lines.append("Active app policies:")
+            lines += activeApplicationHints.map { "- \($0)" }
         }
 
         return lines.joined(separator: "\n")

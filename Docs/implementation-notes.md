@@ -35,6 +35,7 @@ cerberus is a hands-free macOS assistant shell, not a general chatbot. The model
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native read-only tool-session timing.
 - Planning context includes the current `NSWorkspace.frontmostApplication` localized name when available.
 - Planning context includes bounded project/workspace hints detected from approved file-search folders using markers such as `Package.swift`, `.xcworkspace`, `.xcodeproj`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, and `.git`.
+- Planning context includes per-app policy hints for Xcode, Terminal, Finder, Safari, Chrome, Calendar, Mail, and Music, constrained to currently enabled tools.
 - `files.search` is constrained to user-approved folders selected in Settings; omitted `scopePath` searches all approved folders, while explicit scopes must be inside an approved folder.
 - Settings exposes a per-session allowlist for ambient tools; disabled tools are omitted from the planner prompt and execution allowlist.
 - App-owned fallback still summarizes tool payloads through a second Foundation Models prompt before speech.

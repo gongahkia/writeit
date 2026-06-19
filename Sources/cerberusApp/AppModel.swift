@@ -1464,11 +1464,16 @@ final class CerberusAppModel: ObservableObject {
                 speak(foundationModelStatusProvider.fallbackText())
                 return
             }
+            let activeApplicationName = currentActiveApplicationName()
             let context = AssistantContext(
-                activeApplicationName: currentActiveApplicationName(),
+                activeApplicationName: activeApplicationName,
                 allowedToolNames: enabledToolNames,
                 fileSearchScopePaths: fileSearchScopePaths,
-                projectWorkspaceHints: detectedProjectWorkspaces()
+                projectWorkspaceHints: detectedProjectWorkspaces(),
+                activeApplicationHints: ActiveApplicationContextPolicy.hints(
+                    for: activeApplicationName,
+                    allowedToolNames: enabledToolNames
+                )
             )
             let startedAt = Date()
             var succeeded = false
@@ -1550,11 +1555,17 @@ final class CerberusAppModel: ObservableObject {
         do {
             let request = activeRequest ?? plan.spokenResponse
             let readOnlyNames = DefaultToolCatalog.readOnlyToolNames.intersection(Set(enabledToolNames))
+            let activeApplicationName = currentActiveApplicationName()
+            let allowedToolNames = Array(readOnlyNames).sorted()
             let context = AssistantContext(
-                activeApplicationName: currentActiveApplicationName(),
-                allowedToolNames: Array(readOnlyNames).sorted(),
+                activeApplicationName: activeApplicationName,
+                allowedToolNames: allowedToolNames,
                 fileSearchScopePaths: fileSearchScopePaths,
-                projectWorkspaceHints: detectedProjectWorkspaces()
+                projectWorkspaceHints: detectedProjectWorkspaces(),
+                activeApplicationHints: ActiveApplicationContextPolicy.hints(
+                    for: activeApplicationName,
+                    allowedToolNames: allowedToolNames
+                )
             )
             let response = try await assistant.answerWithReadOnlyTools(for: request, context: context)
             recordModelSuccess()
