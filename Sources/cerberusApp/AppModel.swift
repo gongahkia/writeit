@@ -61,6 +61,14 @@ private let defaultHeadGestureCooldownSeconds = 1.2
 enum MenuBarStatusTint: Equatable {
     case red
     case primary
+
+    static func resolve(
+        state: AssistantState,
+        isConfirmationVoiceActive: Bool,
+        isWakeWordMonitoring: Bool
+    ) -> MenuBarStatusTint {
+        state.isMicrophoneActive || isConfirmationVoiceActive || isWakeWordMonitoring ? .red : .primary
+    }
 }
 
 struct MCPClientElicitationFieldDraft: Identifiable {
@@ -477,7 +485,11 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var menuBarStatusTint: MenuBarStatusTint {
-        isMicrophoneActive ? .red : .primary
+        MenuBarStatusTint.resolve(
+            state: state,
+            isConfirmationVoiceActive: isConfirmationVoiceActive,
+            isWakeWordMonitoring: isWakeWordMonitoring
+        )
     }
 
     var nextPermissionSnapshot: PermissionSnapshot? {

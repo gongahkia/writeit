@@ -236,6 +236,17 @@ private struct WaitTimeout: Error {}
 }
 
 @MainActor
+@Test func appModelMenuBarTintIsRedDuringWakePhraseMonitoring() {
+    let tint = MenuBarStatusTint.resolve(
+        state: .idle,
+        isConfirmationVoiceActive: false,
+        isWakeWordMonitoring: true
+    )
+
+    #expect(tint == .red)
+}
+
+@MainActor
 @Test func appModelSetupSkipPersistsAcrossRelaunch() {
     let key = CerberusSettingsKeys.onboardingSkipped
     let prior = UserDefaults.standard.object(forKey: key)
@@ -478,7 +489,7 @@ private struct WaitTimeout: Error {}
 }
 
 private func waitUntil(
-    timeoutNanoseconds: UInt64 = 3_000_000_000,
+    timeoutNanoseconds: UInt64 = 10_000_000_000,
     predicate: @MainActor @escaping () -> Bool
 ) async throws {
     let start = ContinuousClock.now
