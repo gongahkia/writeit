@@ -239,7 +239,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 - [ ] [P0][reference] Re-check Apple Foundation Models docs before implementing any model API upgrade: https://developer.apple.com/documentation/foundationmodels/
 - [ ] [P0][reference] Re-check Apple Foundation Models updates before implementing image/vision work: https://developer.apple.com/documentation/updates/foundationmodels
-- [ ] [P0][reference] Re-check Apple `SystemLanguageModel.Adapter` docs before adapter shipping: https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel/adapter
 - [ ] [P0][reference] Re-check Apple SpeechAnalyzer docs before speech pipeline changes: https://developer.apple.com/documentation/speech/speechanalyzer
 - [ ] [P0][reference] Re-check Apple SpeechTranscriber docs before transcription behavior changes: https://developer.apple.com/documentation/speech/speechtranscriber
 - [ ] [P0][reference] Re-check GitHub license docs before public release: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
