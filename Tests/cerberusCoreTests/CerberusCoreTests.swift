@@ -1127,6 +1127,58 @@ private func runScript(
     #expect(summary.toolSelectionAccuracy == 0)
 }
 
+@Test func goldenRequestFixturesParseValidateAndComparePlans() throws {
+    let data = Data("""
+    {"id":"screen","request":"what text is on my screen?","allowedToolNames":["screen.ocr"],"expectedIntent":"callTool","expectedToolName":"screen.ocr","expectedRequiresConfirmation":false}
+    """.utf8)
+
+    let fixtures = try GoldenRequestFixtures.parseJSONL(data)
+    let fixture = try #require(fixtures.first)
+    let matching = GoldenRequestFixtureResult(
+        fixture: fixture,
+        plan: AssistantPlan(
+            intent: .callTool,
+            spokenResponse: "Reading the screen.",
+            requiresConfirmation: false,
+            toolName: "screen.ocr",
+            toolArgumentsJSON: #"{"limit":20}"#,
+            toolArgumentsSummary: "read screen text"
+        )
+    )
+    let drifted = GoldenRequestFixtureResult(
+        fixture: fixture,
+        plan: AssistantPlan(
+            intent: .answerDirectly,
+            spokenResponse: "No tool needed.",
+            requiresConfirmation: false
+        )
+    )
+
+    #expect(fixtures.count == 1)
+    #expect(fixture.context.allowedToolNames == ["screen.ocr"])
+    #expect(matching.matches)
+    #expect(!drifted.matches)
+    #expect(throws: ToolExecutionError.self) {
+        try GoldenRequestFixtures.parseJSONL(Data("""
+        {"id":"bad","request":"x","allowedToolNames":["calendar.read"],"expectedIntent":"callTool","expectedToolName":"screen.ocr","expectedRequiresConfirmation":false}
+        """.utf8))
+    }
+}
+
+@Test func bundledGoldenRequestFixturesStayValid() throws {
+    let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Fixtures/Model/golden-requests.jsonl")
+    let fixtures = try GoldenRequestFixtures.parseJSONL(Data(contentsOf: url))
+    let ids = Set(fixtures.map(\.id))
+    let readOnlyToolNames = Set(DefaultToolCatalog.summaries.filter { !$0.mutatesState }.map(\.name))
+
+    #expect(fixtures.count >= 5)
+    #expect(ids.count == fixtures.count)
+    #expect(fixtures.contains { $0.expectedToolName == "screen.ocr" })
+    #expect(fixtures.contains { $0.expectedRequiresConfirmation })
+    #expect(fixtures.contains { readOnlyToolNames.contains($0.expectedToolName) && !$0.expectedRequiresConfirmation })
+}
+
 private actor ManualSleeper {
     private var recordedDelays: [UInt64] = []
     private var continuations: [CheckedContinuation<Void, any Error>] = []

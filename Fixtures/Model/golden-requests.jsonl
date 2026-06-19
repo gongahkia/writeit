@@ -1,0 +1,5 @@
+{"id":"screen-ocr-read","request":"what text is on my screen?","allowedToolNames":["screen.ocr","screen.snapshot"],"expectedIntent":"callTool","expectedToolName":"screen.ocr","expectedRequiresConfirmation":false}
+{"id":"calendar-read-today","request":"what is next on my calendar today?","allowedToolNames":["calendar.read"],"expectedIntent":"callTool","expectedToolName":"calendar.read","expectedRequiresConfirmation":false}
+{"id":"create-reminder-confirm","request":"remind me to submit the build at 5 pm","allowedToolNames":["reminders.create","reminders.read"],"expectedIntent":"callTool","expectedToolName":"reminders.create","expectedRequiresConfirmation":true}
+{"id":"open-calendar-confirm","request":"open Calendar","allowedToolNames":["app.control"],"expectedIntent":"callTool","expectedToolName":"app.control","expectedRequiresConfirmation":true}
+{"id":"memory-read","request":"what do you remember about my preferred shell?","allowedToolNames":["memory.read"],"expectedIntent":"callTool","expectedToolName":"memory.read","expectedRequiresConfirmation":false}

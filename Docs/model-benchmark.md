@@ -25,6 +25,14 @@ Scripts/benchmark_model.sh --native-read-only-tools --request "what text is on m
 
 The native-tool mode uses the same read-only FoundationModels `Tool` session as the app, so local permissions and tool runtime costs affect the result. Use the synthetic mode for model-loop latency without Screen Recording, Calendar, Mail, or file-system side effects.
 
+Plan drift fixtures:
+
+```sh
+Scripts/evaluate_model_golden_requests.sh
+```
+
+The script runs `Fixtures/Model/golden-requests.jsonl` through `cerberus-model-benchmark --golden-fixtures` and reports expected vs actual intent, tool name, and confirmation requirement for each request. Re-run it after SDK updates on target hardware.
+
 Official API surface used:
 
 - `LanguageModelSession`

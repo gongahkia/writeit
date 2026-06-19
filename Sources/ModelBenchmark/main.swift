@@ -17,6 +17,10 @@ struct ModelBenchmarkCommand {
                 ? DefaultToolCatalog.readOnlyFoundationModelTools()
                 : []
         )
+        if let goldenFixturesURL = options.goldenFixturesURL {
+            try await runGoldenFixtures(at: goldenFixturesURL, assistant: assistant)
+            return
+        }
         if options.prewarm {
             await assistant.prewarm()
         }
@@ -101,6 +105,30 @@ struct ModelBenchmarkCommand {
     }
 }
 
+private func runGoldenFixtures(at url: URL, assistant: Assistant) async throws {
+    let data = try Data(contentsOf: url)
+    let fixtures = try GoldenRequestFixtures.parseJSONL(data)
+    guard !fixtures.isEmpty else {
+        throw ToolExecutionError.invalidArguments("No golden request fixtures found.")
+    }
+
+    var results: [GoldenRequestFixtureResult] = []
+    for fixture in fixtures {
+        let plan = try await assistant.plan(for: fixture.request, context: fixture.context)
+        let result = GoldenRequestFixtureResult(fixture: fixture, plan: plan)
+        results.append(result)
+        print(result.matches ? "PASS \(fixture.id)" : "FAIL \(fixture.id)")
+        print("expected: intent=\(fixture.expectedIntent) tool=\(fixture.expectedToolName) confirmation=\(fixture.expectedRequiresConfirmation)")
+        print("actual: intent=\(result.actualIntent) tool=\(result.actualToolName) confirmation=\(result.actualRequiresConfirmation)")
+        print("")
+    }
+
+    let matches = results.filter(\.matches).count
+    print("golden.total: \(results.count)")
+    print("golden.matches: \(matches)")
+    print(String(format: "golden.accuracy: %.4f", Double(matches) / Double(results.count)))
+}
+
 private struct Options {
     let request: String
     let iterations: Int
@@ -109,6 +137,7 @@ private struct Options {
     let prewarm: Bool
     let outputURL: URL?
     let verbose: Bool
+    let goldenFixturesURL: URL?
 
     init(arguments: [String]) throws {
         var request = "what text is on my screen?"
@@ -118,6 +147,7 @@ private struct Options {
         var prewarm = true
         var outputURL: URL?
         var verbose = false
+        var goldenFixturesURL: URL?
         var iterator = arguments.makeIterator()
 
         while let argument = iterator.next() {
@@ -148,6 +178,11 @@ private struct Options {
                 outputURL = Self.fileURL(value)
             case "--verbose":
                 verbose = true
+            case "--golden-fixtures":
+                guard let value = iterator.next() else {
+                    throw ToolExecutionError.invalidArguments("--golden-fixtures requires a path.")
+                }
+                goldenFixturesURL = Self.fileURL(value)
             default:
                 throw ToolExecutionError.invalidArguments("Unknown argument: \(argument)")
             }
@@ -160,13 +195,15 @@ private struct Options {
         self.prewarm = prewarm
         self.outputURL = outputURL
         self.verbose = verbose
+        self.goldenFixturesURL = goldenFixturesURL
     }
 
     static func printUsage() {
         print("""
-        usage: cerberus-model-benchmark [--request text] [--iterations 3] [--payload text] [--native-read-only-tools] [--no-prewarm] [--output report.json] [--verbose]
+        usage: cerberus-model-benchmark [--request text] [--iterations 3] [--payload text] [--native-read-only-tools] [--no-prewarm] [--output report.json] [--verbose] [--golden-fixtures file.jsonl]
 
         Measures Foundation Models planning latency and synthetic tool-output summarization latency.
+        --golden-fixtures runs checked request fixtures and reports plan drift instead of latency.
         By default it does not run live native tools. Add --native-read-only-tools to benchmark the app's read-only Tool session.
         """)
     }
