@@ -71,6 +71,7 @@ See `Docs/adapters.md` for optional FoundationModels adapter loading.
 See `Docs/model-benchmark.md` for Foundation Models planning/tool-loop latency checks.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/airpods.md` for AirPods motion troubleshooting.
+See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, MCP OAuth, and shell XPC recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
 See `Docs/open-source.md` for public repository release checks.
