@@ -165,7 +165,9 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         "memory.write",
         "music.control",
         "reminders.complete",
-        "reminders.create"
+        "reminders.create",
+        "reminders.delete",
+        "reminders.edit"
     ])
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
@@ -372,6 +374,50 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
         dueDateISO8601: "2026-06-16T12:00:00Z"
     ))
     #expect(RemindersCompleteTool.payload(title: "Buy milk", listName: "Tasks", dueDate: nil) == "Completed reminder: [Tasks] Buy milk due no due date")
+}
+
+@Test func remindersEditToolRequiresConfirmationAndValidatesArguments() throws {
+    let tool = RemindersEditTool()
+    let summaries = DefaultToolCatalog.summaries
+    let summary = try #require(summaries.first { $0.name == "reminders.edit" })
+
+    #expect(summary.mutatesState)
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersEditTool.Arguments(title: " ", newTitle: "Buy oat milk"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersEditTool.Arguments(title: "Buy milk"))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersEditTool.Arguments(title: "Buy milk", newPriority: 10))
+    }
+    try tool.validate(RemindersEditTool.Arguments(
+        title: "Buy milk",
+        dueDateISO8601: "2026-06-16T09:00:00Z",
+        newTitle: "Buy oat milk",
+        newDueDateISO8601: "2026-06-17T09:00:00Z",
+        newPriority: 1
+    ))
+    #expect(RemindersEditTool.payload(title: "Buy oat milk", listName: "Tasks", dueDate: nil) == "Edited reminder: [Tasks] Buy oat milk due no due date")
+}
+
+@Test func remindersDeleteToolRequiresConfirmationAndValidatesArguments() throws {
+    let tool = RemindersDeleteTool()
+    let summaries = DefaultToolCatalog.summaries
+    let summary = try #require(summaries.first { $0.name == "reminders.delete" })
+
+    #expect(summary.mutatesState)
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersDeleteTool.Arguments(title: " "))
+    }
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(RemindersDeleteTool.Arguments(title: "Buy milk", dueDateISO8601: "bad-date"))
+    }
+    try tool.validate(RemindersDeleteTool.Arguments(
+        title: "Buy milk",
+        dueDateISO8601: "2026-06-16T09:00:00Z"
+    ))
+    #expect(RemindersDeleteTool.payload(title: "Buy milk", listName: "Tasks", dueDate: nil) == "Deleted reminder: [Tasks] Buy milk due no due date")
 }
 
 @Test func musicControlToolRequiresConfirmationAndRunsTypedActions() async throws {

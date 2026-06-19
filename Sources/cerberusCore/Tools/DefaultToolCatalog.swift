@@ -25,6 +25,8 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(NotesSearchTool()),
             AnyAssistantTool(RemindersCompleteTool()),
             AnyAssistantTool(RemindersCreateTool()),
+            AnyAssistantTool(RemindersDeleteTool()),
+            AnyAssistantTool(RemindersEditTool()),
             AnyAssistantTool(RemindersTool()),
             AnyAssistantTool(ScreenOCRTool()),
             AnyAssistantTool(ScreenSnapshotTool()),
