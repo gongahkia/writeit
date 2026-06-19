@@ -247,6 +247,17 @@ private struct WaitTimeout: Error {}
 }
 
 @MainActor
+@Test func appModelMenuBarTintIsRedDuringConfirmationVoiceCapture() {
+    let tint = MenuBarStatusTint.resolve(
+        state: .awaitingConfirm,
+        isConfirmationVoiceActive: true,
+        isWakeWordMonitoring: false
+    )
+
+    #expect(tint == .red)
+}
+
+@MainActor
 @Test func appModelSetupSkipPersistsAcrossRelaunch() {
     let key = CerberusSettingsKeys.onboardingSkipped
     let prior = UserDefaults.standard.object(forKey: key)
