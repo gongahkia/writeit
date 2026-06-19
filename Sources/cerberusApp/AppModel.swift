@@ -1179,13 +1179,9 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private func spokenResponse(for result: ToolResult, plan: AssistantPlan) async -> String {
-        let fallback = result.spokenSummary
         let request = activeRequest ?? plan.spokenResponse
-
-        do {
-            return try await assistant.summarize(toolResult: result, for: request)
-        } catch {
-            return fallback
+        return await ToolOutputSummarizationFallback.spokenResponse(for: result, request: request) { [assistant] result, request in
+            try await assistant.summarize(toolResult: result, for: request)
         }
     }
 

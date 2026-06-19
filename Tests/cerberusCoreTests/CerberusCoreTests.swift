@@ -350,6 +350,21 @@ import Testing
     #expect(summary.line(label: "plan").contains("plan: count=4"))
 }
 
+@Test func toolOutputSummarizationFallbackUsesSpokenSummaryWhenSummarizerFails() async {
+    let result = ToolResult(
+        toolName: "files.search",
+        succeeded: true,
+        spokenSummary: "Found 2 matching files.",
+        untrustedPayload: "large payload"
+    )
+
+    let response = await ToolOutputSummarizationFallback.spokenResponse(for: result, request: "find files") { _, _ in
+        throw ToolExecutionError.denied("model unavailable")
+    }
+
+    #expect(response == "Found 2 matching files.")
+}
+
 @Test func benchmarkReportWriterWritesPrettyJSON() throws {
     struct Report: Codable {
         let name: String
