@@ -846,6 +846,7 @@ struct StatusPanel: View {
 
                 gestureSlider("Nod", value: $model.headNodThreshold)
                 gestureSlider("Shake", value: $model.headShakeThreshold)
+                cooldownSlider("Cooldown", value: $model.headGestureCooldownSeconds)
                 Toggle("Log gesture validation CSV", isOn: $model.isHeadGestureValidationLoggingEnabled)
                     .font(.caption)
             }
@@ -1045,6 +1046,23 @@ struct StatusPanel: View {
             }
 
             Slider(value: value, in: 0.15...0.8, step: 0.05)
+        }
+    }
+
+    private func cooldownSlider(_ label: String, value: Binding<Double>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.caption)
+
+                Spacer()
+
+                Text("\(value.wrappedValue, format: .number.precision(.fractionLength(1)))s")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            Slider(value: value, in: 0.3...3.0, step: 0.1)
         }
     }
 

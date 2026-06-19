@@ -45,7 +45,8 @@ import Testing
         "requiresConfirmationForAllTools",
         "usesConfiguredAdapter",
         "hotKeyConfigurationID",
-        "shellProposalMode"
+        "shellProposalMode",
+        "headGestureCooldownSeconds"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }
@@ -272,10 +273,11 @@ import Testing
     let start = Date(timeIntervalSince1970: 3_000)
 
     classifier.calibrate(pitch: 0, yaw: 0)
-    classifier.updateThresholds(pitch: 0.6, yaw: 0.7)
+    classifier.updateThresholds(pitch: 0.6, yaw: 0.7, cooldown: 2.0)
 
     #expect(classifier.classify(pitch: 0.4, yaw: 0, at: start) == nil)
     #expect(classifier.classify(pitch: 0.7, yaw: 0, at: start.addingTimeInterval(1.0)) == .nod)
+    #expect(classifier.classify(pitch: 1.4, yaw: 0, at: start.addingTimeInterval(2.0)) == nil)
 }
 
 @Test func headGestureValidationLogWritesCSV() async throws {

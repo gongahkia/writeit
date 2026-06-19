@@ -55,6 +55,8 @@ struct PendingMCPClientRequest: Identifiable {
     }
 }
 
+private let defaultHeadGestureCooldownSeconds = 1.2
+
 struct MCPClientElicitationFieldDraft: Identifiable {
     let field: MCPElicitationField
     var value: String
@@ -214,6 +216,17 @@ final class CerberusAppModel: ObservableObject {
             updateHeadGestureThresholds()
         }
     }
+    @Published var headGestureCooldownSeconds = UserDefaults.standard.object(forKey: CerberusSettingsKeys.headGestureCooldownSeconds) as? Double ?? defaultHeadGestureCooldownSeconds {
+        didSet {
+            let clamped = min(3.0, max(0.3, headGestureCooldownSeconds))
+            if headGestureCooldownSeconds != clamped {
+                headGestureCooldownSeconds = clamped
+                return
+            }
+            UserDefaults.standard.set(headGestureCooldownSeconds, forKey: CerberusSettingsKeys.headGestureCooldownSeconds)
+            updateHeadGestureThresholds()
+        }
+    }
     @Published var isHeadGestureValidationLoggingEnabled = false
     @Published var transcriptDraft = ""
     @Published var mcpClientDraft = ""
@@ -328,6 +341,7 @@ final class CerberusAppModel: ObservableObject {
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         hotKeyMonitor.update(configuration: hotKeyConfiguration)
+        updateHeadGestureThresholds()
         startTriggers()
         refreshConfiguredAdapter()
     }
@@ -870,6 +884,7 @@ final class CerberusAppModel: ObservableObject {
     func resetHeadGestureThresholds() {
         headNodThreshold = 0.35
         headShakeThreshold = 0.45
+        headGestureCooldownSeconds = defaultHeadGestureCooldownSeconds
         updateHeadGestureThresholds()
     }
 
@@ -1042,7 +1057,11 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private func updateHeadGestureThresholds() {
-        headGestureDetector.updateThresholds(pitch: headNodThreshold, yaw: headShakeThreshold)
+        headGestureDetector.updateThresholds(
+            pitch: headNodThreshold,
+            yaw: headShakeThreshold,
+            cooldown: headGestureCooldownSeconds
+        )
     }
 
     private func recordHeadGestureSnapshot(_ snapshot: HeadGestureMotionSnapshot) {

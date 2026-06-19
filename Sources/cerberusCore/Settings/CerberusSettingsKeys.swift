@@ -9,6 +9,7 @@ public enum CerberusSettingsKeys {
     public static let usesConfiguredAdapter = "usesConfiguredAdapter"
     public static let hotKeyConfigurationID = "hotKeyConfigurationID"
     public static let shellProposalMode = "shellProposalMode"
+    public static let headGestureCooldownSeconds = "headGestureCooldownSeconds"
 
     public static let persistedKeys = [
         wakePhrase,
@@ -18,6 +19,7 @@ public enum CerberusSettingsKeys {
         requiresConfirmationForAllTools,
         usesConfiguredAdapter,
         hotKeyConfigurationID,
-        shellProposalMode
+        shellProposalMode,
+        headGestureCooldownSeconds
     ]
 }

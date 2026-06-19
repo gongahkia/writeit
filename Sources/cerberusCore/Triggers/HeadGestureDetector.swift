@@ -225,8 +225,8 @@ public final class HeadGestureDetector {
         return true
     }
 
-    public func updateThresholds(pitch: Double, yaw: Double) {
-        classifier.updateThresholds(pitch: pitch, yaw: yaw)
+    public func updateThresholds(pitch: Double, yaw: Double, cooldown: TimeInterval? = nil) {
+        classifier.updateThresholds(pitch: pitch, yaw: yaw, cooldown: cooldown)
     }
 
     private func handle(
