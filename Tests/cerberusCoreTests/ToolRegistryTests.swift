@@ -167,6 +167,22 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(shellEnabledNames == ["calendar.read", "shell.run"])
 }
 
+@Test func toolEnablementKeepsMCPDisabledUntilExplicitlyEnabled() {
+    let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
+    let mcp = [MCPTool().summary]
+    let shell = ShellTool().summary
+
+    let defaultNames = ToolEnablementPolicy()
+        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
+        .map(\.name)
+    let mcpEnabledNames = ToolEnablementPolicy(mcpEnabled: true)
+        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
+        .map(\.name)
+
+    #expect(defaultNames == ["calendar.read"])
+    #expect(mcpEnabledNames == ["calendar.read", "mcp.call"])
+}
+
 @Test func shellRunRequiresConfirmationForAllowlistedCommands() async throws {
     struct StubExecutor: ShellCommandExecutor {
         func run(_ command: ValidatedCommand) async throws -> String {
