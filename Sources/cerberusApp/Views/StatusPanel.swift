@@ -376,6 +376,15 @@ struct StatusPanel: View {
                 }
                 .buttonStyle(.bordered)
 
+                Button(role: .destructive) {
+                    model.deleteAuditEntries()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.plain)
+                .help("Clear tool calls")
+                .disabled(model.recentAuditEntries.isEmpty)
+
                 Button {
                     model.refreshAuditEntries()
                 } label: {

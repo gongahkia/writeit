@@ -671,6 +671,29 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
+    func deleteAuditEntries() {
+        let alert = NSAlert()
+        alert.messageText = "Clear tool call history?"
+        alert.informativeText = "This removes the local audit history displayed by cerberus."
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+
+        Task {
+            do {
+                try await auditLog.deleteAll()
+                recentAuditEntries = []
+                statusLine = "Cleared tool call history."
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
     func answerLastToolAction() {
         Task {
             let summary = await lastToolActionSummary()

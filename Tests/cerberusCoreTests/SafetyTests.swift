@@ -96,6 +96,8 @@ import Testing
     #expect(try await auditLog.entries().count == 2)
     #expect(try await auditLog.recentEntries(limit: 1).map(\.toolName) == ["two"])
     #expect(try await auditLog.signaturesAreValid())
+    try await auditLog.deleteAll()
+    #expect(try await auditLog.entries().isEmpty)
 }
 
 @Test func auditLogDetectsTamperedEntries() async throws {

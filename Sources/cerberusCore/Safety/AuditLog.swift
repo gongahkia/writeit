@@ -144,6 +144,13 @@ public actor AuditLog {
         Array(try entries().suffix(max(0, limit)).reversed())
     }
 
+    public func deleteAll() throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: fileURL)
+    }
+
     public func signaturesAreValid() throws -> Bool {
         let key = try signingKey()
         var previousHash = "genesis"
