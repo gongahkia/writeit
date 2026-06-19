@@ -366,6 +366,14 @@ final class CerberusAppModel: ObservableObject {
         refreshAssistantToolPrompt()
     }
 
+    func revealAppDataLocation(_ location: AppDataLocation) {
+        let url = location.url
+        let revealURL = FileManager.default.fileExists(atPath: url.path)
+            ? url
+            : url.deletingLastPathComponent()
+        NSWorkspace.shared.activateFileViewerSelecting([revealURL])
+    }
+
     func refreshScreenSnapshotStatus() {
         let directoryURL = ScreenSnapshotTool.defaultOutputDirectoryURL()
         screenSnapshotCount = ScreenSnapshotCache.snapshotCount(in: directoryURL)

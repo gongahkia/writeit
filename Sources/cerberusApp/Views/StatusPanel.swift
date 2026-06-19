@@ -824,14 +824,26 @@ struct StatusPanel: View {
                     .foregroundStyle(.secondary)
 
                 ForEach(model.appDataLocations) { location in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(location.name)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(location.url.path)
-                            .font(.caption2.monospaced())
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(location.name)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(location.url.path)
+                                .font(.caption2.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            model.revealAppDataLocation(location)
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.plain)
+                        .help("Reveal \(location.name) in Finder")
                     }
                 }
             }
