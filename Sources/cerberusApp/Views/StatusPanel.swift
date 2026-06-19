@@ -645,9 +645,16 @@ struct StatusPanel: View {
                 }
             }
         } else {
-            Label("Setup complete", systemImage: "checkmark.circle")
-                .font(.caption)
-                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Setup complete", systemImage: "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+
+                Text(model.setupChecklistSummary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

@@ -319,6 +319,11 @@ final class CerberusAppModel: ObservableObject {
         permissionSnapshots.filter { $0.state == .granted }.count
     }
 
+    var setupChecklistSummary: String {
+        let permissionNames = permissionSnapshots.map(\.kind.displayName).joined(separator: ", ")
+        return "\(grantedPermissionCount) permissions ready: \(permissionNames)"
+    }
+
     var enabledToolDisplayText: String {
         let labels = enabledToolSummaries.map(\.name)
         return labels.isEmpty ? "none" : labels.joined(separator: ", ")
