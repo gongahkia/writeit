@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import Testing
 @testable import cerberusCore
 
@@ -170,6 +171,46 @@ import Testing
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
 }
 
+@Test func keychainSecretStoreSurfacesReadFailures() throws {
+    let store = KeychainSecretStore(
+        account: "read",
+        operations: StubKeychainOperations(copyStatus: OSStatus(-50))
+    )
+
+    #expect(throws: KeychainSecretStoreError.osStatus(OSStatus(-50))) {
+        _ = try store.data()
+    }
+}
+
+@Test func keychainSecretStoreSurfacesWriteFailures() throws {
+    let updateFailureStore = KeychainSecretStore(
+        account: "update",
+        operations: StubKeychainOperations(updateStatus: OSStatus(-50))
+    )
+    let addFailureStore = KeychainSecretStore(
+        account: "add",
+        operations: StubKeychainOperations(updateStatus: errSecItemNotFound, addStatus: OSStatus(-50))
+    )
+
+    #expect(throws: KeychainSecretStoreError.osStatus(OSStatus(-50))) {
+        try updateFailureStore.save(Data("secret".utf8))
+    }
+    #expect(throws: KeychainSecretStoreError.osStatus(OSStatus(-50))) {
+        try addFailureStore.save(Data("secret".utf8))
+    }
+}
+
+@Test func keychainSecretStoreSurfacesDeleteFailures() throws {
+    let store = KeychainSecretStore(
+        account: "delete",
+        operations: StubKeychainOperations(deleteStatus: OSStatus(-50))
+    )
+
+    #expect(throws: KeychainSecretStoreError.osStatus(OSStatus(-50))) {
+        try store.delete()
+    }
+}
+
 @Test func mailSearchToolFormatsReadOnlyResults() async throws {
     struct StubRunner: MailSearchRunning {
         func search(
@@ -330,6 +371,30 @@ private func makeHomeTestDirectory() throws -> URL {
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     return url
+}
+
+private struct StubKeychainOperations: KeychainSecretStoreOperations {
+    var copyStatus: OSStatus = errSecItemNotFound
+    var copyData: Data?
+    var updateStatus: OSStatus = errSecSuccess
+    var addStatus: OSStatus = errSecSuccess
+    var deleteStatus: OSStatus = errSecSuccess
+
+    func copyMatching(_ query: [String: Any]) -> (OSStatus, Data?) {
+        (copyStatus, copyData)
+    }
+
+    func update(_ query: [String: Any], data: Data) -> OSStatus {
+        updateStatus
+    }
+
+    func add(_ query: [String: Any], data: Data) -> OSStatus {
+        addStatus
+    }
+
+    func delete(_ query: [String: Any]) -> OSStatus {
+        deleteStatus
+    }
 }
 
 @Test func shellToolStillSupportsDryRun() async throws {

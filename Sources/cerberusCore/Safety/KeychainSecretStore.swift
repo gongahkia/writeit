@@ -15,13 +15,26 @@ public enum KeychainSecretStoreError: Error, LocalizedError, Equatable {
     }
 }
 
+public protocol KeychainSecretStoreOperations: Sendable {
+    func copyMatching(_ query: [String: Any]) -> (OSStatus, Data?)
+    func update(_ query: [String: Any], data: Data) -> OSStatus
+    func add(_ query: [String: Any], data: Data) -> OSStatus
+    func delete(_ query: [String: Any]) -> OSStatus
+}
+
 public struct KeychainSecretStore: Sendable {
     public let service: String
     public let account: String
+    private let operations: any KeychainSecretStoreOperations
 
-    public init(service: String = CerberusCore.bundleIdentifier, account: String) {
+    public init(
+        service: String = CerberusCore.bundleIdentifier,
+        account: String,
+        operations: any KeychainSecretStoreOperations = SystemKeychainSecretStoreOperations()
+    ) {
         self.service = service
         self.account = account
+        self.operations = operations
     }
 
     public func data() throws -> Data? {
@@ -29,15 +42,14 @@ public struct KeychainSecretStore: Sendable {
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let (status, item) = operations.copyMatching(query)
         if status == errSecItemNotFound {
             return nil
         }
         guard status == errSecSuccess else {
             throw KeychainSecretStoreError.osStatus(status)
         }
-        guard let data = item as? Data else {
+        guard let data = item else {
             throw KeychainSecretStoreError.unexpectedData
         }
         return data
@@ -45,8 +57,7 @@ public struct KeychainSecretStore: Sendable {
 
     public func save(_ data: Data) throws {
         var query = baseQuery()
-        let attributes = [kSecValueData as String: data] as CFDictionary
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes)
+        let updateStatus = operations.update(query, data: data)
 
         if updateStatus == errSecSuccess {
             return
@@ -56,14 +67,14 @@ public struct KeychainSecretStore: Sendable {
         }
 
         query[kSecValueData as String] = data
-        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        let addStatus = operations.add(query, data: data)
         guard addStatus == errSecSuccess else {
             throw KeychainSecretStoreError.osStatus(addStatus)
         }
     }
 
     public func delete() throws {
-        let status = SecItemDelete(baseQuery() as CFDictionary)
+        let status = operations.delete(baseQuery())
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainSecretStoreError.osStatus(status)
         }
@@ -75,5 +86,30 @@ public struct KeychainSecretStore: Sendable {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
+    }
+}
+
+public struct SystemKeychainSecretStoreOperations: KeychainSecretStoreOperations {
+    public init() {}
+
+    public func copyMatching(_ query: [String: Any]) -> (OSStatus, Data?) {
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        return (status, item as? Data)
+    }
+
+    public func update(_ query: [String: Any], data: Data) -> OSStatus {
+        let attributes = [kSecValueData as String: data] as CFDictionary
+        return SecItemUpdate(query as CFDictionary, attributes)
+    }
+
+    public func add(_ query: [String: Any], data: Data) -> OSStatus {
+        var query = query
+        query[kSecValueData as String] = data
+        return SecItemAdd(query as CFDictionary, nil)
+    }
+
+    public func delete(_ query: [String: Any]) -> OSStatus {
+        SecItemDelete(query as CFDictionary)
     }
 }

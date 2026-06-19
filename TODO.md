@@ -288,7 +288,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][tests] Add tests for confirmation voice timeout using injectable clocks.
 - [ ] [P1][tests] Add tests for app model transitions using fake transcriber, speaker, assistant, and tools.
 - [ ] [P1][tests] Add tests for packaged app bundle file layout.
-- [ ] [P1][tests] Add tests for Keychain read/write/delete failures with injectable store fakes.
 - [ ] [P1][ci] Add GitHub Actions workflow for `swift test` on macOS 26 when hosted runner support exists.
 - [ ] [P1][ci][blocked: signing secrets] Add optional release packaging workflow only after secret storage policy is decided.
 - [ ] [P1][ci] Add CI artifact upload for test logs and validation reports.
