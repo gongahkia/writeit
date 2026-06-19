@@ -26,9 +26,44 @@ import Testing
     #expect(denied)
 }
 
+@Test func commandAllowlistRejectsMutatingPackageAndVCSSubcommands() throws {
+    let allowlist = CommandAllowlist(allowedExecutablePaths: [
+        "brew": ["/opt/homebrew/bin/brew"],
+        "git": ["/usr/bin/git"],
+        "npm": ["/opt/homebrew/bin/npm"],
+        "swift": ["/usr/bin/swift"]
+    ])
+    let commands = [
+        ShellCommand(executable: "git", arguments: ["commit"]),
+        ShellCommand(executable: "brew", arguments: ["install"]),
+        ShellCommand(executable: "npm", arguments: ["install"]),
+        ShellCommand(executable: "swift", arguments: ["package", "update"])
+    ]
+
+    for command in commands {
+        #expect(throws: ToolExecutionError.self) {
+            _ = try allowlist.validate(command)
+        }
+    }
+}
+
 @Test func commandAllowlistRejectsHomePrefixSiblingWorkingDirectory() throws {
     let homePath = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath().path
     let command = ShellCommand(executable: "pwd", workingDirectory: homePath + "-outside")
+
+    #expect(throws: ToolExecutionError.self) {
+        _ = try CommandAllowlist().validate(command)
+    }
+}
+
+@Test func commandAllowlistRejectsSymlinkEscapesFromHome() throws {
+    let root = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Caches/cerberus-tests-\(UUID().uuidString)", isDirectory: true)
+    let link = root.appendingPathComponent("outside-home", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: FileManager.default.temporaryDirectory)
+    let command = ShellCommand(executable: "pwd", workingDirectory: link.path)
 
     #expect(throws: ToolExecutionError.self) {
         _ = try CommandAllowlist().validate(command)
