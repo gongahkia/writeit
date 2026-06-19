@@ -572,26 +572,34 @@ struct StatusPanel: View {
             }
 
             ForEach(model.permissionSnapshots) { snapshot in
-                HStack(spacing: 8) {
-                    statusDot(for: snapshot.state)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        statusDot(for: snapshot.state)
 
-                    Text(snapshot.kind.displayName)
-                        .font(.caption)
+                        Text(snapshot.kind.displayName)
+                            .font(.caption)
 
-                    Spacer()
+                        Spacer()
 
-                    Text(snapshot.state.displayName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text(snapshot.state.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
-                    Button {
-                        model.requestPermission(snapshot.kind)
-                    } label: {
-                        Image(systemName: "lock.open")
+                        Button {
+                            model.requestPermission(snapshot.kind)
+                        } label: {
+                            Image(systemName: "lock.open")
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(snapshot.state == .granted)
+                        .help("Request \(snapshot.kind.displayName)")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(snapshot.state == .granted)
-                    .help("Request \(snapshot.kind.displayName)")
+
+                    if let recoveryCopy = snapshot.recoveryCopy {
+                        Text(recoveryCopy)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

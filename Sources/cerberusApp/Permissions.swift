@@ -34,6 +34,25 @@ enum SystemPermission: String, CaseIterable, Identifiable {
             "Screen Recording"
         }
     }
+
+    var recoveryCopy: String {
+        switch self {
+        case .microphone:
+            "Enable Microphone in System Settings > Privacy & Security."
+        case .speechRecognition:
+            "Enable Speech Recognition in System Settings > Privacy & Security."
+        case .calendar:
+            "Enable Calendar access in System Settings > Privacy & Security."
+        case .reminders:
+            "Enable Reminders access in System Settings > Privacy & Security."
+        case .accessibility:
+            "Enable Accessibility for cerberus in System Settings > Privacy & Security."
+        case .inputMonitoring:
+            "Enable Input Monitoring for cerberus in System Settings > Privacy & Security."
+        case .screenRecording:
+            "Enable Screen Recording for cerberus in System Settings > Privacy & Security."
+        }
+    }
 }
 
 enum PermissionState: String, Equatable {
@@ -68,6 +87,15 @@ struct PermissionSnapshot: Identifiable, Equatable {
 
     var id: String {
         kind.id
+    }
+
+    var recoveryCopy: String? {
+        switch state {
+        case .denied, .restricted, .unknown:
+            kind.recoveryCopy
+        case .notDetermined, .granted, .writeOnly:
+            nil
+        }
     }
 }
 
