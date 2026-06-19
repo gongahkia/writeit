@@ -461,6 +461,9 @@ struct StatusPanel: View {
                 .help("Refresh memories")
             }
 
+            Toggle("Do not remember this session", isOn: $model.isSessionMemoryWriteDisabled)
+                .font(.caption)
+
             if model.memoryRecords.isEmpty {
                 Text("No memories yet")
                     .font(.caption)

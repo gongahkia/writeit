@@ -139,6 +139,12 @@ final class CerberusAppModel: ObservableObject {
     @Published var selectedPanelSection: PanelSection = .session
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
+    @Published var isSessionMemoryWriteDisabled = false {
+        didSet {
+            syncToolRegistryAllowlist()
+            refreshAssistantToolPrompt()
+        }
+    }
     @Published var requiresConfirmationForAllTools = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.requiresConfirmationForAllTools) {
         didSet {
             UserDefaults.standard.set(requiresConfirmationForAllTools, forKey: CerberusSettingsKeys.requiresConfirmationForAllTools)
@@ -437,17 +443,13 @@ final class CerberusAppModel: ObservableObject {
         var allowlist = ambientToolAllowlist
         allowlist.setEnabled(toolName, enabled: enabled)
         ambientToolAllowlist = allowlist
-        Task {
-            await toolRegistry.setToolEnabled(toolName, enabled: enabled)
-        }
+        syncToolRegistryAllowlist()
         refreshAssistantToolPrompt()
     }
 
     func resetAmbientToolAllowlist() {
         ambientToolAllowlist = ToolSessionAllowlist()
-        Task {
-            await toolRegistry.resetToolAllowlist()
-        }
+        syncToolRegistryAllowlist()
         refreshAssistantToolPrompt()
     }
 
@@ -1695,6 +1697,7 @@ final class CerberusAppModel: ObservableObject {
     private var enabledToolSummaries: [ToolSummary] {
         ToolEnablementPolicy(
             ambientAllowlist: ambientToolAllowlist,
+            sessionDisabledToolNames: sessionDisabledToolNames,
             mcpEnabled: isMCPToolEnabled,
             shellEnabled: isShellToolEnabled
         ).enabledSummaries(
@@ -1702,6 +1705,20 @@ final class CerberusAppModel: ObservableObject {
             mcpSummaries: Self.mcpToolSummaries,
             shellSummary: Self.shellToolSummary
         )
+    }
+
+    private var sessionDisabledToolNames: Set<String> {
+        isSessionMemoryWriteDisabled ? ["memory.write"] : []
+    }
+
+    private func syncToolRegistryAllowlist() {
+        let disabledToolNames = ambientToolAllowlist.disabledToolNames.union(sessionDisabledToolNames)
+        Task {
+            await toolRegistry.resetToolAllowlist()
+            for toolName in disabledToolNames {
+                await toolRegistry.setToolEnabled(toolName, enabled: false)
+            }
+        }
     }
 
     private var mutatingToolNames: Set<String> {

@@ -183,6 +183,18 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(shellEnabledNames == ["calendar.read", "shell.run"])
 }
 
+@Test func toolEnablementAppliesSessionDisabledToolNames() {
+    let ambient = [
+        ToolSummary(name: "memory.read", capability: "Read memory.", mutatesState: false),
+        ToolSummary(name: "memory.write", capability: "Write memory.", mutatesState: true)
+    ]
+    let names = ToolEnablementPolicy(sessionDisabledToolNames: ["memory.write"])
+        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: [], shellSummary: ShellTool().summary)
+        .map(\.name)
+
+    #expect(names == ["memory.read"])
+}
+
 @Test func toolEnablementKeepsMCPDisabledUntilExplicitlyEnabled() {
     let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
     let mcp = [MCPTool().summary]
