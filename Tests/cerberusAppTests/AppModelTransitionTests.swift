@@ -412,6 +412,37 @@ private struct WaitTimeout: Error {}
     #expect(model.recentAuditEntries.first?.resultSummary == "2 files")
 }
 
+@MainActor
+@Test func appModelFileSearchFolderAddRemoveFlowUpdatesVisiblePaths() throws {
+    let defaultsName = "cerberus-file-search-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: defaultsName))
+    defer {
+        UserDefaults.standard.removePersistentDomain(forName: defaultsName)
+    }
+    let store = FileSearchScopeStore(defaults: defaults)
+    let directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".cerberus-file-search-test-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    let model = CerberusAppModel(
+        fileSearchScopeStore: store,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.addFileSearchScopePaths([directoryURL.path, directoryURL.path])
+
+    #expect(model.fileSearchScopePaths == [directoryURL.path])
+    #expect(model.statusLine == "File search folders updated.")
+
+    model.removeFileSearchScope(directoryURL.path)
+
+    #expect(model.fileSearchScopePaths.isEmpty)
+    #expect(model.statusLine == "No file search folders approved.")
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 3_000_000_000,
     predicate: @MainActor @escaping () -> Bool

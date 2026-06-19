@@ -392,12 +392,13 @@ final class CerberusAppModel: ObservableObject {
         toolRegistry injectedToolRegistry: ToolRegistry? = nil,
         auditLog injectedAuditLog: AuditLog = AuditLog(),
         transcriptStore injectedTranscriptStore: EncryptedTranscriptStore = EncryptedTranscriptStore(),
+        fileSearchScopeStore injectedFileSearchScopeStore: FileSearchScopeStore? = nil,
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
         let mcpClientRequestBroker = MCPClientRequestBroker()
         let mcpServerRegistry = MCPServerRegistry()
-        let fileSearchScopeStore = FileSearchScopeStore()
+        let fileSearchScopeStore = injectedFileSearchScopeStore ?? FileSearchScopeStore()
         let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
         let mailSearchTool = MailSearchTool(
             allowBodySearch: {
@@ -648,12 +649,15 @@ final class CerberusAppModel: ObservableObject {
             return
         }
 
+        addFileSearchScopePaths(panel.urls.map(\.path))
+    }
+
+    func addFileSearchScopePaths(_ paths: [String]) {
         do {
-            for url in panel.urls {
-                try fileSearchScopeStore.add(url.path)
+            for path in paths {
+                try fileSearchScopeStore.add(path)
             }
-            fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
-            statusLine = fileSearchScopePaths.isEmpty ? "No file search folders approved." : "File search folders updated."
+            refreshFileSearchScopeStatus()
         } catch {
             statusLine = error.localizedDescription
         }
@@ -661,6 +665,11 @@ final class CerberusAppModel: ObservableObject {
 
     func removeFileSearchScope(_ path: String) {
         fileSearchScopePaths = fileSearchScopeStore.remove(path)
+        refreshFileSearchScopeStatus()
+    }
+
+    private func refreshFileSearchScopeStatus() {
+        fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
         statusLine = fileSearchScopePaths.isEmpty ? "No file search folders approved." : "File search folders updated."
     }
 
