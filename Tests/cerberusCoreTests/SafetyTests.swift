@@ -197,12 +197,17 @@ import Testing
     let store = EncryptedMemoryStore(fileURL: fileURL, fixedKeyData: Data(repeating: 3, count: 32))
     let writeTool = MemoryWriteTool(store: store)
     let readTool = MemoryReadTool(store: store)
+    let deleteTool = MemoryDeleteTool(store: store)
 
     _ = try await writeTool.run(arguments: MemoryWriteTool.Arguments(content: "Likes terse status updates", tags: ["preference"]))
     let result = try await readTool.run(arguments: MemoryReadTool.Arguments(query: "terse", limit: 5))
+    let deleteResult = try await deleteTool.run(arguments: MemoryDeleteTool.Arguments(query: "terse"))
+    let emptyResult = try await readTool.run(arguments: MemoryReadTool.Arguments(query: "terse", limit: 5))
 
     #expect(result.spokenSummary == "Found 1 memory.")
     #expect(result.untrustedPayload.contains("Likes terse status updates"))
+    #expect(deleteResult.spokenSummary == "Forgot 1 memory.")
+    #expect(emptyResult.spokenSummary == "Found 0 memories.")
 }
 
 @Test func keychainSecretStoreSurfacesReadFailures() throws {

@@ -159,6 +159,7 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(mutatingToolNames == [
         "app.control",
         "calendar.create",
+        "memory.delete",
         "memory.write",
         "music.control",
         "reminders.complete",

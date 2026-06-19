@@ -103,6 +103,26 @@ public actor EncryptedMemoryStore {
             .map { $0 }
     }
 
+    @discardableResult
+    public func delete(ids: Set<UUID>) throws -> Int {
+        guard !ids.isEmpty else {
+            return 0
+        }
+
+        let existingRecords = try records()
+        let remainingRecords = existingRecords.filter { !ids.contains($0.id) }
+        let deletedCount = existingRecords.count - remainingRecords.count
+        guard deletedCount > 0 else {
+            return 0
+        }
+
+        try deleteAll()
+        for record in remainingRecords {
+            try append(record)
+        }
+        return deletedCount
+    }
+
     public func exportPlaintextJSON(to outputURL: URL) throws {
         let data = try encoder.encode(records())
         try FileManager.default.createDirectory(

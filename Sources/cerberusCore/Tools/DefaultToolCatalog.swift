@@ -16,6 +16,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(CalendarTool()),
             AnyAssistantTool(fileSearchTool),
             AnyAssistantTool(mailSearchTool),
+            AnyAssistantTool(MemoryDeleteTool()),
             AnyAssistantTool(MemoryReadTool()),
             AnyAssistantTool(MemoryWriteTool()),
             AnyAssistantTool(MusicControlTool()),
