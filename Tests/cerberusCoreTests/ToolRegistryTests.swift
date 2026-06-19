@@ -399,6 +399,18 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(calls.first?.toolName == "lookup")
 }
 
+@Test func screenToolsFailClosedWithoutScreenRecordingPermission() async {
+    let snapshotTool = ScreenSnapshotTool(hasScreenCaptureAccess: { false })
+    let ocrTool = ScreenOCRTool(hasScreenCaptureAccess: { false })
+
+    await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
+        _ = try await snapshotTool.run(arguments: ScreenSnapshotTool.Arguments())
+    }
+    await #expect(throws: ToolExecutionError.denied("Screen Recording access is not granted.")) {
+        _ = try await ocrTool.run(arguments: ScreenOCRTool.Arguments())
+    }
+}
+
 @Test func mcpDynamicNativeToolSchemaRejectsNestedSchemas() throws {
     let descriptor = MCPToolDescriptor(
         name: "nested",

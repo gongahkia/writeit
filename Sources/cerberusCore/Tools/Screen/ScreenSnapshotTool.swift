@@ -15,17 +15,20 @@ public struct ScreenSnapshotTool: AssistantTool {
 
     private let outputDirectoryURL: URL
     private let cachePolicy: ScreenSnapshotCachePolicy
+    private let hasScreenCaptureAccess: @Sendable () -> Bool
 
     public init(
         outputDirectoryURL: URL = ScreenSnapshotTool.defaultOutputDirectoryURL(),
-        cachePolicy: ScreenSnapshotCachePolicy = .default
+        cachePolicy: ScreenSnapshotCachePolicy = .default,
+        hasScreenCaptureAccess: @escaping @Sendable () -> Bool = CGPreflightScreenCaptureAccess
     ) {
         self.outputDirectoryURL = outputDirectoryURL
         self.cachePolicy = cachePolicy
+        self.hasScreenCaptureAccess = hasScreenCaptureAccess
     }
 
     public func run(arguments: Arguments) async throws -> ToolResult {
-        guard CGPreflightScreenCaptureAccess() else {
+        guard hasScreenCaptureAccess() else {
             throw ToolExecutionError.denied("Screen Recording access is not granted.")
         }
 

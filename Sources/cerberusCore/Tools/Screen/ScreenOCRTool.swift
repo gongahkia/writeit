@@ -18,10 +18,14 @@ public struct ScreenOCRTool: AssistantTool {
     public let mutatesState = false
     public let argumentSchema = #"{"limit":20}"#
 
-    public init() {}
+    private let hasScreenCaptureAccess: @Sendable () -> Bool
+
+    public init(hasScreenCaptureAccess: @escaping @Sendable () -> Bool = CGPreflightScreenCaptureAccess) {
+        self.hasScreenCaptureAccess = hasScreenCaptureAccess
+    }
 
     public func run(arguments: Arguments) async throws -> ToolResult {
-        guard CGPreflightScreenCaptureAccess() else {
+        guard hasScreenCaptureAccess() else {
             throw ToolExecutionError.denied("Screen Recording access is not granted.")
         }
 

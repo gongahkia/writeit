@@ -144,7 +144,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## Tool safety and confirmation QA
 
 - [ ] [P0][safety] Validate `shell.run` fails closed if `ShellExecService.xpc` is missing.
-- [ ] [P0][safety] Validate screen tools fail closed without Screen Recording permission.
 - [ ] [P2][safety][Inference] Add optional "paranoid mode" where all tools, including read-only tools, require confirmation.
 - [ ] [P2][safety][Inference] Add per-tool confirmation overrides if real use shows current defaults are too strict or too loose.
 
@@ -203,8 +202,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Screen and multimodal work
 
-- [ ] [P0][screen] Validate `screen.snapshot` fails closed when Screen Recording is denied.
-- [ ] [P0][screen] Validate `screen.ocr` fails closed when Screen Recording is denied.
 - [ ] [P1][screen][Unverified] Re-check Apple Foundation Models image attachment support before keeping OCR-only screen reasoning.
 - [ ] [P1][screen][Unverified] Re-check Apple Vision OCRTool availability before maintaining a custom OCR-only prompt path.
 - [ ] [P1][screen][Inference] Add image-prompt based screen answering if public APIs exist in the installed SDK.
