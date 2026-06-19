@@ -22,6 +22,8 @@
     <string>cerberus reads calendar events when you ask scheduling questions.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>cerberus needs full calendar access to read events and create events only after confirmation.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>cerberus searches contacts only when you ask for contact details.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>cerberus listens only after you trigger a voice interaction.</string>
     <key>NSRemindersFullAccessUsageDescription</key>

@@ -76,6 +76,7 @@ import Testing
         "NSAppleEventsUsageDescription",
         "NSCalendarsUsageDescription",
         "NSCalendarsFullAccessUsageDescription",
+        "NSContactsUsageDescription",
         "NSMicrophoneUsageDescription",
         "NSRemindersUsageDescription",
         "NSRemindersFullAccessUsageDescription",
@@ -824,6 +825,32 @@ private func temporaryDirectory() throws -> URL {
     #expect(payload.contains("[redacted email]"))
     #expect(!payload.contains("123456"))
     #expect(!payload.contains("person@example.com"))
+}
+
+@Test func contactsSearchToolFormatsReadOnlyResults() async throws {
+    let tool = ContactsTool(records: [
+        ContactSearchRecord(
+            displayName: "Alice Example",
+            organizationName: "Example Co",
+            emailAddresses: ["alice@example.com"],
+            phoneNumbers: ["+1 555 0100"]
+        ),
+        ContactSearchRecord(displayName: "Bob Person", emailAddresses: ["bob@example.com"])
+    ])
+    let result = try await tool.run(arguments: ContactsTool.Arguments(query: "alice", includeEmails: true, includePhones: true))
+
+    #expect(result.toolName == "contacts.search")
+    #expect(result.spokenSummary == "Found 1 contact.")
+    #expect(result.untrustedPayload.contains("Alice Example"))
+    #expect(result.untrustedPayload.contains("emails: alice@example.com"))
+    #expect(result.untrustedPayload.contains("phones: +1 555 0100"))
+    #expect(!result.untrustedPayload.contains("Bob Person"))
+}
+
+@Test func contactsSearchToolRejectsBlankQuery() {
+    #expect(throws: ToolExecutionError.self) {
+        try ContactsTool(records: []).validate(ContactsTool.Arguments(query: " "))
+    }
 }
 
 @Test func screenSnapshotPayloadIncludesFileAndDimensions() {

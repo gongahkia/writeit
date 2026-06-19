@@ -239,7 +239,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P2][product][Inference] Add Calendar edit/delete tools only after confirmation UX is proven with create.
 - [ ] [P2][product][Inference] Add Reminder edit/delete tools only after confirmation UX is proven with create/complete.
 - [ ] [P2][product][Inference] Add Notes read/search tool if local notes queries are a common workflow.
-- [ ] [P2][product][Inference] Add Contacts read tool if scheduling workflows need attendee lookup.
 - [ ] [P2][product][Inference] Add Shortcuts integration if users want to call existing automations.
 - [ ] [P2][product][Inference] Add app-specific tool packs for Xcode, Terminal, Safari, Chrome, Calendar, Mail, and Music.
 - [ ] [P2][product][Inference] Add local vector memory only after encrypted memory UX and deletion controls exist.

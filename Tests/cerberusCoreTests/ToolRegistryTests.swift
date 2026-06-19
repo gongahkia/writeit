@@ -135,6 +135,7 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     let readOnlyNativeToolNames = Set(DefaultToolCatalog.readOnlyFoundationModelTools().map(\.name))
     let expectedReadOnlyToolNames: Set<String> = [
         "calendar.read",
+        "contacts.search",
         "files.search",
         "mail.search",
         "memory.read",

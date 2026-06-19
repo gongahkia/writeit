@@ -14,6 +14,7 @@ public enum DefaultToolCatalog {
             AnyAssistantTool(AppControlTool()),
             AnyAssistantTool(CalendarCreateTool()),
             AnyAssistantTool(CalendarTool()),
+            AnyAssistantTool(ContactsTool()),
             AnyAssistantTool(fileSearchTool),
             AnyAssistantTool(mailSearchTool),
             AnyAssistantTool(MemoryDeleteTool()),
@@ -43,6 +44,7 @@ public enum DefaultToolCatalog {
     ) -> [any FoundationModels.Tool] {
         [
             FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
+            FoundationModelToolAdapter(ContactsTool(), auditLog: auditLog),
             FoundationModelToolAdapter(fileSearchTool, auditLog: auditLog),
             FoundationModelToolAdapter(mailSearchTool, auditLog: auditLog),
             FoundationModelToolAdapter(MemoryReadTool(), auditLog: auditLog),
