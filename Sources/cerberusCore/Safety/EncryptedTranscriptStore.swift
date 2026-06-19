@@ -8,6 +8,8 @@ public struct TranscriptRecord: Codable, Equatable, Identifiable, Sendable {
     public let response: String
     public let toolName: String?
     public let argumentsSummary: String?
+    public let promptVersion: String?
+    public let modelProfile: String?
 
     public init(
         id: UUID = UUID(),
@@ -15,7 +17,9 @@ public struct TranscriptRecord: Codable, Equatable, Identifiable, Sendable {
         request: String,
         response: String,
         toolName: String? = nil,
-        argumentsSummary: String? = nil
+        argumentsSummary: String? = nil,
+        promptVersion: String? = nil,
+        modelProfile: String? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -23,6 +27,8 @@ public struct TranscriptRecord: Codable, Equatable, Identifiable, Sendable {
         self.response = response
         self.toolName = toolName
         self.argumentsSummary = argumentsSummary
+        self.promptVersion = promptVersion
+        self.modelProfile = modelProfile
     }
 }
 

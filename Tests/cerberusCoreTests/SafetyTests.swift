@@ -144,13 +144,21 @@ import Testing
     let keyData = Data(repeating: 7, count: 32)
     let store = EncryptedTranscriptStore(fileURL: fileURL, fixedKeyData: keyData)
 
-    try await store.append(TranscriptRecord(request: "open calendar", response: "Opened Calendar.", toolName: "app.control"))
+    try await store.append(TranscriptRecord(
+        request: "open calendar",
+        response: "Opened Calendar.",
+        toolName: "app.control",
+        promptVersion: SystemPrompt.promptVersion,
+        modelProfile: "default"
+    ))
 
     let records = try await store.records()
     let rawText = try String(contentsOf: fileURL, encoding: .utf8)
 
     #expect(records.count == 1)
     #expect(records.first?.request == "open calendar")
+    #expect(records.first?.promptVersion == SystemPrompt.promptVersion)
+    #expect(records.first?.modelProfile == "default")
     #expect(!rawText.contains("open calendar"))
     #expect(!rawText.contains("Opened Calendar."))
     try await store.exportPlaintextJSON(to: exportURL)

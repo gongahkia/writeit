@@ -15,6 +15,9 @@ public struct ToolSummary: Equatable, Sendable {
 }
 
 public enum SystemPrompt {
+    public static let promptVersion = "cerberus-system-v1"
+    public static let readOnlyPromptVersion = "cerberus-readonly-v1"
+
     public static func render(toolSummaries: [ToolSummary]) -> String {
         """
         You are cerberus, a local-first macOS assistant controlled by voice.

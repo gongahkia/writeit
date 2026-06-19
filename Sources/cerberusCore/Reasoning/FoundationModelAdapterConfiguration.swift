@@ -18,6 +18,16 @@ public struct FoundationModelAdapterConfiguration: Codable, Equatable, Sendable 
             throw ToolExecutionError.invalidArguments("Configure exactly one FoundationModels adapter source: name or filePath.")
         }
     }
+
+    public var profileDescription: String {
+        if let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return "adapter:\(name)"
+        }
+        if let filePath = filePath?.trimmingCharacters(in: .whitespacesAndNewlines), !filePath.isEmpty {
+            return "adapter:\(URL(fileURLWithPath: filePath).lastPathComponent)"
+        }
+        return "adapter"
+    }
 }
 
 public struct FoundationModelAdapterLoader: Sendable {
@@ -28,6 +38,10 @@ public struct FoundationModelAdapterLoader: Sendable {
     }
 
     public func configuredModelIfPresent() async throws -> SystemLanguageModel? {
+        try await configuredModelAndProfileIfPresent()?.model
+    }
+
+    public func configuredModelAndProfileIfPresent() async throws -> (model: SystemLanguageModel, profile: String)? {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             return nil
         }
@@ -46,7 +60,7 @@ public struct FoundationModelAdapterLoader: Sendable {
         }
 
         try await adapter.compile()
-        return SystemLanguageModel(adapter: adapter)
+        return (SystemLanguageModel(adapter: adapter), configuration.profileDescription)
     }
 
     public static func defaultFileURL() -> URL {

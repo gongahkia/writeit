@@ -127,6 +127,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
+    @Published private(set) var foundationModelProfile = "default"
     @Published private(set) var screenSnapshotStatusLine = "Screen snapshots not checked"
     @Published private(set) var screenSnapshotCount = 0
     @Published private(set) var fileSearchScopePaths: [String] = []
@@ -1296,7 +1297,8 @@ final class CerberusAppModel: ObservableObject {
             recordTranscript(
                 response: response,
                 toolName: plan.toolName,
-                argumentsSummary: "native FoundationModels read-only tools"
+                argumentsSummary: "native FoundationModels read-only tools",
+                promptVersion: SystemPrompt.readOnlyPromptVersion
             )
             refreshAuditEntries()
             speakToolResult(response)
@@ -1413,7 +1415,12 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
-    private func recordTranscript(response: String, toolName: String? = nil, argumentsSummary: String? = nil) {
+    private func recordTranscript(
+        response: String,
+        toolName: String? = nil,
+        argumentsSummary: String? = nil,
+        promptVersion: String = SystemPrompt.promptVersion
+    ) {
         guard let request = activeRequest, !request.isEmpty else {
             return
         }
@@ -1422,7 +1429,9 @@ final class CerberusAppModel: ObservableObject {
             request: request,
             response: response,
             toolName: toolName,
-            argumentsSummary: argumentsSummary
+            argumentsSummary: argumentsSummary,
+            promptVersion: promptVersion,
+            modelProfile: foundationModelProfile
         )
         Task {
             _ = try? await transcriptStore.append(record)
@@ -1633,16 +1642,19 @@ final class CerberusAppModel: ObservableObject {
     private func loadConfiguredAdapterIfPresent() {
         Task {
             do {
-                guard let model = try await adapterLoader.configuredModelIfPresent() else {
+                guard let configuredModel = try await adapterLoader.configuredModelAndProfileIfPresent() else {
                     foundationModelAdapterStatusLine = "Adapter config not found"
+                    foundationModelProfile = "default"
                     return
                 }
 
-                await assistant.updateModel(model)
+                await assistant.updateModel(configuredModel.model)
+                foundationModelProfile = configuredModel.profile
                 foundationModelAdapterStatusLine = "Adapter loaded"
                 statusLine = "FoundationModels adapter loaded."
             } catch {
                 foundationModelAdapterStatusLine = "Adapter error: \(error.localizedDescription)"
+                foundationModelProfile = "default"
                 statusLine = error.localizedDescription
             }
         }
