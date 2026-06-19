@@ -345,6 +345,7 @@ final class CerberusAppModel: ObservableObject {
     private var audioOutputRouteMonitor: AudioOutputRouteMonitor?
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
+    private var recentTransitionHistory = RecentTransitionHistory()
     private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
     private var mcpListenerSetupTask: Task<Void, Never>?
     private var mcpListenerTasks: [Task<Void, Never>] = []
@@ -1223,8 +1224,7 @@ final class CerberusAppModel: ObservableObject {
         }
 
         statusLine = transition.message ?? transition.to.displayName
-        recentEvents.insert("\(transition.from.rawValue) -> \(transition.to.rawValue)", at: 0)
-        recentEvents = Array(recentEvents.prefix(5))
+        recentEvents = recentTransitionHistory.record(transition)
         earconPlayer.play(for: transition)
         return true
     }

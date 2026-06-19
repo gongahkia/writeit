@@ -193,6 +193,7 @@ private struct WaitTimeout: Error {}
     await Task.yield()
     model.cancel()
     try await waitUntil { model.state == .idle }
+    try await waitUntil { transcriber.cancelCount == 1 }
 
     #expect(transcriber.cancelCount == 1)
     #expect(speaker.stopCount == 1)

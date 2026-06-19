@@ -60,6 +60,27 @@ import Testing
     #expect(Set(HotKeyConfiguration.presets.map(\.id)).count == HotKeyConfiguration.presets.count)
 }
 
+@Test func recentTransitionHistoryKeepsNewestFiveReadableEvents() {
+    var history = RecentTransitionHistory()
+    let transitions = [
+        AssistantTransition(from: .idle, event: .wakeDetected(.manual), to: .listening),
+        AssistantTransition(from: .listening, event: .silenceDetected, to: .reasoning),
+        AssistantTransition(from: .reasoning, event: .responseReady("one"), to: .speaking),
+        AssistantTransition(from: .speaking, event: .speechFinished, to: .idle),
+        AssistantTransition(from: .idle, event: .wakeDetected(.manual), to: .listening),
+        AssistantTransition(from: .listening, event: .silenceDetected, to: .reasoning)
+    ]
+
+    for transition in transitions {
+        history.record(transition)
+    }
+
+    #expect(history.events.count == RecentTransitionHistory.limit)
+    #expect(history.events.first == "listening -> reasoning")
+    #expect(history.events.last == "listening -> reasoning")
+    #expect(history.events.allSatisfy { $0.contains(" -> ") })
+}
+
 @Test func wakeWordMonitorStatusLinesStayStable() {
     #expect(WakeWordMonitorStatusLine.speechTranscription == "Wake phrase uses speech transcription")
     #expect(WakeWordMonitorStatusLine.soundModelConfigured == "Sound wake model configured")
