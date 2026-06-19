@@ -453,6 +453,17 @@ import Testing
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").displayName == "AirPods Pro (AirPods)")
 }
 
+@Test func audioOutputRouteSelectsPreferredAirPodsFromFakeDevices() {
+    let devices = [
+        AudioOutputDevice(id: 1, name: "Studio Display Speakers"),
+        AudioOutputDevice(id: 2, name: "AirPods Max"),
+        AudioOutputDevice(id: 3, name: "AirPods Pro")
+    ]
+
+    #expect(AudioOutputRouteInspector.preferredAirPodsOutputDevice(in: devices) == devices[1])
+    #expect(AudioOutputRouteInspector.preferredAirPodsOutputDevice(in: [devices[0]]) == nil)
+}
+
 @Test func audioOutputRouteMonitorUsesDefaultOutputSelector() {
     let address = AudioOutputRouteInspector.defaultOutputDeviceAddress()
 

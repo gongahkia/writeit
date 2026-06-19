@@ -89,7 +89,11 @@ public enum AudioOutputRouteInspector {
     }
 
     public static func preferredAirPodsOutputDevice() throws -> AudioOutputDevice? {
-        try outputDevices().first { $0.isLikelyAirPods }
+        preferredAirPodsOutputDevice(in: try outputDevices())
+    }
+
+    public static func preferredAirPodsOutputDevice(in devices: [AudioOutputDevice]) -> AudioOutputDevice? {
+        devices.first { $0.isLikelyAirPods }
     }
 
     static func defaultOutputDeviceAddress() -> AudioObjectPropertyAddress {
