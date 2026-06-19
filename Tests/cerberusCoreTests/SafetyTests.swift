@@ -535,6 +535,22 @@ private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @
     #expect(result.untrustedPayload == "/bin/ls")
 }
 
+@Test func shellToolProposalModeForcesDryRun() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            "should not execute"
+        }
+    }
+
+    let allowlist = CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]])
+    let tool = ShellTool(allowExecution: true, forceDryRun: { true }, allowlist: allowlist, executor: StubExecutor())
+
+    let result = try await tool.run(arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls"), dryRun: false))
+
+    #expect(result.metadata["dryRun"] == "true")
+    #expect(result.spokenSummary == "Dry run only. Command was not executed.")
+}
+
 @Test func mcpToolUsesConfiguredRunner() async throws {
     struct StubRunner: MCPToolRunning {
         func call(serverName: String, toolName: String, argumentsJSON: String) async throws -> MCPToolCallResult {

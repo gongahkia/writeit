@@ -198,6 +198,11 @@ final class CerberusAppModel: ObservableObject {
             refreshAssistantToolPrompt()
         }
     }
+    @Published var isShellProposalMode = UserDefaults.standard.object(forKey: CerberusSettingsKeys.shellProposalMode) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(isShellProposalMode, forKey: CerberusSettingsKeys.shellProposalMode)
+        }
+    }
     @Published var headNodThreshold = 0.35 {
         didSet {
             updateHeadGestureThresholds()
@@ -281,6 +286,9 @@ final class CerberusAppModel: ObservableObject {
         let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
         let shellTool = ShellTool(
             allowExecution: true,
+            forceDryRun: {
+                UserDefaults.standard.object(forKey: CerberusSettingsKeys.shellProposalMode) as? Bool ?? true
+            },
             executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
         )
         let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)

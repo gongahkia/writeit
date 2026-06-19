@@ -44,7 +44,8 @@ import Testing
         "onboardingSkipped",
         "requiresConfirmationForAllTools",
         "usesConfiguredAdapter",
-        "hotKeyConfigurationID"
+        "hotKeyConfigurationID",
+        "shellProposalMode"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }

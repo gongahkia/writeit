@@ -19,15 +19,18 @@ public struct ShellTool: AssistantTool {
     public let argumentSchema = #"{"command":{"executable":"git","arguments":["status"],"workingDirectory":"optional path in home"},"dryRun":false}"#
 
     private let allowExecution: Bool
+    private let forceDryRun: @Sendable () -> Bool
     private let allowlist: CommandAllowlist
     private let executor: any ShellCommandExecutor
 
     public init(
         allowExecution: Bool = false,
+        forceDryRun: @escaping @Sendable () -> Bool = { false },
         allowlist: CommandAllowlist = CommandAllowlist(),
         executor: any ShellCommandExecutor = DirectShellCommandExecutor()
     ) {
         self.allowExecution = allowExecution
+        self.forceDryRun = forceDryRun
         self.allowlist = allowlist
         self.executor = executor
     }
@@ -40,7 +43,7 @@ public struct ShellTool: AssistantTool {
         let validated = try allowlist.validate(arguments.command)
         let commandLine = ([validated.executableURL.path] + validated.arguments).joined(separator: " ")
 
-        guard allowExecution && !arguments.dryRun else {
+        guard allowExecution && !arguments.dryRun && !forceDryRun() else {
             return ToolResult(
                 toolName: name,
                 succeeded: true,
