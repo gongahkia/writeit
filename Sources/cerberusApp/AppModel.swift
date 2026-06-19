@@ -132,6 +132,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var screenSnapshotCount = 0
     @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
+    @Published private var toolConfirmationOverrides: Set<String> = []
     @Published var selectedPanelSection: PanelSection = .session
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
@@ -344,6 +345,10 @@ final class CerberusAppModel: ObservableObject {
         ambientToolAllowlist.disabledToolNames.count
     }
 
+    var toolConfirmationOverrideCount: Int {
+        toolConfirmationOverrides.count
+    }
+
     var appDataLocations: [AppDataLocation] {
         [
             AppDataLocation(name: "Audit log", url: AuditLog.defaultFileURL()),
@@ -358,6 +363,22 @@ final class CerberusAppModel: ObservableObject {
 
     func isAmbientToolEnabled(_ toolName: String) -> Bool {
         ambientToolAllowlist.isEnabled(toolName)
+    }
+
+    func requiresConfirmationOverride(_ toolName: String) -> Bool {
+        toolConfirmationOverrides.contains(toolName)
+    }
+
+    func setConfirmationOverride(_ toolName: String, requiresConfirmation: Bool) {
+        if requiresConfirmation {
+            toolConfirmationOverrides.insert(toolName)
+        } else {
+            toolConfirmationOverrides.remove(toolName)
+        }
+    }
+
+    func resetConfirmationOverrides() {
+        toolConfirmationOverrides.removeAll()
     }
 
     func setAmbientTool(_ toolName: String, enabled: Bool) {
@@ -1264,7 +1285,10 @@ final class CerberusAppModel: ObservableObject {
                 return
             }
 
-            if requiresConfirmationForAllTools || plan.requiresConfirmation || mutatingToolNames.contains(plan.toolName) {
+            if requiresConfirmationForAllTools
+                || toolConfirmationOverrides.contains(plan.toolName)
+                || plan.requiresConfirmation
+                || mutatingToolNames.contains(plan.toolName) {
                 await requestConfirmation(for: plan)
             } else if DefaultToolCatalog.readOnlyToolNames.contains(plan.toolName) {
                 await answerWithNativeReadOnlyTools(for: plan)

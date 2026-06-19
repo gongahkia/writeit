@@ -4,6 +4,7 @@ import cerberusCore
 struct StatusPanel: View {
     @ObservedObject var model: CerberusAppModel
     @State private var isToolAllowlistExpanded = false
+    @State private var isToolConfirmationExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -662,6 +663,7 @@ struct StatusPanel: View {
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
             Toggle("Confirm every tool", isOn: $model.requiresConfirmationForAllTools)
+            toolConfirmationOverrides
             Toggle("Wake phrase", isOn: $model.isWakeWordEnabled)
             TextField("Wake phrase", text: $model.wakePhrase)
                 .textFieldStyle(.roundedBorder)
@@ -947,6 +949,40 @@ struct StatusPanel: View {
             }
         }
         .toggleStyle(.switch)
+    }
+
+    private var toolConfirmationOverrides: some View {
+        DisclosureGroup(isExpanded: $isToolConfirmationExpanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(model.availableAmbientToolSummaries, id: \.name) { summary in
+                    Toggle(isOn: Binding(
+                        get: { model.requiresConfirmationOverride(summary.name) },
+                        set: { model.setConfirmationOverride(summary.name, requiresConfirmation: $0) }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(summary.name)
+                                .font(.caption.monospaced())
+                            Text(summary.capability)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+
+                Button {
+                    model.resetConfirmationOverrides()
+                } label: {
+                    Label("Reset confirmations", systemImage: "arrow.counterclockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.toolConfirmationOverrideCount == 0)
+            }
+            .padding(.top, 6)
+        } label: {
+            Label("Tool confirmations", systemImage: "checkmark.shield")
+                .font(.caption)
+        }
     }
 
     private func gestureSlider(_ label: String, value: Binding<Double>) -> some View {

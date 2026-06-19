@@ -142,7 +142,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## Tool safety and confirmation QA
 
-- [ ] [P2][safety][Inference] Add per-tool confirmation overrides if real use shows current defaults are too strict or too loose.
 
 ## MCP validation
 
