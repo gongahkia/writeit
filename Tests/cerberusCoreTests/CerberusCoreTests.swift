@@ -91,6 +91,7 @@ import Testing
 
 @Test func releaseScriptsExposeNonDestructivePreflightModes() throws {
     let checks = [
+        ("Scripts/build_app.sh", ["--check"], "bundle layout ok:"),
         ("Scripts/release_check.sh", ["--help"], "usage: Scripts/release_check.sh"),
         ("Scripts/release_smoke.sh", ["--help"], "usage: Scripts/release_smoke.sh"),
         ("Scripts/package_release.sh", ["--help"], "usage: Scripts/package_release.sh"),
