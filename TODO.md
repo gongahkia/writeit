@@ -300,7 +300,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][ci] Add CI artifact upload for test logs and validation reports.
 - [ ] [P2][ci] Add nightly build against latest Xcode beta if the project tracks macOS 26 SDK changes.
 - [ ] [P2][ci] Add static grep check for forbidden hardcoded credentials.
-- [ ] [P2][ci] Add script linting for `Scripts/*.sh`.
 
 ## V2 and product expansion
 
