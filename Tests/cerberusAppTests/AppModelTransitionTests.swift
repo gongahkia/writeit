@@ -445,6 +445,26 @@ private final class FakePermissionCenter: PermissionChecking {
 }
 
 @MainActor
+@Test func appModelToolAllowlistOmitsSeveralDisabledTools() {
+    let model = CerberusAppModel(
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+    let disabledToolNames = Array(model.availableAmbientToolSummaries.map(\.name).prefix(3))
+
+    for toolName in disabledToolNames {
+        model.setAmbientTool(toolName, enabled: false)
+    }
+
+    let displayText = model.enabledToolDisplayText
+
+    #expect(disabledToolNames.count == 3)
+    #expect(model.disabledAmbientToolCount == disabledToolNames.count)
+    #expect(disabledToolNames.allSatisfy { !model.isAmbientToolEnabled($0) })
+    #expect(disabledToolNames.allSatisfy { !displayText.contains($0) })
+}
+
+@MainActor
 @Test func appModelSettingsPersistExpectedTogglesAcrossRelaunch() {
     let keys = CerberusSettingsKeys.persistedKeys
     let priorValues = Dictionary(uniqueKeysWithValues: keys.map { ($0, UserDefaults.standard.object(forKey: $0)) })
