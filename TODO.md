@@ -190,7 +190,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][ux] Validate microphone-active menu bar tint is red during confirmation voice capture.
 - [ ] [P0][ux] Validate menu bar icon returns to non-red after microphone stops.
 - [ ] [P0][ux] Validate every state transition has the intended earcon on target hardware.
-- [ ] [P0][ux] Validate audit panel refresh after real tool calls.
 - [ ] [P0][ux] Validate File Search folder add/remove flows.
 - [ ] [P0][ux] Validate tool allowlist disclosure layout with all current tools enabled.
 - [ ] [P0][ux] Validate tool allowlist layout with several disabled tools.

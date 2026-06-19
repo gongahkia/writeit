@@ -390,6 +390,28 @@ private struct WaitTimeout: Error {}
     #expect(model.transcriptRecords.first?.response == "Newer response.")
 }
 
+@MainActor
+@Test func appModelRefreshesAuditPanelEntriesFromStore() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent("audit.log")
+    let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 13, count: 32))
+    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "today", resultSummary: "3 events")
+    _ = try await auditLog.append(toolName: "files.search", argumentsSummary: "notes", resultSummary: "2 files")
+    let model = CerberusAppModel(
+        auditLog: auditLog,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.refreshAuditEntries()
+    try await waitUntil {
+        model.recentAuditEntries.map(\.toolName) == ["files.search", "calendar.read"]
+    }
+
+    #expect(model.recentAuditEntries.first?.resultSummary == "2 files")
+}
+
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 3_000_000_000,
     predicate: @MainActor @escaping () -> Bool
