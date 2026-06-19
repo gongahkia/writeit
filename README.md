@@ -65,6 +65,7 @@ Tool egress happens only through the tool the user enables or requests: Apple Ev
 
 Primary validation is `swift test` on macOS with Xcode 26.
 Run `Scripts/lint_scripts.sh` before editing release or validation shell scripts.
+Run `Scripts/static_grep_check.sh` before publishing or uploading logs.
 
 See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/mcp.md` for the MCP stdio config format.
