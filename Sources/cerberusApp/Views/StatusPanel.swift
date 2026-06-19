@@ -686,6 +686,16 @@ struct StatusPanel: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
+            if !model.mcpServerHealthLines.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(model.mcpServerHealthLines) { line in
+                        Label(line.displayText, systemImage: mcpServerHealthIcon(line.state))
+                            .font(.caption2)
+                            .foregroundStyle(mcpServerHealthStyle(line.state))
+                            .lineLimit(2)
+                    }
+                }
+            }
             Toggle("Shell tool", isOn: $model.isShellToolEnabled)
             Toggle("Propose shell commands only", isOn: $model.isShellProposalMode)
                 .disabled(!model.isShellToolEnabled)
@@ -952,6 +962,34 @@ struct StatusPanel: View {
             }
         }
         .toggleStyle(.switch)
+    }
+
+    private func mcpServerHealthIcon(_ state: MCPServerHealthState) -> String {
+        switch state {
+        case .configured:
+            "circle"
+        case .disabled:
+            "pause.circle"
+        case .listening:
+            "antenna.radiowaves.left.and.right"
+        case .handled:
+            "checkmark.circle"
+        case .unsupported:
+            "exclamationmark.triangle"
+        case .error:
+            "xmark.octagon"
+        }
+    }
+
+    private func mcpServerHealthStyle(_ state: MCPServerHealthState) -> Color {
+        switch state {
+        case .handled:
+            .green
+        case .unsupported, .error:
+            .orange
+        default:
+            .secondary
+        }
     }
 
     private var toolConfirmationOverrides: some View {

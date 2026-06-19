@@ -125,6 +125,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var memoryRecords: [MemoryRecord] = []
     @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
     @Published private(set) var mcpListenerStatusLine = "MCP listener off"
+    @Published private(set) var mcpServerHealthLines: [MCPServerHealthLine] = []
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
     @Published private(set) var foundationModelProfile = "default"
@@ -251,6 +252,8 @@ final class CerberusAppModel: ObservableObject {
     private var mcpListenerSetupTask: Task<Void, Never>?
     private var mcpListenerTasks: [Task<Void, Never>] = []
     private var mcpListenerLastEventIDs: [String: String] = [:]
+    private var mcpServerHealthStates: [String: MCPServerHealthState] = [:]
+    private var mcpServerHealthDetails: [String: String] = [:]
     private var adapterFailureCircuitBreaker = AdapterFailureCircuitBreaker()
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
@@ -321,6 +324,7 @@ final class CerberusAppModel: ObservableObject {
         refreshWakeWordMonitorLine()
         refreshFoundationModelStatus()
         refreshScreenSnapshotStatus()
+        refreshMCPServerHealthStatus()
         startAudioOutputRouteMonitor()
         refreshAuditEntries()
         hotKeyMonitor.update(configuration: hotKeyConfiguration)
@@ -1643,6 +1647,11 @@ final class CerberusAppModel: ObservableObject {
                 let configurations = MCPHTTPListenerPolicy.listenerConfigurations(
                     from: try await mcpServerRegistry.configurations()
                 )
+                for configuration in configurations {
+                    mcpServerHealthStates[configuration.name] = .listening
+                    mcpServerHealthDetails[configuration.name] = "starting listener"
+                }
+                refreshMCPServerHealthStatus()
                 guard !configurations.isEmpty else {
                     mcpListenerStatusLine = "No Streamable HTTP MCP servers configured."
                     return
@@ -1656,8 +1665,14 @@ final class CerberusAppModel: ObservableObject {
                 mcpListenerStatusLine = configurations.count == 1
                     ? "Listening to 1 MCP HTTP server."
                     : "Listening to \(configurations.count) MCP HTTP servers."
+                for configuration in configurations {
+                    mcpServerHealthStates[configuration.name] = .listening
+                    mcpServerHealthDetails[configuration.name] = "listening for background requests"
+                }
+                refreshMCPServerHealthStatus()
             } catch {
                 mcpListenerStatusLine = error.localizedDescription
+                refreshMCPServerHealthStatus()
             }
         }
     }
@@ -1668,7 +1683,10 @@ final class CerberusAppModel: ObservableObject {
         mcpListenerTasks.forEach { $0.cancel() }
         mcpListenerTasks = []
         mcpListenerLastEventIDs = [:]
+        mcpServerHealthStates = [:]
+        mcpServerHealthDetails = [:]
         mcpListenerStatusLine = "MCP listener off"
+        refreshMCPServerHealthStatus()
         finishMCPClientRequest(.cancel)
     }
 
@@ -1681,6 +1699,9 @@ final class CerberusAppModel: ObservableObject {
                 ).listenForServerRequests(lastEventID: mcpListenerLastEventIDs[configuration.name])
                 guard result.endpointAvailable else {
                     mcpListenerStatusLine = "\(configuration.name) does not expose MCP HTTP GET SSE."
+                    mcpServerHealthStates[configuration.name] = .unsupported
+                    mcpServerHealthDetails[configuration.name] = "GET SSE unavailable"
+                    refreshMCPServerHealthStatus()
                     return
                 }
 
@@ -1689,13 +1710,39 @@ final class CerberusAppModel: ObservableObject {
                 }
                 if result.handledMessages > 0 {
                     mcpListenerStatusLine = "\(configuration.name) handled \(result.handledMessages) background MCP request(s)."
+                    mcpServerHealthStates[configuration.name] = .handled
+                    mcpServerHealthDetails[configuration.name] = "handled \(result.handledMessages) background request(s)"
+                    refreshMCPServerHealthStatus()
                 }
                 try await Task.sleep(nanoseconds: 2_000_000_000)
             } catch is CancellationError {
                 return
             } catch {
                 mcpListenerStatusLine = "\(configuration.name) MCP listener error: \(error.localizedDescription)"
+                mcpServerHealthStates[configuration.name] = .error
+                mcpServerHealthDetails[configuration.name] = error.localizedDescription
+                refreshMCPServerHealthStatus()
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
+            }
+        }
+    }
+
+    private func refreshMCPServerHealthStatus() {
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                mcpServerHealthLines = MCPServerHealthReporter.lines(
+                    configurations: try await mcpServerRegistry.configurations(),
+                    enabled: isMCPToolEnabled,
+                    states: mcpServerHealthStates,
+                    details: mcpServerHealthDetails
+                )
+            } catch {
+                mcpServerHealthLines = [
+                    MCPServerHealthLine(name: "mcp config", transport: .stdio, state: .error, detail: error.localizedDescription)
+                ]
             }
         }
     }

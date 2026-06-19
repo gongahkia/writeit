@@ -2070,6 +2070,26 @@ private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @
     #expect(configurations[0].transport == .streamableHTTP)
 }
 
+@Test func mcpServerHealthReporterRendersPerServerLines() {
+    let configurations = [
+        MCPServerConfiguration(name: "local", transport: .stdio, executable: "/bin/echo"),
+        MCPServerConfiguration(name: "remote", transport: .streamableHTTP, endpointURL: URL(string: "https://example.com/mcp"))
+    ]
+
+    let disabled = MCPServerHealthReporter.lines(configurations: configurations, enabled: false)
+    let enabled = MCPServerHealthReporter.lines(
+        configurations: configurations,
+        enabled: true,
+        states: ["remote": .handled],
+        details: ["remote": "handled 2 background request(s)"]
+    )
+
+    #expect(disabled.map(\.state) == [.disabled, .disabled])
+    #expect(enabled.map(\.name) == ["local", "remote"])
+    #expect(enabled[0].displayText == "local (stdio): configured; no background listener")
+    #expect(enabled[1].displayText == "remote (streamable_http): handled 2 background request(s)")
+}
+
 @Test func mcpServerRegistryRejectsBlankServerNames() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
