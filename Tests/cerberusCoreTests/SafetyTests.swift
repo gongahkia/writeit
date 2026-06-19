@@ -1230,6 +1230,19 @@ private struct StubKeychainOperations: KeychainSecretStoreOperations {
     #expect(StubURLProtocol.lastEventIDs == ["event-202"])
 }
 
+@Test func mcpHTTPListenerPolicySelectsOnlyStreamableHTTPServers() {
+    let stdio = MCPServerConfiguration(name: "local", transport: .stdio, executable: "node")
+    let http = MCPServerConfiguration(
+        name: "remote",
+        transport: .streamableHTTP,
+        endpointURL: URL(string: "https://mcp.example.test")
+    )
+
+    let selectedNames = MCPHTTPListenerPolicy.listenerConfigurations(from: [stdio, http]).map(\.name)
+
+    #expect(selectedNames == ["remote"])
+}
+
 @Test func mcpStreamableHTTPClientGetsPrompts() async throws {
     final class StubURLProtocol: URLProtocol {
         nonisolated(unsafe) static var requestBodies: [String] = []

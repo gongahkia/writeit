@@ -1313,8 +1313,9 @@ final class CerberusAppModel: ObservableObject {
             }
 
             do {
-                let configurations = try await mcpServerRegistry.configurations()
-                    .filter { $0.transport == .streamableHTTP }
+                let configurations = MCPHTTPListenerPolicy.listenerConfigurations(
+                    from: try await mcpServerRegistry.configurations()
+                )
                 guard !configurations.isEmpty else {
                     mcpListenerStatusLine = "No Streamable HTTP MCP servers configured."
                     return

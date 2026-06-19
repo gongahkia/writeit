@@ -157,7 +157,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## MCP validation
 
-- [ ] [P0][mcp] Validate enabling `MCP tool` starts Streamable HTTP GET listeners only for configured HTTP servers.
 - [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `tools/list` and `tools/call`.
 - [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `resources/list` and `resources/read`.
 - [ ] [P0][mcp][blocked: test MCP stdio server] Validate stdio `prompts/list` and `prompts/get`.
