@@ -100,19 +100,21 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
 }
 
 @Test func defaultNativeToolCatalogIsReadOnly() {
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("calendar.read"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("mail.search"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("memory.read"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("reminders.read"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.ocr"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("screen.snapshot"))
-    #expect(DefaultToolCatalog.readOnlyToolNames.contains("web.search"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("calendar.create"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("memory.write"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("music.control"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.complete"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("reminders.create"))
+    let readOnlyNativeToolNames = Set(DefaultToolCatalog.readOnlyFoundationModelTools().map(\.name))
+    let expectedReadOnlyToolNames: Set<String> = [
+        "calendar.read",
+        "files.search",
+        "mail.search",
+        "memory.read",
+        "music.now_playing",
+        "reminders.read",
+        "screen.ocr",
+        "screen.snapshot",
+        "web.search"
+    ]
+
+    #expect(DefaultToolCatalog.readOnlyToolNames == expectedReadOnlyToolNames)
+    #expect(readOnlyNativeToolNames == expectedReadOnlyToolNames)
 }
 
 @Test func mutatingToolArgumentsAreGenerableButNotNativeByDefault() {
@@ -120,8 +122,16 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     _ = FoundationModelToolAdapter(MusicControlTool())
     _ = FoundationModelToolAdapter(ShellTool())
 
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("app.control"))
-    #expect(!DefaultToolCatalog.readOnlyToolNames.contains("music.control"))
+    let mutatingToolNames = Set(DefaultToolCatalog.summaries.filter(\.mutatesState).map(\.name))
+
+    #expect(mutatingToolNames == [
+        "app.control",
+        "calendar.create",
+        "memory.write",
+        "music.control",
+        "reminders.complete",
+        "reminders.create"
+    ])
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
