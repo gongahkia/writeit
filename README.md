@@ -49,6 +49,18 @@ Planning, speech transcription, OCR, transcripts, memory, audit logs, wake sampl
 
 Tool egress happens only through the tool the user enables or requests: Apple Events for Mail/Music/app control, EventKit for Calendar/Reminders, approved folders for file search, configured MCP servers, allowlisted web domains, and the default-off shell XPC service. Mutating built-in tools and `mcp.call` require confirmation before execution.
 
+## Permissions
+
+- Accessibility: opens the Access panel and supports app-control workflows.
+- Input Monitoring: supports global trigger keys and media-key handling.
+- Microphone: records voice requests, wake phrase monitoring, and speech benchmarks.
+- Speech Recognition: runs SpeechAnalyzer/SpeechTranscriber transcription.
+- Calendar: reads events and creates events after confirmation.
+- Reminders: reads reminders and creates/completes reminders after confirmation.
+- Screen Recording: captures local screen snapshots and OCR text boxes.
+- Automation: talks to Mail, Music, and app-control targets through Apple Events.
+- Network Client: contacts allowlisted web search endpoints and configured MCP HTTP/OAuth servers.
+
 ## Development Notes
 
 Primary validation is `swift test` on macOS with Xcode 26.
