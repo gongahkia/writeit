@@ -151,6 +151,32 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(shellEnabledNames == ["calendar.read", "shell.run"])
 }
 
+@Test func shellRunRequiresConfirmationForAllowlistedCommands() async throws {
+    struct StubExecutor: ShellCommandExecutor {
+        func run(_ command: ValidatedCommand) async throws -> String {
+            "executed"
+        }
+    }
+
+    let tool = ShellTool(
+        allowExecution: true,
+        allowlist: CommandAllowlist(allowedExecutablePaths: ["ls": ["/bin/ls"]]),
+        executor: StubExecutor()
+    )
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: ShellTool.Arguments(command: ShellCommand(executable: "ls"))
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await registry.run(invocation)
+    }
+
+    let result = try await registry.run(invocation, confirmed: true)
+    #expect(result.metadata["dryRun"] == "false")
+}
+
 @Test func foundationModelToolAdapterRefusesMutatingToolCallsByDefault() async {
     let adapter = FoundationModelToolAdapter(AppControlTool())
 
