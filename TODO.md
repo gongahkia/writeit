@@ -241,7 +241,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][tests] Add tests for confirmation voice timeout using injectable clocks.
 - [ ] [P1][tests] Add tests for app model transitions using fake transcriber, speaker, assistant, and tools.
 - [ ] [P1][ci][blocked: signing secrets] Add optional release packaging workflow only after secret storage policy is decided.
-- [ ] [P2][ci] Add nightly build against latest Xcode beta if the project tracks macOS 26 SDK changes.
 
 ## V2 and product expansion
 
