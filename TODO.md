@@ -188,7 +188,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth token exchange and Keychain storage.
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate OAuth refresh-token rotation.
 - [ ] [P0][mcp][blocked: OAuth MCP server] Validate stored bearer token attachment to later HTTP calls.
-- [ ] [P0][mcp] Validate `mcp.call` is confirmation-gated for all configured servers.
 - [ ] [P0][mcp] Validate mutating MCP tools are never exposed through native FoundationModels read-only tool sessions.
 - [ ] [P2][mcp][Inference] Add per-server UI health indicators if multiple MCP servers are common.
 - [ ] [P2][mcp][Inference] Add per-server enable/disable controls if multiple MCP servers are common.

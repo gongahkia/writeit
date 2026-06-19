@@ -278,6 +278,27 @@ private actor RecordingMCPToolRunner: MCPToolRunning {
     #expect(arguments?["limit"] as? Int == 2)
 }
 
+@Test func mcpCallRequiresConfirmationBeforeRunning() async throws {
+    let runner = RecordingMCPToolRunner()
+    let tool = MCPTool(runner: runner)
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(tool)])
+    let invocation = try ToolInvocation(
+        toolName: tool.name,
+        arguments: MCPTool.Arguments(serverName: "local", toolName: "lookup", argumentsJSON: "{}")
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await registry.run(invocation)
+    }
+
+    _ = try await registry.run(invocation, confirmed: true)
+    let calls = await runner.calls
+
+    #expect(calls.count == 1)
+    #expect(calls.first?.serverName == "local")
+    #expect(calls.first?.toolName == "lookup")
+}
+
 @Test func mcpDynamicNativeToolSchemaRejectsNestedSchemas() throws {
     let descriptor = MCPToolDescriptor(
         name: "nested",
