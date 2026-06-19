@@ -19,6 +19,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
     public let oauthScopes: [String]
     public let accessTokenKeychainAccount: String?
     public let nativeReadOnlyTools: [String]
+    public let enabled: Bool
 
     public init(
         name: String,
@@ -33,7 +34,8 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         oauthRedirectURI: String? = nil,
         oauthScopes: [String] = [],
         accessTokenKeychainAccount: String? = nil,
-        nativeReadOnlyTools: [String] = []
+        nativeReadOnlyTools: [String] = [],
+        enabled: Bool = true
     ) {
         self.name = name
         self.transport = transport
@@ -48,6 +50,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         self.oauthScopes = oauthScopes
         self.accessTokenKeychainAccount = accessTokenKeychainAccount
         self.nativeReadOnlyTools = nativeReadOnlyTools
+        self.enabled = enabled
     }
 
     enum CodingKeys: String, CodingKey {
@@ -64,6 +67,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         case oauthScopes
         case accessTokenKeychainAccount
         case nativeReadOnlyTools
+        case enabled
     }
 
     public init(from decoder: any Decoder) throws {
@@ -81,6 +85,7 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         oauthScopes = try container.decodeIfPresent([String].self, forKey: .oauthScopes) ?? []
         accessTokenKeychainAccount = try container.decodeIfPresent(String.self, forKey: .accessTokenKeychainAccount)
         nativeReadOnlyTools = try container.decodeIfPresent([String].self, forKey: .nativeReadOnlyTools) ?? []
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -98,6 +103,26 @@ public struct MCPServerConfiguration: Codable, Equatable, Sendable {
         try container.encode(oauthScopes, forKey: .oauthScopes)
         try container.encodeIfPresent(accessTokenKeychainAccount, forKey: .accessTokenKeychainAccount)
         try container.encode(nativeReadOnlyTools, forKey: .nativeReadOnlyTools)
+        try container.encode(enabled, forKey: .enabled)
+    }
+
+    public func withEnabled(_ enabled: Bool) -> MCPServerConfiguration {
+        MCPServerConfiguration(
+            name: name,
+            transport: transport,
+            executable: executable,
+            arguments: arguments,
+            workingDirectory: workingDirectory,
+            endpointURL: endpointURL,
+            headers: headers,
+            protectedResourceMetadataURL: protectedResourceMetadataURL,
+            oauthClientID: oauthClientID,
+            oauthRedirectURI: oauthRedirectURI,
+            oauthScopes: oauthScopes,
+            accessTokenKeychainAccount: accessTokenKeychainAccount,
+            nativeReadOnlyTools: nativeReadOnlyTools,
+            enabled: enabled
+        )
     }
 }
 
@@ -125,15 +150,33 @@ public actor MCPServerRegistry {
         guard let configuration = cachedConfigurations?[name] else {
             throw ToolExecutionError.denied("MCP server is not configured: \(name)")
         }
+        guard configuration.enabled else {
+            throw ToolExecutionError.denied("MCP server is disabled: \(name)")
+        }
 
         return configuration
     }
 
     public func configurations() throws -> [MCPServerConfiguration] {
+        try allConfigurations().filter(\.enabled)
+    }
+
+    public func allConfigurations() throws -> [MCPServerConfiguration] {
         if cachedConfigurations == nil {
             cachedConfigurations = try loadConfigurations()
         }
         return (cachedConfigurations ?? [:]).values.sorted { $0.name < $1.name }
+    }
+
+    public func setEnabled(_ enabled: Bool, for name: String) throws {
+        if cachedConfigurations == nil {
+            cachedConfigurations = try loadConfigurations()
+        }
+        guard let existing = cachedConfigurations?[name] else {
+            throw ToolExecutionError.denied("MCP server is not configured: \(name)")
+        }
+        cachedConfigurations?[name] = existing.withEnabled(enabled)
+        try saveConfigurations()
     }
 
     public func reload() {
@@ -165,5 +208,13 @@ public actor MCPServerRegistry {
         }
 
         return configurations
+    }
+
+    private func saveConfigurations() throws {
+        let configurations = (cachedConfigurations ?? [:]).values.sorted { $0.name < $1.name }
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(MCPConfigurationFile(servers: configurations)).write(to: fileURL, options: .atomic)
     }
 }

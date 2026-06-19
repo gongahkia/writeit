@@ -689,10 +689,15 @@ struct StatusPanel: View {
             if !model.mcpServerHealthLines.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(model.mcpServerHealthLines) { line in
-                        Label(line.displayText, systemImage: mcpServerHealthIcon(line.state))
-                            .font(.caption2)
-                            .foregroundStyle(mcpServerHealthStyle(line.state))
-                            .lineLimit(2)
+                        Toggle(isOn: Binding(
+                            get: { model.isMCPServerEnabled(line.name) },
+                            set: { model.setMCPServer(line.name, enabled: $0) }
+                        )) {
+                            Label(line.displayText, systemImage: mcpServerHealthIcon(line.state))
+                                .font(.caption2)
+                                .foregroundStyle(mcpServerHealthStyle(line.state))
+                                .lineLimit(2)
+                        }
                     }
                 }
             }

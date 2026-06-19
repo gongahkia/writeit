@@ -2049,6 +2049,7 @@ private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @
     #expect(file.servers.first?.executable == "node")
     #expect(file.servers.first?.oauthScopes == [])
     #expect(file.servers.first?.accessTokenKeychainAccount == nil)
+    #expect(file.servers.first?.enabled == true)
 }
 
 @Test func mcpServerRegistryListsConfigurationsSortedByName() async throws {
@@ -2088,6 +2089,32 @@ private final class InMemoryKeychainOperations: KeychainSecretStoreOperations, @
     #expect(enabled.map(\.name) == ["local", "remote"])
     #expect(enabled[0].displayText == "local (stdio): configured; no background listener")
     #expect(enabled[1].displayText == "remote (streamable_http): handled 2 background request(s)")
+}
+
+@Test func mcpServerRegistryPersistsServerEnablement() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let configURL = directory.appendingPathComponent("mcp-servers.json")
+    try Data("""
+    {
+      "servers": [
+        {"name":"local","transport":"stdio","executable":"/bin/echo"},
+        {"name":"remote","transport":"streamable_http","endpointURL":"https://example.com/mcp","enabled":false}
+      ]
+    }
+    """.utf8).write(to: configURL)
+
+    let registry = MCPServerRegistry(fileURL: configURL)
+    try await registry.setEnabled(false, for: "local")
+    try await registry.setEnabled(true, for: "remote")
+    let all = try await registry.allConfigurations()
+
+    #expect(all.first { $0.name == "local" }?.enabled == false)
+    #expect(all.first { $0.name == "remote" }?.enabled == true)
+    #expect(try await registry.configurations().map(\.name) == ["remote"])
+    await #expect(throws: ToolExecutionError.self) {
+        _ = try await registry.configuration(named: "local")
+    }
 }
 
 @Test func mcpServerRegistryRejectsBlankServerNames() async throws {

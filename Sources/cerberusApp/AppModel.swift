@@ -437,6 +437,27 @@ final class CerberusAppModel: ObservableObject {
         refreshAssistantToolPrompt()
     }
 
+    func isMCPServerEnabled(_ serverName: String) -> Bool {
+        mcpServerHealthLines.first { $0.name == serverName }?.serverEnabled ?? false
+    }
+
+    func setMCPServer(_ serverName: String, enabled: Bool) {
+        Task {
+            do {
+                try await mcpServerRegistry.setEnabled(enabled, for: serverName)
+                await mcpServerRegistry.reload()
+                if isMCPToolEnabled {
+                    startMCPHTTPListeners()
+                } else {
+                    refreshMCPServerHealthStatus()
+                }
+                refreshAssistantToolPrompt()
+            } catch {
+                statusLine = error.localizedDescription
+            }
+        }
+    }
+
     func revealAppDataLocation(_ location: AppDataLocation) {
         let url = location.url
         let revealURL = FileManager.default.fileExists(atPath: url.path)
@@ -1734,7 +1755,7 @@ final class CerberusAppModel: ObservableObject {
             }
             do {
                 mcpServerHealthLines = MCPServerHealthReporter.lines(
-                    configurations: try await mcpServerRegistry.configurations(),
+                    configurations: try await mcpServerRegistry.allConfigurations(),
                     enabled: isMCPToolEnabled,
                     states: mcpServerHealthStates,
                     details: mcpServerHealthDetails

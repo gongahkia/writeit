@@ -14,16 +14,18 @@ public struct MCPServerHealthLine: Equatable, Identifiable, Sendable {
     public let transport: MCPTransport
     public let state: MCPServerHealthState
     public let detail: String
+    public let serverEnabled: Bool
 
     public var id: String {
         name
     }
 
-    public init(name: String, transport: MCPTransport, state: MCPServerHealthState, detail: String) {
+    public init(name: String, transport: MCPTransport, state: MCPServerHealthState, detail: String, serverEnabled: Bool = true) {
         self.name = name
         self.transport = transport
         self.state = state
         self.detail = detail
+        self.serverEnabled = serverEnabled
     }
 
     public var displayText: String {
@@ -39,12 +41,13 @@ public enum MCPServerHealthReporter {
         details: [String: String] = [:]
     ) -> [MCPServerHealthLine] {
         configurations.sorted { $0.name < $1.name }.map { configuration in
-            let state = enabled ? states[configuration.name, default: .configured] : .disabled
+            let state = enabled && configuration.enabled ? states[configuration.name, default: .configured] : .disabled
             return MCPServerHealthLine(
                 name: configuration.name,
                 transport: configuration.transport,
                 state: state,
-                detail: details[configuration.name] ?? defaultDetail(for: state, transport: configuration.transport)
+                detail: details[configuration.name] ?? defaultDetail(for: state, transport: configuration.transport),
+                serverEnabled: configuration.enabled
             )
         }
     }
