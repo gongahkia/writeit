@@ -168,6 +168,5 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 
 ## V2 and product expansion
 
-- [ ] [P3][product][Speculation] Explore cloud model fallback only if local Foundation Models quality is insufficient and privacy scope changes.
 
 ## Reference re-check tasks

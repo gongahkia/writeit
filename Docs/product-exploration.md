@@ -51,3 +51,34 @@ Rejected for now:
 - Always-on non-AirPods microphone trigger.
 - Remote trigger from another device.
 - Trigger surfaces that bypass visible menu bar state.
+
+## Cloud Model Fallback
+
+Decision: do not add a cloud model fallback unless local Foundation Models quality is insufficient and the product privacy scope changes.
+
+Rationale:
+
+- The project positioning is local-first: planning, transcripts, memory, screen OCR, audit logs, and adapter data stay on device by default.
+- A cloud fallback would change data-flow guarantees for speech transcripts, screen-derived text, file names, Mail metadata, calendar/reminder content, and tool outputs.
+- Cloud routing would require new UX for consent, per-request disclosure, retention expectations, deletion semantics, network failure states, and audit entries.
+
+Minimum gates before reconsidering:
+
+- Hardware benchmark results showing local model failure modes that cannot be fixed with tool schemas, prompts, adapter data, or app-specific context.
+- A privacy design that separates cloud-eligible prompts from never-send local data.
+- Settings controls for default-off cloud use, per-request approval, and complete disablement.
+- Audit fields recording provider, model family, prompt category, and whether sensitive local context was excluded.
+- Updated threat model and release notes before implementation.
+
+Fallback shape if approved later:
+
+- Default off.
+- Explicit user confirmation before the first cloud request.
+- No raw screen images, encrypted memory exports, audit logs, or transcript history in cloud prompts.
+- Prefer short tool-planning prompts over broad conversation dumps.
+
+Rejected for now:
+
+- Silent fallback when local model is unavailable.
+- Cloud summarization of unfiltered tool payloads.
+- Cloud storage or sync for transcripts, memory, or validation artifacts.
