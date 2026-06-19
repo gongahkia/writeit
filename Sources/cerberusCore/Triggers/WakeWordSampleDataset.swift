@@ -125,4 +125,22 @@ public enum WakeWordSampleDataset {
         }
         return counts.filter { $0.value > 0 }
     }
+
+    public static func manifestRecords(in baseDirectoryURL: URL) throws -> [WakeWordSampleRecord] {
+        let fileURL = baseDirectoryURL.appendingPathComponent(manifestFileName)
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return []
+        }
+
+        let data = try Data(contentsOf: fileURL)
+        guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
+            return []
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try text
+            .split(separator: "\n")
+            .map { try decoder.decode(WakeWordSampleRecord.self, from: Data($0.utf8)) }
+    }
 }

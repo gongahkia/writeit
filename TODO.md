@@ -118,7 +118,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 - [ ] [P1][wake] Validate false-positive rate for the trained wake model in quiet, walking, and noisy conditions.
 - [ ] [P1][wake] Validate false-negative rate for the trained wake model in quiet, walking, and noisy conditions.
 - [ ] [P2][wake][Inference] Add wake-model confidence threshold guidance after collecting real validation metrics.
-- [ ] [P2][wake][Inference] Add optional sample-quality report before training if poor recordings cause classifier failures.
 
 ## Foundation Models and SDK work
 

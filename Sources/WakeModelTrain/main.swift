@@ -13,6 +13,13 @@ struct WakeModelTrainCommand {
 
         let options = try Options(arguments: arguments)
         let classCounts = try WakeWordSampleDataset.classCounts(in: options.inputDirectory)
+        if options.sampleQualityReport {
+            let report = try WakeWordSampleQualityReporter.report(
+                in: options.inputDirectory,
+                targetLabel: options.targetLabel
+            )
+            print(WakeWordSampleQualityReporter.render(report))
+        }
         try validateDataset(classCounts: classCounts, targetLabel: options.targetLabel, inputDirectory: options.inputDirectory)
 
         let summary = classCounts
@@ -127,6 +134,7 @@ private struct Options {
     let targetLabel: String
     let confidenceThreshold: Double
     let writeConfig: Bool
+    let sampleQualityReport: Bool
     let author: String
     let version: String
     let modelLicense: String?
@@ -140,6 +148,7 @@ private struct Options {
         var targetLabel = "hey_cerberus"
         var confidenceThreshold = 0.85
         var writeConfig = false
+        var sampleQualityReport = false
         var author = NSFullUserName()
         var version = "1"
         var modelLicense: String?
@@ -184,6 +193,8 @@ private struct Options {
                 confidenceThreshold = parsed
             case "--write-config":
                 writeConfig = true
+            case "--sample-quality-report":
+                sampleQualityReport = true
             case "--author":
                 guard let value = iterator.next() else {
                     throw ToolExecutionError.invalidArguments("--author requires text.")
@@ -216,6 +227,7 @@ private struct Options {
         self.targetLabel = try WakeWordSampleDataset.normalizedLabel(targetLabel)
         self.confidenceThreshold = confidenceThreshold
         self.writeConfig = writeConfig
+        self.sampleQualityReport = sampleQualityReport
         self.author = author
         self.version = version
         self.modelLicense = modelLicense
@@ -223,7 +235,7 @@ private struct Options {
 
     static func printUsage() {
         print("""
-        usage: cerberus-wake-train [--input dir] [--output CerberusWakeWord.mlmodel] [--target-label hey_cerberus] [--iterations 25] [--overlap 0.5] [--validation automatic|none] [--confidence-threshold 0.85] [--write-config]
+        usage: cerberus-wake-train [--input dir] [--output CerberusWakeWord.mlmodel] [--target-label hey_cerberus] [--iterations 25] [--overlap 0.5] [--validation automatic|none] [--confidence-threshold 0.85] [--write-config] [--sample-quality-report]
 
         Trains a CreateML MLSoundClassifier from labeled class directories and writes a Core ML .mlmodel.
         Default input: \(WakeWordSampleDataset.defaultDirectoryURL().path)

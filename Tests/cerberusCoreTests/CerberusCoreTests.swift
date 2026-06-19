@@ -577,6 +577,34 @@ import Testing
     #expect(try WakeWordSampleDataset.classCounts(in: directory) == [:])
 }
 
+@Test func wakeWordSampleQualityReportFlagsWeakDataset() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let wakeDirectory = directory.appendingPathComponent("hey_cerberus", isDirectory: true)
+    let backgroundDirectory = directory.appendingPathComponent("background", isDirectory: true)
+    try FileManager.default.createDirectory(at: wakeDirectory, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: backgroundDirectory, withIntermediateDirectories: true)
+    try Data().write(to: wakeDirectory.appendingPathComponent("wake.wav"))
+    try Data().write(to: backgroundDirectory.appendingPathComponent("background.wav"))
+    try WakeWordSampleDataset.write(
+        record: WakeWordSampleRecord(
+            label: "hey_cerberus",
+            relativePath: "hey_cerberus/wake.wav",
+            durationSeconds: 0.2,
+            createdAt: Date(timeIntervalSince1970: 0)
+        ),
+        to: directory
+    )
+
+    let report = try WakeWordSampleQualityReporter.report(in: directory, targetLabel: "hey_cerberus")
+    let rendered = WakeWordSampleQualityReporter.render(report)
+
+    #expect(report.classCounts == ["background": 1, "hey_cerberus": 1])
+    #expect(report.missingManifestRecordCount == 1)
+    #expect(report.shortSampleCount == 1)
+    #expect(rendered.contains("sample quality:"))
+    #expect(rendered.contains("background has only 1 sample(s)"))
+}
+
 @Test func audioOutputDeviceDetectsAirPodsByName() {
     #expect(AudioOutputDevice(id: 1, name: "AirPods Pro").isLikelyAirPods)
     #expect(!AudioOutputDevice(id: 2, name: "MacBook Pro Speakers").isLikelyAirPods)
