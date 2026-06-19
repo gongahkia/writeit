@@ -328,7 +328,7 @@ final class CerberusAppModel: ObservableObject {
     @Published var mcpClientDraft = ""
     @Published var mcpElicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
 
-    private let permissionCenter = PermissionCenter()
+    private let permissionCenter: any PermissionChecking
     private let transcriber: any AppTranscribing
     private let wakeWordTranscriber: any AppTranscribing
     private let wakeWordSoundClassifier = WakeWordSoundClassifier()
@@ -406,6 +406,7 @@ final class CerberusAppModel: ObservableObject {
         auditLog injectedAuditLog: AuditLog = AuditLog(),
         transcriptStore injectedTranscriptStore: EncryptedTranscriptStore = EncryptedTranscriptStore(),
         fileSearchScopeStore injectedFileSearchScopeStore: FileSearchScopeStore? = nil,
+        permissionCenter injectedPermissionCenter: (any PermissionChecking)? = nil,
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
@@ -435,6 +436,7 @@ final class CerberusAppModel: ObservableObject {
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
         self.fileSearchScopeStore = fileSearchScopeStore
+        self.permissionCenter = injectedPermissionCenter ?? PermissionCenter()
         self.auditLog = injectedAuditLog
         self.transcriptStore = injectedTranscriptStore
         self.transcriber = transcriber
@@ -1062,6 +1064,13 @@ final class CerberusAppModel: ObservableObject {
             return
         }
         requestPermission(nextPermissionSnapshot.kind)
+    }
+
+    func openSetupAccessPanelIfNeeded() {
+        guard shouldShowOnboarding else {
+            return
+        }
+        selectedPanelSection = .permissions
     }
 
     func skipOnboarding() {

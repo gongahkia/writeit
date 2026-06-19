@@ -111,6 +111,23 @@ private struct StubTool: AssistantTool {
 private struct WaitTimeout: Error {}
 
 @MainActor
+private final class FakePermissionCenter: PermissionChecking {
+    var snapshots: [PermissionSnapshot]
+
+    init(snapshots: [PermissionSnapshot]) {
+        self.snapshots = snapshots
+    }
+
+    func currentSnapshots() -> [PermissionSnapshot] {
+        snapshots
+    }
+
+    func request(_ kind: SystemPermission) async -> PermissionSnapshot {
+        snapshots.first { $0.kind == kind } ?? PermissionSnapshot(kind: kind, state: .unknown)
+    }
+}
+
+@MainActor
 @Test func appModelTransitionsFromListeningToDirectAnswer() async throws {
     let transcriber = FakeTranscriber()
     let speaker = FakeSpeaker()
@@ -307,6 +324,35 @@ private struct WaitTimeout: Error {}
     #expect(!model.hasSkippedOnboarding)
     #expect(!UserDefaults.standard.bool(forKey: key))
     #expect(!model.permissionSnapshots.isEmpty)
+}
+
+@MainActor
+@Test func appModelSetupAccessActionOpensPermissionsPanelWhenPermissionIsMissing() {
+    let key = CerberusSettingsKeys.onboardingSkipped
+    let prior = UserDefaults.standard.object(forKey: key)
+    defer {
+        if let prior {
+            UserDefaults.standard.set(prior, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+    UserDefaults.standard.removeObject(forKey: key)
+
+    let permissions = FakePermissionCenter(snapshots: [
+        PermissionSnapshot(kind: .microphone, state: .notDetermined)
+    ])
+    let model = CerberusAppModel(
+        permissionCenter: permissions,
+        startsRuntimeServices: false,
+        skipsFoundationModelAvailabilityCheck: true
+    )
+
+    model.selectedPanelSection = .session
+    model.openSetupAccessPanelIfNeeded()
+
+    #expect(model.shouldShowOnboarding)
+    #expect(model.selectedPanelSection == .permissions)
 }
 
 @MainActor

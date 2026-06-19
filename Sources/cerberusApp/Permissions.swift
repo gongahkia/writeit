@@ -100,7 +100,13 @@ struct PermissionSnapshot: Identifiable, Equatable {
 }
 
 @MainActor
-final class PermissionCenter {
+protocol PermissionChecking: AnyObject {
+    func currentSnapshots() -> [PermissionSnapshot]
+    func request(_ kind: SystemPermission) async -> PermissionSnapshot
+}
+
+@MainActor
+final class PermissionCenter: PermissionChecking {
     private let eventStore = EKEventStore()
 
     func currentSnapshots() -> [PermissionSnapshot] {

@@ -84,14 +84,14 @@ struct StatusPanel: View {
 
                 HStack(spacing: 8) {
                     Button {
-                        model.selectedPanelSection = .permissions
+                        model.openSetupAccessPanelIfNeeded()
                         model.requestNextPermission()
                     } label: {
                         Label("Request", systemImage: "lock.open")
                     }
 
                     Button {
-                        model.selectedPanelSection = .permissions
+                        model.openSetupAccessPanelIfNeeded()
                     } label: {
                         Label("Access", systemImage: "slider.horizontal.3")
                     }
@@ -1138,9 +1138,7 @@ struct StatusPanel: View {
     }
 
     private func showOnboardingIfNeeded() {
-        if model.shouldShowOnboarding {
-            model.selectedPanelSection = .permissions
-        }
+        model.openSetupAccessPanelIfNeeded()
     }
 }
 
