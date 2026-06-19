@@ -100,8 +100,9 @@ The evaluator runs each prompt through Foundation Models and reports exact norma
 - redaction: enabled
 - private-data scan: 0 email, home path, bearer token, or long-hex matches in train/eval
 - base eval smoke: `Scripts/evaluate_adapter_dataset.sh .dist/validation/adapter-data/eval.jsonl --limit 5` returned 0/5 exact matches and 0.0 average token F1
+- curation: all 107 train rows and 27 eval rows rejected as synthetic/stub-quality data; empty reviewed splits were written to `.dist/validation/adapter-data/train.reviewed.jsonl` and `.dist/validation/adapter-data/eval.reviewed.jsonl`
 
-The exported split is not training-ready. The sampled expected responses are mostly short test/stub replies, so transcript curation and low-quality row removal remain required before adapter training.
+The exported split is not training-ready. Real transcript history is still required before adapter training.
 
 Train with Apple's adapter training toolkit:
 

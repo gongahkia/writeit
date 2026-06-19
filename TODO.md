@@ -128,9 +128,6 @@ Legend: `P0` ship blocker, `P1` high-value v1, `P2` hardening, `P3` v2/backlog, 
 ## Adapter training and data
 
 - [ ] [P0][adapter][blocked: real transcripts] Generate enough real transcript history for adapter dataset export.
-- [ ] [P0][adapter] Curate transcript-derived prompt/response rows before model training.
-- [ ] [P0][adapter] Remove failed, unsafe, or low-quality assistant responses from the training split.
-- [ ] [P0][adapter] Remove failed, unsafe, or low-quality assistant responses from the eval split.
 - [ ] [P0][adapter][blocked: Apple toolkit assets] Download the matching Apple Foundation Models adapter training toolkit.
 - [ ] [P0][adapter][blocked: Apple toolkit assets] Set `ADAPTER_TOOLKIT_DIR` to the local toolkit path.
 - [ ] [P0][adapter][blocked: Python env] Create a Python environment compatible with the adapter toolkit.
