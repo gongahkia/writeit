@@ -21,3 +21,33 @@ Not in scope for macOS v1:
 - Cross-device transcript sync.
 - iCloud-backed memory sync.
 - Remote tool execution from iOS.
+
+## Non-AirPods Trigger Surfaces
+
+Decision: do not add non-AirPods trigger surfaces unless AirPods validation is weak.
+
+Rationale:
+
+- Current v1 interaction design depends on explicit local triggers, menu bar state, optional wake phrase, and AirPods gestures.
+- More trigger surfaces increase accidental activation risk and make permission recovery harder to validate.
+- AirPods validation must first quantify false positives, false negatives, disconnect behavior, speech latency, and confirmation reliability.
+
+Candidate fallbacks if AirPods validation fails:
+
+- Keyboard-only global hotkey improvements.
+- Menu bar quick actions.
+- Wake phrase with stricter confidence thresholds.
+- Stream Deck or Shortcuts trigger that only starts listening, never executes tools directly.
+
+Required gates before adding a fallback:
+
+- A validation summary showing which AirPods failure mode the fallback addresses.
+- Updated audit semantics for trigger source.
+- Updated cancellation semantics for accidental activation.
+- A manual QA matrix covering the new trigger alongside microphone, wake phrase, and confirmation flows.
+
+Rejected for now:
+
+- Always-on non-AirPods microphone trigger.
+- Remote trigger from another device.
+- Trigger surfaces that bypass visible menu bar state.
