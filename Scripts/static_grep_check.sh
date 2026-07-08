@@ -22,7 +22,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "notes.search"
   "reminders."
   "shell"".""run"
-  "shortcuts.run"
+  "shortcuts"".""run"
   "web.search"
   "App""Control"
   "Browser""AppleScript"
@@ -35,7 +35,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "MCPOAuth"
   "Shell""Exec"
   "Shell""Tool"
-  "ShortcutsRun"
+  "Shortcuts""Run"
 )
 
 for pattern in "${FORBIDDEN_SOURCE_PATTERNS[@]}"; do
