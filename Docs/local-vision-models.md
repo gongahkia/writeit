@@ -39,6 +39,10 @@ Cerberus passes only the screenshot file path, prompt, model id, token limit, an
 
 Ollama serves its local API at `http://localhost:11434/api` by default. Pull vision models yourself, then set `modelID` to the local model tag. Examples: `ollama pull llava` or `ollama pull minicpm-v`. Cerberus never runs `ollama pull`, never downloads models, and refuses remote Ollama endpoints unless `allowNonLocalEndpoint` is explicit. References: https://docs.ollama.com/api/introduction, https://ollama.com/library/llava, https://ollama.com/library/minicpm-v.
 
+## llama.cpp Setup
+
+llama.cpp support uses the isolated OpenAI-compatible chat completions path, not the Ollama request parser. Run `llama-server` yourself with a vision-capable GGUF model, required multimodal projector/options, and a supported chat template. Configure `provider` as `llama_cpp`; the default endpoint is `http://127.0.0.1:8080`. Runtime compatibility depends on the llama.cpp build, model, projector, and template. Cerberus does not build llama.cpp, download GGUF files, or open non-local endpoints by default. References: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md.
+
 Ollama example:
 
 ```json

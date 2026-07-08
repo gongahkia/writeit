@@ -312,6 +312,34 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     }
 }
 
+@Test func localVLMFactoryBuildsLlamaCPPProvider() throws {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .llamaCPP,
+        modelID: "vision.gguf"
+    )
+
+    let anyProvider = try #require(try LocalVLMProviderFactory.provider(for: configuration))
+    let provider = try #require(anyProvider as? OpenAICompatibleVLMProvider)
+
+    #expect(provider.providerName == "llama.cpp")
+    #expect(provider.modelID == "vision.gguf")
+    #expect(provider.endpointURL.absoluteString == "http://127.0.0.1:8080")
+}
+
+@Test func localVLMFactoryRejectsRemoteLlamaCPPEndpointByDefault() {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .llamaCPP,
+        modelID: "vision.gguf",
+        endpointURLString: "https://example.com/v1"
+    )
+
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMProviderFactory.provider(for: configuration)
+    }
+}
+
 @Test func localVLMProviderExecutorReturnsFakeProviderResponse() async throws {
     let imageURL = try TestImageFactory.writeImageData()
     defer {
