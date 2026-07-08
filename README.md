@@ -71,6 +71,7 @@ See `Docs/local-vision-models.md` for optional local VLM candidates.
 See `Docs/vlm-benchmark.md` for optional local VLM benchmark and golden-fixture evaluation.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
+See `Docs/real-time-assistant-market-map.md` for the dated Cluely-style competitor map and product recommendation.
 See `Docs/airpods.md` for AirPods motion troubleshooting.
 See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, and screen capture recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
