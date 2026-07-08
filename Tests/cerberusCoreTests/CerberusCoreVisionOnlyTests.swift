@@ -160,7 +160,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let configuration = try LocalVLMConfiguration.load(from: fileURL)
 
     #expect(!configuration.enabled)
-    #expect(configuration.statusLine == "Local VLM disabled")
+    #expect(configuration.statusLine == "Local VLM disabled; configure local-vlm.json to enable screen.describe")
 }
 
 @Test func localVLMConfigurationDecodesValidFile() throws {
@@ -530,7 +530,37 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(result.metadata["modelID"] == "fake-model")
     #expect(result.metadata["imageExists"] == "true")
     #expect(result.metadata["maxTokens"] == "42")
+    #expect(result.metadata["scope"] == "main_display")
     #expect(FileManager.default.fileExists(atPath: imagePath))
+}
+
+@Test func screenDescribeRunsConfiguredLocalVLMForActiveWindowScope() async throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-active-window-test-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    let image = try #require(TestImageFactory.makeTestImage())
+    let tool = ScreenDescribeTool(
+        provider: FakeLocalVLMProvider(),
+        options: LocalVLMRequestOptions(maxTokens: 24, timeoutSeconds: 2),
+        outputDirectoryURL: directoryURL,
+        cachePolicy: ScreenSnapshotCachePolicy(maximumFileCount: 2, maximumAge: 60),
+        hasScreenCaptureAccess: { true },
+        captureImage: { scope in
+            CapturedScreenImage(image: image, scope: scope, sourceDescription: "test \(scope.rawValue)")
+        }
+    )
+
+    let result = try await tool.run(arguments: ScreenDescribeTool.Arguments(
+        prompt: "what is visible?",
+        scope: "active_window"
+    ))
+
+    #expect(result.spokenSummary == "A visible test screen.")
+    #expect(result.metadata["scope"] == "active_window")
+    #expect(result.metadata["maxTokens"] == "24")
+    #expect(result.untrustedPayload.contains("scope: active_window"))
 }
 
 @Test func toolProfileIsVisionOnly() {

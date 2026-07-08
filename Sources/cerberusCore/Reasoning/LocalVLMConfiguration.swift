@@ -62,7 +62,7 @@ public struct LocalVLMConfiguration: Codable, Equatable, Sendable {
 
     public var statusLine: String {
         guard enabled else {
-            return "Local VLM disabled"
+            return "Local VLM disabled; configure local-vlm.json to enable screen.describe"
         }
         let model = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
         return model.isEmpty
