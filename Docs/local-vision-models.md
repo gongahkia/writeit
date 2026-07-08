@@ -43,6 +43,10 @@ Ollama serves its local API at `http://localhost:11434/api` by default. Pull vis
 
 llama.cpp support uses the isolated OpenAI-compatible chat completions path, not the Ollama request parser. Run `llama-server` yourself with a vision-capable GGUF model, required multimodal projector/options, and a supported chat template. Configure `provider` as `llama_cpp`; the default endpoint is `http://127.0.0.1:8080`. Runtime compatibility depends on the llama.cpp build, model, projector, and template. Cerberus does not build llama.cpp, download GGUF files, or open non-local endpoints by default. References: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md.
 
+## vLLM and SGLang Setup
+
+vLLM and SGLang are advanced OpenAI-compatible endpoint options for users who operate their own GPU server. Configure `provider` as `openai_compatible` and keep `endpointURLString` on localhost unless you explicitly accept screenshot egress. Setting `allowNonLocalEndpoint` to `true` means screenshots and prompts leave the Mac for that endpoint. Cerberus does not provision servers, manage API keys, download models, or verify LAN security. Runtime compatibility depends on the selected VLM, chat template, server version, and OpenAI vision request support. References: https://docs.vllm.ai/en/stable/serving/online_serving/, https://docs.sglang.ai/.
+
 Ollama example:
 
 ```json

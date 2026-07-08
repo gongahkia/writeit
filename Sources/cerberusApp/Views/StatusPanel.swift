@@ -546,7 +546,7 @@ struct StatusPanel: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
 
-                Text("Local VLM endpoints stay localhost-only unless config explicitly allows a remote host.")
+                Text("Non-local VLM endpoints receive screenshots and prompts; localhost is required unless config explicitly allows a remote host.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(3)

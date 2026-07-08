@@ -340,6 +340,36 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     }
 }
 
+@Test func localVLMFactoryRejectsRemoteOpenAICompatibleEndpointByDefault() {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .openAICompatible,
+        modelID: "vision-model",
+        endpointURLString: "https://gpu.example.com/v1"
+    )
+
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMProviderFactory.provider(for: configuration)
+    }
+}
+
+@Test func localVLMFactoryAllowsRemoteOpenAICompatibleEndpointWithExplicitFlag() throws {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .openAICompatible,
+        modelID: "vision-model",
+        endpointURLString: "https://gpu.example.com/v1",
+        allowNonLocalEndpoint: true
+    )
+
+    let anyProvider = try #require(try LocalVLMProviderFactory.provider(for: configuration))
+    let provider = try #require(anyProvider as? OpenAICompatibleVLMProvider)
+
+    #expect(provider.providerName == "OpenAI-compatible")
+    #expect(provider.modelID == "vision-model")
+    #expect(provider.endpointURL.absoluteString == "https://gpu.example.com/v1")
+}
+
 @Test func localVLMProviderExecutorReturnsFakeProviderResponse() async throws {
     let imageURL = try TestImageFactory.writeImageData()
     defer {
