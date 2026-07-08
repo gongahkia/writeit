@@ -58,11 +58,22 @@ Validate the implementation on a Mac that matches the project requirements.
 34. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
 35. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
 
+## Current Validated Results
+
+2026-07-08 model validation on MacBook Air Mac15,12, Apple M3, macOS 26.5.1 25F80, Xcode 26.6:
+
+- `Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 3 --output .dist/validation/model-loop.json`: plan p95 1.790s, synthetic summarize p95 1.350s.
+- `Scripts/benchmark_model.sh --request "what text is on my screen?" --native-read-only-tools --iterations 3 --output .dist/validation/model-native-tools.json`: plan p95 3.618s, native read-only answer p95 8.902s.
+- One-shot native loops passed for `screen.snapshot`, `screen.barcodes`, and `screen.ui_elements`; `screen.ocr` was covered by the 3-iteration native run.
+- `Scripts/evaluate_model_golden_requests.sh`: 31/31 fixtures passed, `golden.accuracy: 1.0000`.
+- Optional `screen.describe` was not tested because `~/Library/Application Support/cerberus/local-vlm.json` was absent.
+
+See `Docs/model-benchmark.md` for the measured baseline and accepted v1 gates.
+
 ## Known Follow-Up
 
 - Developer ID signing and notarization still require local credentials.
 - SpeechAnalyzer and AirPods microphone quality need target-hardware quiet/walking/noisy benchmark results.
-- Foundation Models planning and native screen-tool latency need target-hardware baselines.
 - AirPods nod/shake classification needs real walking/noisy-environment data.
 - Direct AirPods speech routing needs real AirPods runtime validation on target hardware.
 - Wake phrase can use a custom SoundAnalysis/Core ML classifier; sample collection and local CreateML training are supported, but no trained wake model is bundled.
