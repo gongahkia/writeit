@@ -113,7 +113,7 @@ The script fails fast unless all release requirements are true:
 - `.dist/cerberus.app` is signed with an installed Developer ID Application identity and passes Gatekeeper assessment
 - `NOTARY_PROFILE` points to a usable `notarytool` keychain profile and the bundle has a stapled ticket
 - `.dist/demo/cerberus-demo.mov` exists and is a video file, either recorded or rendered
-- the repository passes `Scripts/open_source_check.sh`, including license, visibility, worktree, artifact, and local secret checks
+- the repository passes `Scripts/open_source_check.sh`, including license, visibility, worktree, artifact, local secret, and GitHub security checks
 
 Target one gate while preparing release:
 

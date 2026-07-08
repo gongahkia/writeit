@@ -5,7 +5,7 @@
 - [ ] `CODESIGN_IDENTITY` is a Developer ID Application identity installed in the login keychain
 - [ ] `NOTARY_PROFILE` is a usable `notarytool` keychain profile
 - [ ] `.dist/demo/cerberus-demo.mov` exists and is final
-- [ ] license, visibility, worktree, artifact, and secret checks are ready for public release
+- [ ] license, visibility, worktree, artifact, local secret, and GitHub security checks are ready for public release
 
 ## Build and Package
 

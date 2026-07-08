@@ -24,29 +24,34 @@ The script checks:
 - working tree is clean unless `ALLOW_DIRTY=1`
 - no tracked build/release artifacts are present
 - no tracked private-key block or obvious quoted token assignment is present
+- Dependabot alerts and Dependabot security updates are enabled
+- code scanning, secret scanning, and push protection are enabled when the repository is public or the account has the required GitHub security products
 
 The secret check is only a local heuristic. Keep GitHub push protection enabled and review any secret-scanning alerts before release.
 See `SECURITY.md` for vulnerability reporting and local-data handling expectations.
 
 ## Manual Decisions
 
-Choose the license before publishing. GitHub license docs were re-checked on 2026-06-19 and still document that a public repository is not automatically open source without a license that grants reuse, modification, and distribution rights. They also recommend putting the license text in a root `LICENSE` file and noting license terms in the README.
+Choose the license before publishing. GitHub license docs were re-checked on 2026-07-09 and still document that a public repository is not automatically open source without a license that grants reuse, modification, and distribution rights. They also recommend putting the license text in a root `LICENSE` file and noting license terms in the README.
 
-Review GitHub's private-to-public visibility effects before changing visibility. GitHub visibility docs were re-checked on 2026-06-19 and still document that code becomes visible, anyone can fork the repository, activity and Actions logs become public, and all push rulesets are disabled by the transition.
+Review GitHub's private-to-public visibility effects before changing visibility. GitHub visibility docs were re-checked on 2026-07-09 and still document that code becomes visible, anyone can fork the repository, activity and Actions logs become public, and all push rulesets are disabled by the transition.
 
-Verify security and analysis settings. GitHub security/analysis docs were re-checked on 2026-06-19 and recommend Dependabot alerts, secret scanning, push protection, and code scanning for public repositories; dependency graph remains permanently enabled for public repositories.
+Verify security and analysis settings. GitHub security/analysis docs were re-checked on 2026-07-09 and document public-repository availability for secret scanning and code scanning, push protection for blocking detected secrets before they are pushed, and CodeQL/default setup availability for public repositories or repositories with GitHub Code Security.
 
-Current GitHub state checked on 2026-06-19 for `gongahkia/cerberus`: repository visibility is `PRIVATE`; Dependabot alerts return HTTP 204 and Dependabot security updates report `enabled=true`, `paused=false`. Secret scanning and push protection could not be enabled through the repository API because GitHub returned `Secret scanning is not available for this repository`.
+Current GitHub state checked on 2026-07-09 for `gongahkia/cerberus`: repository visibility is `PRIVATE`; no license is detected by the repository API; Dependabot alerts return HTTP 204 and Dependabot security updates report `enabled=true`, `paused=false`; `security_and_analysis` is absent from the repository API response; code scanning alerts return HTTP 403 with `Code scanning is not enabled for this repository`.
 
 GitHub settings were reviewed on 2026-06-19 before public release. The repository is private with default branch `main`; Issues, Projects, Wiki, and forking are enabled; merge, squash, and rebase merges are enabled; auto-merge and delete-branch-on-merge are disabled; Actions are enabled with all actions allowed, SHA pinning not required, and default workflow token permissions set to read. GitHub Actions has no runs and no artifacts, so there are no hosted logs or artifacts to scrub before the first public release.
 
-Code scanning advanced setup prep is tracked in `.github/workflows/codeql.yml`. It runs CodeQL for Swift on `macos-26` with a manual `swift build`. Current GitHub API checks still return `Code scanning is not enabled for this repository`, so the repository setting must be verified again after public release or after GitHub Advanced Security/code security is available.
+Code scanning advanced setup prep is tracked in `.github/workflows/codeql.yml`. It runs CodeQL for Swift on `macos-26` with a manual `swift build`. Current GitHub API checks still return `Code scanning is not enabled for this repository`, so the repository setting must be verified again after public release or after GitHub Code Security is available.
 
 Official references:
 
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility
 - https://docs.github.com/en/code-security/concepts/secret-security/push-protection
+- https://docs.github.com/en/code-security/how-tos/secure-your-secrets/detect-secret-leaks/enable-secret-scanning
+- https://docs.github.com/en/code-security/code-scanning/enabling-code-scanning/configuring-default-setup-for-code-scanning
+- https://docs.github.com/en/rest/repos/repos
 
 ## Publishing
 

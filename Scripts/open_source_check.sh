@@ -7,7 +7,7 @@ REQUIRE_PUBLIC="${REQUIRE_PUBLIC:-1}"
 FAILURES=0
 
 usage() {
-  print "usage: Scripts/open_source_check.sh [all|license|visibility|worktree|artifacts|secrets]"
+  print "usage: Scripts/open_source_check.sh [all|license|visibility|worktree|artifacts|secrets|github-security]"
   print ""
   print "env:"
   print "  ALLOW_DIRTY=1       allow uncommitted or untracked files"
@@ -101,12 +101,79 @@ check_secrets() {
   fi
 }
 
+check_github_security() {
+  require_command gh || return
+
+  local visibility
+  visibility="$(cd "$ROOT_DIR" && gh repo view --json visibility -q .visibility 2>/dev/null)" || {
+    fail "gh cannot read repository visibility for GitHub security checks."
+    return
+  }
+  local visibility_lower="${visibility:l}"
+
+  local vulnerability_status
+  vulnerability_status="$(cd "$ROOT_DIR" && gh api -i repos/:owner/:repo/vulnerability-alerts -X GET 2>/dev/null | awk 'index($0, "HTTP/") == 1 { status = $2 } END { print status }')"
+  case "$vulnerability_status" in
+    204)
+      ok "dependabot-alerts"
+      ;;
+    404)
+      fail "Dependabot alerts are not enabled."
+      ;;
+    *)
+      fail "could not verify Dependabot alerts status."
+      ;;
+  esac
+
+  local security_updates
+  security_updates="$(cd "$ROOT_DIR" && gh api repos/:owner/:repo/automated-security-fixes --jq '[.enabled, .paused] | @tsv' 2>/dev/null || true)"
+  if [[ "$security_updates" == $'true\tfalse' ]]; then
+    ok "dependabot-security-updates"
+  else
+    fail "Dependabot security updates are not enabled and unpaused."
+  fi
+
+  local code_scanning_error
+  if code_scanning_error="$(cd "$ROOT_DIR" && gh api repos/:owner/:repo/code-scanning/alerts --paginate --jq 'length' 2>&1 >/dev/null)"; then
+    ok "code-scanning"
+  elif [[ "$REQUIRE_PUBLIC" == "0" && "$visibility_lower" != "public" ]]; then
+    print "code-scanning deferred until repository is public or GitHub Code Security is enabled"
+  else
+    fail "code scanning is not enabled: $code_scanning_error"
+  fi
+
+  local security_statuses
+  security_statuses="$(cd "$ROOT_DIR" && gh api repos/:owner/:repo --jq '[.security_and_analysis.secret_scanning.status, .security_and_analysis.secret_scanning_push_protection.status] | @tsv' 2>/dev/null || true)"
+  if [[ -z "${security_statuses//[$'\t ']/}" ]]; then
+    if [[ "$REQUIRE_PUBLIC" == "0" && "$visibility_lower" != "public" ]]; then
+      print "secret-scanning and push-protection deferred until repository is public or GitHub Secret Protection is enabled"
+    else
+      fail "GitHub API did not return security_and_analysis for secret scanning and push protection."
+    fi
+    return
+  fi
+
+  local secret_scanning_status="${security_statuses%%$'\t'*}"
+  local push_protection_status="${security_statuses#*$'\t'}"
+  if [[ "$secret_scanning_status" == "enabled" ]]; then
+    ok "secret-scanning"
+  else
+    fail "secret scanning is $secret_scanning_status, not enabled."
+  fi
+  if [[ "$push_protection_status" == "enabled" ]]; then
+    ok "push-protection"
+  else
+    fail "push protection is $push_protection_status, not enabled."
+  fi
+}
+
 run_all() {
   check_license
   check_visibility
   check_worktree
   check_artifacts
   check_secrets
+  check_github_security
 }
 
 case "${1:-all}" in
@@ -130,6 +197,9 @@ case "${1:-all}" in
     ;;
   secrets)
     check_secrets
+    ;;
+  github-security)
+    check_github_security
     ;;
   *)
     usage
