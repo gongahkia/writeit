@@ -74,6 +74,7 @@ See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
 See `Docs/product-principles.md` for FOSS, local-first, user-visible positioning.
 See `Docs/consent-and-misuse-policy.md` for interview, exam, meeting, and third-party consent rules.
+See `Docs/competitive-roadmap-decision.md` for the ranked product roadmap and next milestones.
 See `Docs/transparent-overlay-ux-proposal.md` for the visible-to-user overlay concept and non-goals.
 See `Docs/live-meeting-mode-feasibility.md` for the local live meeting mode architecture and benchmark plan.
 See `Docs/real-time-assistant-market-map.md` for the dated Cluely-style competitor map and product recommendation.
