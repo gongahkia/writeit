@@ -58,22 +58,13 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),
-                .linkedFramework("AudioToolbox"),
                 .linkedFramework("AVFoundation"),
-                .linkedFramework("CoreAudio"),
                 .linkedFramework("CoreGraphics"),
-                .linkedFramework("CoreML"),
-                .linkedFramework("CoreMotion"),
                 .linkedFramework("FoundationModels"),
-                .linkedFramework("ImageIO"),
-                .linkedFramework("ScreenCaptureKit"),
-                .linkedFramework("Security"),
-                .linkedFramework("SoundAnalysis"),
                 .linkedFramework("Speech"),
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("UniformTypeIdentifiers"),
-                .linkedFramework("UserNotifications"),
-                .linkedFramework("Vision")
+                .linkedFramework("UserNotifications")
             ]
         ),
         .target(
