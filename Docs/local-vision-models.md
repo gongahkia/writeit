@@ -35,6 +35,10 @@ MLX-VLM is user-installed and user-updated. Create a separate Python environment
 
 Cerberus passes only the screenshot file path, prompt, model id, token limit, and timeout through configured argument placeholders. The subprocess provider requires `{image}` and `{prompt}` placeholders so screenshots are explicit inputs. Server mode must remain localhost unless `allowNonLocalEndpoint` is explicitly enabled.
 
+## Ollama Setup
+
+Ollama serves its local API at `http://localhost:11434/api` by default. Pull vision models yourself, then set `modelID` to the local model tag. Examples: `ollama pull llava` or `ollama pull minicpm-v`. Cerberus never runs `ollama pull`, never downloads models, and refuses remote Ollama endpoints unless `allowNonLocalEndpoint` is explicit. References: https://docs.ollama.com/api/introduction, https://ollama.com/library/llava, https://ollama.com/library/minicpm-v.
+
 Ollama example:
 
 ```json

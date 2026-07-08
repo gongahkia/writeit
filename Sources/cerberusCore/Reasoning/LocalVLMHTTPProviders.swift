@@ -152,7 +152,11 @@ public protocol LocalVLMHTTPTransport: Sendable {
 }
 
 public struct URLSessionLocalVLMHTTPTransport: LocalVLMHTTPTransport {
-    public init() {}
+    private let session: URLSession
+
+    public init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     public func postJSON(
         body: Data,
@@ -165,7 +169,7 @@ public struct URLSessionLocalVLMHTTPTransport: LocalVLMHTTPTransport {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ToolExecutionError.denied("Local VLM endpoint returned a non-HTTP response.")
         }

@@ -60,6 +60,56 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
     }
 }
 
+private final class MockURLProtocolState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var statusCode = 200
+    private var body = Data()
+
+    func set(statusCode: Int, body: String) {
+        lock.lock()
+        self.statusCode = statusCode
+        self.body = Data(body.utf8)
+        lock.unlock()
+    }
+
+    func snapshot() -> (statusCode: Int, body: Data) {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+        return (statusCode, body)
+    }
+}
+
+private final class MockURLProtocol: URLProtocol {
+    static let state = MockURLProtocolState()
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        let snapshot = Self.state.snapshot()
+        let response = HTTPURLResponse(
+            url: request.url ?? URL(fileURLWithPath: "/"),
+            statusCode: snapshot.statusCode,
+            httpVersion: nil,
+            headerFields: nil
+        )
+        if let response {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        }
+        client?.urlProtocol(self, didLoad: snapshot.body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let providerName = "delayed-vlm"
     let modelID = "delayed-model"
@@ -238,14 +288,28 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let configuration = LocalVLMConfiguration(
         enabled: true,
         provider: .ollama,
-        modelID: "llava",
-        endpointURLString: "http://localhost:11434"
+        modelID: "llava"
     )
 
-    let provider = try #require(try LocalVLMProviderFactory.provider(for: configuration))
+    let anyProvider = try #require(try LocalVLMProviderFactory.provider(for: configuration))
+    let provider = try #require(anyProvider as? OllamaVLMProvider)
 
     #expect(provider.providerName == "Ollama")
     #expect(provider.modelID == "llava")
+    #expect(provider.endpointURL.absoluteString == "http://127.0.0.1:11434")
+}
+
+@Test func localVLMFactoryRejectsRemoteOllamaEndpointByDefault() {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .ollama,
+        modelID: "llava",
+        endpointURLString: "https://example.com"
+    )
+
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMProviderFactory.provider(for: configuration)
+    }
 }
 
 @Test func localVLMProviderExecutorReturnsFakeProviderResponse() async throws {
@@ -440,6 +504,25 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
             imageURL: imageURL,
             prompt: "describe",
             options: LocalVLMRequestOptions(maxTokens: 8, timeoutSeconds: 1)
+        )
+    }
+}
+
+@Test func urlSessionLocalVLMHTTPTransportRejectsNon200Response() async throws {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MockURLProtocol.self]
+    let session = URLSession(configuration: configuration)
+    defer {
+        session.invalidateAndCancel()
+    }
+    MockURLProtocol.state.set(statusCode: 500, body: "failed")
+    let transport = URLSessionLocalVLMHTTPTransport(session: session)
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await transport.postJSON(
+            body: Data("{}".utf8),
+            to: try #require(URL(string: "http://localhost:11434/api/generate")),
+            timeoutSeconds: 3
         )
     }
 }
