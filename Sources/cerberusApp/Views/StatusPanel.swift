@@ -19,7 +19,6 @@ struct StatusPanel: View {
                 recentEvents
             case .history:
                 history
-                memories
             case .audit:
                 audit
             case .permissions:

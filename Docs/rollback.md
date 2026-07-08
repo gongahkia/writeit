@@ -6,7 +6,6 @@ Use these steps to remove a local cerberus install and reset user state before r
 
 ```sh
 pkill -x cerberus || true
-pkill -x ShellExecService || true
 ```
 
 ## Remove Launch Artifacts
@@ -29,35 +28,22 @@ rm -rf "$HOME/Library/Caches/cerberus"
 defaults delete dev.gongahkia.cerberus 2>/dev/null || true
 ```
 
-This removes transcripts, memory, audit logs, MCP config, adapter config, wake samples, validation CSVs, cached screen snapshots, and persisted settings owned by the app.
+This removes transcripts, audit logs, adapter config, wake samples, validation CSVs, cached screen snapshots, and persisted settings owned by the app.
 
 ## Remove Keychain Items
 
 ```sh
 security delete-generic-password -s dev.gongahkia.cerberus -a transcript-encryption-key 2>/dev/null || true
-security delete-generic-password -s dev.gongahkia.cerberus -a memory-encryption-key 2>/dev/null || true
 security delete-generic-password -s dev.gongahkia.cerberus -a audit-signing-key 2>/dev/null || true
 ```
-
-For MCP OAuth entries, delete accounts created from configured server names:
-
-```sh
-security delete-generic-password -s dev.gongahkia.cerberus -a "mcp.oauth.access.<serverName>" 2>/dev/null || true
-security delete-generic-password -s dev.gongahkia.cerberus -a "mcp.oauth.client.<serverName>" 2>/dev/null || true
-security delete-generic-password -s dev.gongahkia.cerberus -a "mcp.oauth.token.<serverName>" 2>/dev/null || true
-security delete-generic-password -s dev.gongahkia.cerberus -a "mcp.oauth.flow.<serverName>.<state>" 2>/dev/null || true
-```
-
-If `mcp-servers.json` used a custom `accessTokenKeychainAccount`, delete that account name instead of `mcp.oauth.access.<serverName>`.
 
 ## Reset Permissions
 
 ```sh
 tccutil reset All dev.gongahkia.cerberus
-tccutil reset All dev.gongahkia.cerberus.ShellExecService
 ```
 
-Open System Settings and remove any remaining Accessibility, Input Monitoring, Screen Recording, Automation, Microphone, Speech Recognition, Calendar, or Reminders grants if macOS still shows stale entries.
+Open System Settings and remove any remaining Accessibility, Input Monitoring, Screen Recording, Microphone, or Speech Recognition grants if macOS still shows stale entries.
 
 ## Verify
 

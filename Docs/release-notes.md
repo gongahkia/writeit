@@ -11,18 +11,11 @@ First tagged build target for cerberus, pending Developer ID signing, notarizati
 - SpeechAnalyzer transcription path, live speech benchmark CLI, and optional wake phrase monitor
 - AirPods motion trigger path with head-gesture validation logging and evaluator scripts
 - Foundation Models planning path with native read-only tool adapter support and benchmark tooling
-- confirmation-gated tool registry for mutating built-in tools
-- confirmation-gated local `local.*` tool manifest registration through shell allowlist policy
-- app-specific tool-pack hints for Xcode, Terminal, Safari, Chrome, Calendar, Mail, Music, and Finder
+- screen-only tool registry for OCR, snapshots, barcode/QR detection, and UI element geometry
+- observer-only app-specific hints for visible app context
 - audited cancellable background task queue primitive
-- read-only Safari/Chrome tab context plus confirmation-gated browser URL opening
-- read-only Finder selection context plus confirmation-gated Finder reveal
-- read-only Shortcuts listing plus confirmation-gated Shortcut execution
-- encrypted local transcript and memory storage
-- local vector-ranked memory search
-- default-off shell execution routed through `ShellExecService.xpc`
-- default-off MCP bridge for stdio and Streamable HTTP servers, including OAuth PKCE support
-- local screen snapshot, OCR, barcode/QR, and UI element geometry tool path
+- encrypted local transcript storage
+- local screen snapshot, OCR, barcode/QR, and UI element geometry paths
 - adapter dataset export, evaluation, and training orchestration scripts
 - release packaging, open-source readiness, demo recording, and release smoke scripts
 

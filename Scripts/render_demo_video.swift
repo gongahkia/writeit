@@ -69,7 +69,7 @@ let slides = [
     ),
     DemoSlide(
         title: "hands-free flow",
-        subtitle: "trigger, listen, reason, execute, speak",
+        subtitle: "trigger, listen, reason, observe, speak",
         bullets: [
             "global hotkey, media key, head gesture, or wake phrase",
             "1.5 second silence timeout starts reasoning",
@@ -78,22 +78,22 @@ let slides = [
         accent: NSColor(calibratedRed: 0.30, green: 0.78, blue: 0.54, alpha: 1)
     ),
     DemoSlide(
-        title: "typed tool surface",
-        subtitle: "read-default tools with explicit confirmation for risk",
+        title: "screen-only tool surface",
+        subtitle: "observer tools without computer operation",
         bullets: [
-            "calendar, reminders, files, mail, music, web, OCR, memory",
-            "native read-only FoundationModels tools",
-            "shell is default-off and routed through ShellExecService.xpc"
+            "screen snapshots, OCR, barcodes, and UI geometry",
+            "native read-only FoundationModels screen tools",
+            "no shell, MCP, browser navigation, or app control"
         ],
         accent: NSColor(calibratedRed: 0.95, green: 0.66, blue: 0.25, alpha: 1)
     ),
     DemoSlide(
         title: "local safety trail",
-        subtitle: "private data stays on the Mac unless a tool opts in",
+        subtitle: "private screen context stays local",
         bullets: [
-            "encrypted transcripts and memory with Keychain keys",
+            "encrypted transcripts with Keychain keys",
             "HMAC-signed hash-chain audit log",
-            "MCP, shell, and mutating actions require user-controlled gates"
+            "screen snapshots use local cache retention controls"
         ],
         accent: NSColor(calibratedRed: 0.88, green: 0.38, blue: 0.52, alpha: 1)
     ),

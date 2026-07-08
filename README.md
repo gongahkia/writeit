@@ -61,9 +61,9 @@ Run `Scripts/lint_scripts.sh` before editing release or validation shell scripts
 Run `Scripts/static_grep_check.sh` before publishing or uploading logs.
 
 See `Docs/macos-validation.md` for the current validation checklist.
-See `Docs/mcp.md` for the MCP stdio config format.
 See `Docs/adapters.md` for optional FoundationModels adapter loading.
 See `Docs/model-benchmark.md` for Foundation Models planning/tool-loop latency checks.
+See `Docs/local-vision-models.md` for optional local VLM candidates.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
 See `Docs/airpods.md` for AirPods motion troubleshooting.

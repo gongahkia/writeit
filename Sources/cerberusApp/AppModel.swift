@@ -392,13 +392,6 @@ final class CerberusAppModel: ObservableObject {
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
     private static let mcpToolSummaries: [ToolSummary] = []
 
-    private static func shellXPCBundleURL() -> URL {
-        Bundle.main.bundleURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("XPCServices", isDirectory: true)
-            .appendingPathComponent("ShellExecService.xpc", isDirectory: true)
-    }
-
     private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
         [
             AnyAssistantTool(MCPTool(runner: MCPConfiguredToolRunner(clientRequestHandlers: clientRequestHandlers))),
@@ -553,7 +546,6 @@ final class CerberusAppModel: ObservableObject {
         [
             AppDataLocation(name: "Audit log", url: AuditLog.defaultFileURL()),
             AppDataLocation(name: "Transcripts", url: EncryptedTranscriptStore.defaultFileURL()),
-            AppDataLocation(name: "Memories", url: EncryptedMemoryStore.defaultFileURL()),
             AppDataLocation(name: "Telemetry", url: LocalTelemetryStore.defaultFileURL()),
             AppDataLocation(name: "Wake samples", url: WakeWordSampleDataset.defaultDirectoryURL()),
             AppDataLocation(name: "Adapter config", url: FoundationModelAdapterLoader.defaultFileURL()),
