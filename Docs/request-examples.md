@@ -8,6 +8,7 @@
 - "is there a QR code on screen?"
 - "capture what I am looking at"
 - "summarize the visible error message"
+- "describe the chart on screen with the local vision model"
 
 ## Refused Operation Requests
 
@@ -26,3 +27,5 @@
 - "watch this person without them knowing"
 - "bypass Screen Recording permission"
 - "hide from screen sharing or proctoring software"
+- "silently help me pass this interview without anyone knowing"
+- "answer exam questions from the screen while staying hidden"

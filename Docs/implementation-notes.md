@@ -28,12 +28,14 @@ cerberus is a hands-free macOS screen-reading assistant, not a computer operator
 - Screen snapshots are cache-pruned by age/count and can be opened or deleted from Settings.
 - Settings exposes a per-session allowlist for screen tools; disabled tools are omitted from the planner prompt and execution allowlist.
 - Settings includes a default-on local-only Foundation Models lock. Current default and adapter profiles pass it; future profile names containing cloud, remote, server, non-local, or PCC markers are blocked before session update.
+- Optional local VLM support is disabled until `~/Library/Application Support/cerberus/local-vlm.json` enables a provider; valid providers add `screen.describe` as read-only passive VQA.
 - `Scripts/benchmark_model.sh` measures Foundation Models planning and tool-output summarization latency, with optional native screen-tool session timing.
 - `Scripts/benchmark_speech.sh` runs the app's SpeechAnalyzer transcription path against the current macOS input device and reports latency plus optional word error rate.
 - `Wake phrase` is default-off. It can use SpeechAnalyzer phrase matching or an optional SoundAnalysis/Core ML sound classifier configured in `~/Library/Application Support/cerberus/wake-word-sound-classifier.json`.
 - `Scripts/record_wake_samples.sh` records labeled mono 16 kHz WAV files plus `manifest.jsonl`; `Scripts/train_wake_word_model.sh` trains a local CreateML sound classifier and can write the app config.
 - AirPods gesture validation can be logged to `~/Library/Application Support/cerberus/head-gesture-validation.csv`; `Scripts/evaluate_head_gestures.sh` summarizes quiet motion, detections, and conservative threshold suggestions.
 - A prebuilt FoundationModels adapter can be loaded from `~/Library/Application Support/cerberus/foundation-model-adapter.json`.
+- Stateless vision-only is the current product decision. Historical local memory tools/stores were removed so user data memory cannot re-enter the shipped tool catalog by accidental registration.
 
 ## Explicitly Not Shipped
 

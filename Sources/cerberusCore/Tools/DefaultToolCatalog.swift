@@ -6,12 +6,19 @@ public enum DefaultToolCatalog {
         makeTools()
     }
 
-    public static func makeTools(includesUIElementTool: Bool = true) -> [AnyAssistantTool] {
+    public static func makeTools(
+        includesUIElementTool: Bool = true,
+        localVLMProvider: (any LocalVLMProviding)? = nil,
+        localVLMOptions: LocalVLMRequestOptions = LocalVLMRequestOptions()
+    ) -> [AnyAssistantTool] {
         var tools = [
             AnyAssistantTool(ScreenBarcodeTool()),
             AnyAssistantTool(ScreenOCRTool()),
             AnyAssistantTool(ScreenSnapshotTool())
         ]
+        if let localVLMProvider {
+            tools.append(AnyAssistantTool(ScreenDescribeTool(provider: localVLMProvider, options: localVLMOptions)))
+        }
         if includesUIElementTool {
             tools.append(AnyAssistantTool(ScreenUIElementsTool()))
         }
@@ -25,14 +32,23 @@ public enum DefaultToolCatalog {
     }
 
     public static func readOnlyFoundationModelTools(
-        auditLog: AuditLog? = nil
+        auditLog: AuditLog? = nil,
+        localVLMProvider: (any LocalVLMProviding)? = nil,
+        localVLMOptions: LocalVLMRequestOptions = LocalVLMRequestOptions()
     ) -> [any FoundationModels.Tool] {
-        [
+        var tools: [any FoundationModels.Tool] = [
             FoundationModelToolAdapter(ScreenBarcodeTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenOCRTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenSnapshotTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenUIElementsTool(), auditLog: auditLog)
         ]
+        if let localVLMProvider {
+            tools.append(FoundationModelToolAdapter(
+                ScreenDescribeTool(provider: localVLMProvider, options: localVLMOptions),
+                auditLog: auditLog
+            ))
+        }
+        return tools
     }
 
     public static var readOnlyToolNames: Set<String> {

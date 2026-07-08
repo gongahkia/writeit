@@ -131,6 +131,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAvailabilityDetailLine = "Refresh to check Apple Intelligence state"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
+    @Published private(set) var localVLMStatusLine = LocalVLMConfiguration.disabled.statusLine
     @Published private(set) var foundationModelPrivacyStatusLine = FoundationModelPrivacyLock.statusLine(
         requiresLocalOnly: UserDefaults.standard.object(forKey: CerberusSettingsKeys.requiresLocalFoundationModels) as? Bool ?? true
     )
@@ -248,6 +249,8 @@ final class CerberusAppModel: ObservableObject {
     private let auditLog: AuditLog
     private let assistant: any AppAssistanting
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
+    private let ambientToolSummaries: [ToolSummary]
+    private let readOnlyToolNames: Set<String>
     private let transcriptStore: EncryptedTranscriptStore
     private let telemetryStore = LocalTelemetryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
@@ -265,7 +268,6 @@ final class CerberusAppModel: ObservableObject {
     private let delayedTaskScheduler = DelayedTaskScheduler()
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
-    private static let ambientToolSummaries = DefaultToolCatalog.summaries
 
     init(
         transcriber: any AppTranscribing = Transcriber(),
@@ -279,9 +281,39 @@ final class CerberusAppModel: ObservableObject {
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
-        let tools = DefaultToolCatalog.makeTools(includesUIElementTool: startsRuntimeServices)
+        var localVLMConfiguration: LocalVLMConfiguration
+        var localVLMProvider: (any LocalVLMProviding)?
+        var loadedLocalVLMStatusLine: String
+        if startsRuntimeServices {
+            do {
+                let configuration = try LocalVLMConfiguration.load()
+                localVLMConfiguration = configuration
+                localVLMProvider = try LocalVLMProviderFactory.provider(for: configuration)
+                loadedLocalVLMStatusLine = configuration.statusLine
+            } catch {
+                localVLMConfiguration = .disabled
+                localVLMProvider = nil
+                loadedLocalVLMStatusLine = "Local VLM unavailable: \(error.localizedDescription)"
+            }
+        } else {
+            localVLMConfiguration = .disabled
+            localVLMProvider = nil
+            loadedLocalVLMStatusLine = LocalVLMConfiguration.disabled.statusLine
+        }
+        let tools = DefaultToolCatalog.makeTools(
+            includesUIElementTool: startsRuntimeServices,
+            localVLMProvider: localVLMProvider,
+            localVLMOptions: localVLMConfiguration.requestOptions
+        )
+        let ambientToolSummaries = tools
+            .map(\.summary)
+            .sorted { $0.name < $1.name }
         let baseReadOnlyNativeTools = injectedAssistant == nil && startsRuntimeServices
-            ? DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: injectedAuditLog)
+            ? DefaultToolCatalog.readOnlyFoundationModelTools(
+                auditLog: injectedAuditLog,
+                localVLMProvider: localVLMProvider,
+                localVLMOptions: localVLMConfiguration.requestOptions
+            )
             : []
         self.permissionCenter = injectedPermissionCenter ?? PermissionCenter()
         self.auditLog = injectedAuditLog
@@ -290,11 +322,14 @@ final class CerberusAppModel: ObservableObject {
         self.wakeWordTranscriber = wakeWordTranscriber
         self.speaker = speaker
         self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
+        self.ambientToolSummaries = ambientToolSummaries
+        self.readOnlyToolNames = Set(ambientToolSummaries.filter { !$0.mutatesState }.map(\.name))
+        self.localVLMStatusLine = loadedLocalVLMStatusLine
         self.skipsFoundationModelAvailabilityCheck = skipsFoundationModelAvailabilityCheck
         toolRegistry = injectedToolRegistry ?? ((try? ToolRegistry(tools: tools)) ?? ToolRegistry())
         assistant = injectedAssistant ?? (startsRuntimeServices
             ? Assistant(
-                toolSummaries: Self.ambientToolSummaries,
+                toolSummaries: ambientToolSummaries,
                 readOnlyNativeTools: baseReadOnlyNativeTools
             )
             : DisabledRuntimeAssistant())
@@ -364,7 +399,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     var availableAmbientToolSummaries: [ToolSummary] {
-        Self.ambientToolSummaries
+        ambientToolSummaries
     }
 
     var toolProfiles: [ToolProfile] {
@@ -394,6 +429,7 @@ final class CerberusAppModel: ObservableObject {
             AppDataLocation(name: "Telemetry", url: LocalTelemetryStore.defaultFileURL()),
             AppDataLocation(name: "Wake samples", url: WakeWordSampleDataset.defaultDirectoryURL()),
             AppDataLocation(name: "Adapter config", url: FoundationModelAdapterLoader.defaultFileURL()),
+            AppDataLocation(name: "Local VLM config", url: LocalVLMConfiguration.defaultFileURL()),
             AppDataLocation(name: "Screen snapshots", url: ScreenSnapshotTool.defaultOutputDirectoryURL())
         ]
     }
@@ -434,7 +470,7 @@ final class CerberusAppModel: ObservableObject {
 
     func applyToolProfile(id: String) {
         let profile = ToolProfile.profile(id: id)
-        let configuration = profile.configuration(ambientSummaries: Self.ambientToolSummaries)
+        let configuration = profile.configuration(ambientSummaries: ambientToolSummaries)
         toolProfileID = profile.id
         ambientToolAllowlist = ToolSessionAllowlist(disabledToolNames: configuration.disabledAmbientToolNames)
         requiresConfirmationForAllTools = configuration.requiresConfirmationForAllTools
@@ -1299,7 +1335,7 @@ final class CerberusAppModel: ObservableObject {
                 || plan.requiresConfirmation
                 || mutatingToolNames.contains(plan.toolName) {
                 await requestConfirmation(for: plan)
-            } else if DefaultToolCatalog.readOnlyToolNames.contains(plan.toolName) {
+            } else if readOnlyToolNames.contains(plan.toolName) {
                 await answerWithNativeReadOnlyTools(for: plan)
             } else {
                 await execute(plan, confirmed: false, transitionToExecuting: true)
@@ -1341,7 +1377,7 @@ final class CerberusAppModel: ObservableObject {
 
         do {
             let request = activeRequest ?? plan.spokenResponse
-            let readOnlyNames = DefaultToolCatalog.readOnlyToolNames.intersection(Set(enabledToolNames))
+            let readOnlyNames = readOnlyToolNames.intersection(Set(enabledToolNames))
             let activeApplicationName = currentActiveApplicationName()
             let allowedToolNames = Array(readOnlyNames).sorted()
             let context = AssistantContext(
@@ -1597,7 +1633,7 @@ final class CerberusAppModel: ObservableObject {
 
     private var enabledToolSummaries: [ToolSummary] {
         ambientToolAllowlist
-            .filter(Self.ambientToolSummaries)
+            .filter(ambientToolSummaries)
             .filter { !sessionDisabledToolNames.contains($0.name) }
             .sorted { $0.name < $1.name }
     }

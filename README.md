@@ -15,6 +15,7 @@ The project is intentionally scoped as a native macOS utility:
 - speech replies can follow the current macOS output route or route directly to detected AirPods
 - Foundation Models for on-device answering and native screen-reading tool calls
 - Foundation Models latency benchmark CLI for screen-question checks
+- optional `screen.describe` local VLM tool for passive screen VQA through MLX-VLM, Ollama, llama.cpp, or OpenAI-compatible localhost servers
 - active macOS application context is included only as observer context
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
@@ -44,7 +45,7 @@ This repository uses Swift Package Manager for source organization. `Scripts/bui
 
 Planning, speech transcription, OCR, transcripts, wake samples, adapter config, and screen snapshots are local by default. Transcript records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
 
-The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, and Accessibility element reads. It does not operate apps, run shell commands, navigate browsers, call MCP tools, search files, or contact network services.
+The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, Accessibility element reads, and an optional local VLM endpoint when configured. It does not operate apps, run shell commands, navigate browsers, call MCP tools, search files, or contact network services by default.
 
 ## Permissions
 

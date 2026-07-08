@@ -1,6 +1,64 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import cerberusCore
+
+private struct FakeLocalVLMProvider: LocalVLMProviding {
+    let providerName = "fake-vlm"
+    let modelID = "fake-model"
+
+    func answer(
+        imageURL: URL,
+        prompt: String,
+        options: LocalVLMRequestOptions
+    ) async throws -> LocalVLMResponse {
+        LocalVLMResponse(
+            text: "A visible test screen.",
+            metadata: [
+                "imageExists": "\(FileManager.default.fileExists(atPath: imageURL.path))",
+                "maxTokens": "\(options.maxTokens)"
+            ]
+        )
+    }
+}
+
+private actor RecordingHTTPTransport: LocalVLMHTTPTransport {
+    struct Request: Sendable {
+        let body: Data
+        let url: URL
+        let timeoutSeconds: Double
+    }
+
+    private let response: Data
+    private var requests: [Request] = []
+
+    init(response: String) {
+        self.response = Data(response.utf8)
+    }
+
+    func postJSON(
+        body: Data,
+        to url: URL,
+        timeoutSeconds: Double
+    ) async throws -> Data {
+        requests.append(Request(body: body, url: url, timeoutSeconds: timeoutSeconds))
+        return response
+    }
+
+    func lastRequest() -> Request? {
+        requests.last
+    }
+}
+
+private struct FailingHTTPTransport: LocalVLMHTTPTransport {
+    func postJSON(
+        body: Data,
+        to url: URL,
+        timeoutSeconds: Double
+    ) async throws -> Data {
+        throw ToolExecutionError.denied("HTTP 500")
+    }
+}
 
 @Test func defaultToolCatalogContainsOnlyScreenTools() {
     let names = DefaultToolCatalog.summaries.map(\.name)
@@ -23,6 +81,320 @@ import Testing
         "screen.snapshot",
         "screen.ui_elements"
     ])
+}
+
+@Test func localVLMPresetsCoverSupportedCandidates() {
+    let ids = LocalVLMPreset.all.map(\.id)
+
+    #expect(ids == [
+        "minicpm-v-4.6",
+        "qwen3-vl",
+        "qwen2.5-vl",
+        "smolvlm",
+        "gemma-4",
+        "internvl3.5",
+        "fastvlm",
+        "pixtral-12b"
+    ])
+    #expect(LocalVLMPreset.qwen3VL.safetyNote.lowercased().contains("passive"))
+}
+
+@Test func missingLocalVLMConfigurationLoadsDisabled() throws {
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathComponent(LocalVLMConfiguration.fileName)
+
+    let configuration = try LocalVLMConfiguration.load(from: fileURL)
+
+    #expect(!configuration.enabled)
+    #expect(configuration.statusLine == "Local VLM disabled")
+}
+
+@Test func localVLMConfigurationDecodesValidFile() throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-config-\(UUID().uuidString)", isDirectory: true)
+    let fileURL = directoryURL.appendingPathComponent(LocalVLMConfiguration.fileName)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    let expected = LocalVLMConfiguration(
+        enabled: true,
+        provider: .ollama,
+        presetID: "smolvlm",
+        modelID: "smolvlm:latest",
+        endpointURLString: "http://localhost:11434",
+        maxTokens: 123,
+        timeoutSeconds: 6
+    )
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    try JSONEncoder().encode(expected).write(to: fileURL)
+
+    let decoded = try LocalVLMConfiguration.load(from: fileURL)
+
+    #expect(decoded == expected)
+}
+
+@Test func localVLMEndpointPolicyRequiresLocalByDefault() throws {
+    let localURL = try #require(URL(string: "http://127.0.0.1:11434"))
+    let remoteURL = try #require(URL(string: "https://example.com/v1"))
+
+    try LocalVLMEndpointPolicy.validate(localURL, allowNonLocalEndpoint: false)
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMEndpointPolicy.validate(remoteURL, allowNonLocalEndpoint: false)
+    }
+    try LocalVLMEndpointPolicy.validate(remoteURL, allowNonLocalEndpoint: true)
+}
+
+@Test func localVLMFactoryBuildsOllamaProvider() throws {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .ollama,
+        modelID: "llava",
+        endpointURLString: "http://localhost:11434"
+    )
+
+    let provider = try #require(try LocalVLMProviderFactory.provider(for: configuration))
+
+    #expect(provider.providerName == "Ollama")
+    #expect(provider.modelID == "llava")
+}
+
+@Test func invalidEnabledLocalVLMConfigurationFailsClosed() {
+    let configuration = LocalVLMConfiguration(enabled: true, provider: .ollama, modelID: "")
+
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMProviderFactory.provider(for: configuration)
+    }
+    #expect(!DefaultToolCatalog.makeTools(localVLMProvider: nil).map(\.name).contains("screen.describe"))
+}
+
+@Test func ollamaProviderSendsImageAndOptions() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let transport = RecordingHTTPTransport(response: #"{"response":"ollama answer"}"#)
+    let provider = OllamaVLMProvider(
+        modelID: "llava",
+        endpointURL: try #require(URL(string: "http://127.0.0.1:11434")),
+        transport: transport
+    )
+
+    let response = try await provider.answer(
+        imageURL: imageURL,
+        prompt: "describe",
+        options: LocalVLMRequestOptions(maxTokens: 9, timeoutSeconds: 4)
+    )
+    let request = try #require(await transport.lastRequest())
+    let json = try TestImageFactory.jsonObject(from: request.body)
+    let options = try #require(json["options"] as? [String: Any])
+    let images = try #require(json["images"] as? [String])
+
+    #expect(response.text == "ollama answer")
+    #expect(request.url.absoluteString == "http://127.0.0.1:11434/api/generate")
+    #expect(request.timeoutSeconds == 4)
+    #expect(json["model"] as? String == "llava")
+    #expect(json["prompt"] as? String == "describe")
+    #expect(options["num_predict"] as? Int == 9)
+    #expect(images.first?.isEmpty == false)
+}
+
+@Test func openAICompatibleProviderSendsVisionChatRequest() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let transport = RecordingHTTPTransport(response: #"{"choices":[{"message":{"content":"chat answer"}}]}"#)
+    let provider = OpenAICompatibleVLMProvider(
+        providerName: "llama.cpp",
+        modelID: "vision-model",
+        endpointURL: try #require(URL(string: "http://localhost:8080/v1")),
+        transport: transport
+    )
+
+    let response = try await provider.answer(
+        imageURL: imageURL,
+        prompt: "what is visible?",
+        options: LocalVLMRequestOptions(maxTokens: 11, timeoutSeconds: 5)
+    )
+    let request = try #require(await transport.lastRequest())
+    let json = try TestImageFactory.jsonObject(from: request.body)
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    let firstMessage = try #require(messages.first)
+    let content = try #require(firstMessage["content"] as? [[String: Any]])
+
+    #expect(response.text == "chat answer")
+    #expect(request.url.absoluteString == "http://localhost:8080/v1/chat/completions")
+    #expect(json["model"] as? String == "vision-model")
+    #expect(json["max_tokens"] as? Int == 11)
+    #expect(content.contains { $0["type"] as? String == "text" })
+    #expect(content.contains { $0["type"] as? String == "image_url" })
+}
+
+@Test func openAICompatibleProviderPropagatesTransportFailure() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let provider = OpenAICompatibleVLMProvider(
+        providerName: "local",
+        modelID: "vision-model",
+        endpointURL: try #require(URL(string: "http://localhost:8080")),
+        transport: FailingHTTPTransport()
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: imageURL,
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 8, timeoutSeconds: 1)
+        )
+    }
+}
+
+@Test func ollamaProviderPropagatesTransportFailure() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let provider = OllamaVLMProvider(
+        modelID: "llava",
+        endpointURL: try #require(URL(string: "http://localhost:11434")),
+        transport: FailingHTTPTransport()
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: imageURL,
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 8, timeoutSeconds: 1)
+        )
+    }
+}
+
+@Test func openAICompatibleProviderRejectsMalformedResponse() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let provider = OpenAICompatibleVLMProvider(
+        providerName: "local",
+        modelID: "vision-model",
+        endpointURL: try #require(URL(string: "http://localhost:8080")),
+        transport: RecordingHTTPTransport(response: #"{"choices":[]}"#)
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: imageURL,
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 8, timeoutSeconds: 1)
+        )
+    }
+}
+
+@Test func localVLMSubprocessProviderRunsCommand() async throws {
+    let provider = LocalVLMSubprocessProvider(
+        providerName: "MLX-VLM",
+        modelID: "sub-model",
+        executableURL: URL(fileURLWithPath: "/bin/echo"),
+        arguments: ["answer", "{model}", "{maxTokens}"]
+    )
+
+    let response = try await provider.answer(
+        imageURL: URL(fileURLWithPath: "/tmp/no-image.png"),
+        prompt: "describe",
+        options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 2)
+    )
+
+    #expect(response.text == "answer sub-model 7")
+}
+
+@Test func localVLMSubprocessProviderReportsFailure() async {
+    let provider = LocalVLMSubprocessProvider(
+        providerName: "MLX-VLM",
+        modelID: "sub-model",
+        executableURL: URL(fileURLWithPath: "/bin/sh"),
+        arguments: ["-c", "echo failed >&2; exit 3"]
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: URL(fileURLWithPath: "/tmp/no-image.png"),
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 2)
+        )
+    }
+}
+
+@Test func localVLMSubprocessProviderTimesOut() async {
+    let provider = LocalVLMSubprocessProvider(
+        providerName: "MLX-VLM",
+        modelID: "sub-model",
+        executableURL: URL(fileURLWithPath: "/bin/sleep"),
+        arguments: ["2"]
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: URL(fileURLWithPath: "/tmp/no-image.png"),
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 1)
+        )
+    }
+}
+
+@Test func localVLMCatalogRegistrationIsOptional() {
+    let defaultNames = DefaultToolCatalog.summaries.map(\.name)
+    let providerNames = DefaultToolCatalog
+        .makeTools(localVLMProvider: FakeLocalVLMProvider())
+        .map(\.name)
+        .sorted()
+    let nativeNames = DefaultToolCatalog
+        .readOnlyFoundationModelTools(localVLMProvider: FakeLocalVLMProvider())
+        .map(\.name)
+        .sorted()
+
+    #expect(!defaultNames.contains("screen.describe"))
+    #expect(providerNames.contains("screen.describe"))
+    #expect(nativeNames.contains("screen.describe"))
+}
+
+@Test func screenDescribeValidatesPrompt() {
+    let tool = ScreenDescribeTool(provider: FakeLocalVLMProvider())
+
+    #expect(throws: ToolExecutionError.self) {
+        try tool.validate(ScreenDescribeTool.Arguments(prompt: " "))
+    }
+}
+
+@Test func screenDescribeRunsConfiguredLocalVLM() async throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-test-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    let image = try #require(TestImageFactory.makeTestImage())
+    let tool = ScreenDescribeTool(
+        provider: FakeLocalVLMProvider(),
+        options: LocalVLMRequestOptions(maxTokens: 42, timeoutSeconds: 2),
+        outputDirectoryURL: directoryURL,
+        cachePolicy: ScreenSnapshotCachePolicy(maximumFileCount: 2, maximumAge: 60),
+        hasScreenCaptureAccess: { true },
+        captureImage: { scope in
+            CapturedScreenImage(image: image, scope: scope, sourceDescription: "test screen")
+        }
+    )
+
+    let result = try await tool.run(arguments: ScreenDescribeTool.Arguments(prompt: "what is visible?"))
+    let imagePath = try #require(result.metadata["imagePath"])
+
+    #expect(result.spokenSummary == "A visible test screen.")
+    #expect(result.metadata["provider"] == "fake-vlm")
+    #expect(result.metadata["modelID"] == "fake-model")
+    #expect(result.metadata["imageExists"] == "true")
+    #expect(result.metadata["maxTokens"] == "42")
+    #expect(FileManager.default.fileExists(atPath: imagePath))
 }
 
 @Test func toolProfileIsVisionOnly() {
@@ -111,4 +483,37 @@ import Testing
     let names = Set(DefaultToolCatalog.summaries.map(\.name))
 
     #expect(forbidden.allSatisfy { !names.contains($0) })
+}
+
+private enum TestImageFactory {
+    static func makeTestImage() -> CGImage? {
+        let pixel = Data([0, 0, 0, 255])
+        guard let provider = CGDataProvider(data: pixel as CFData) else {
+            return nil
+        }
+        return CGImage(
+            width: 1,
+            height: 1,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        )
+    }
+
+    static func writeImageData() throws -> URL {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cerberus-vlm-image-\(UUID().uuidString).png")
+        try Data([0, 1, 2, 3]).write(to: fileURL)
+        return fileURL
+    }
+
+    static func jsonObject(from data: Data) throws -> [String: Any] {
+        try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
 }

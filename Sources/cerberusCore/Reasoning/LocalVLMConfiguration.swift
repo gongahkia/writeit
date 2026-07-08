@@ -70,6 +70,10 @@ public struct LocalVLMConfiguration: Codable, Equatable, Sendable {
             : "\(provider.displayName): \(model)"
     }
 
+    public var requestOptions: LocalVLMRequestOptions {
+        LocalVLMRequestOptions(maxTokens: maxTokens, timeoutSeconds: timeoutSeconds)
+    }
+
     public static func defaultFileURL() -> URL {
         CerberusDirectories.applicationSupportFile(fileName)
     }

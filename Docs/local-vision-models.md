@@ -24,3 +24,39 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 3. Use MLX first on Apple Silicon; consider llama.cpp/Ollama only as external user-installed providers.
 4. Never send screenshots to network APIs in the default build.
 5. Red-team for stealth/cheating misuse before adding always-on meeting/audio context.
+
+## Current Config
+
+`screen.describe` is disabled unless `~/Library/Application Support/cerberus/local-vlm.json` exists and validates. HTTP providers are localhost-only by default. If `allowNonLocalEndpoint` is true, screenshots and prompts are sent to that configured host; Cerberus does not download or install models automatically.
+
+Ollama example:
+
+```json
+{
+  "enabled": true,
+  "provider": "ollama",
+  "presetID": "minicpm-v-4.6",
+  "modelID": "minicpm-v:latest",
+  "endpointURLString": "http://127.0.0.1:11434",
+  "arguments": [],
+  "maxTokens": 256,
+  "timeoutSeconds": 45,
+  "allowNonLocalEndpoint": false
+}
+```
+
+MLX-VLM subprocess example:
+
+```json
+{
+  "enabled": true,
+  "provider": "mlx_vlm",
+  "presetID": "minicpm-v-4.6",
+  "modelID": "openbmb/MiniCPM-V-4_6",
+  "executablePath": "/usr/bin/env",
+  "arguments": ["python3", "-m", "mlx_vlm.generate", "--model", "{model}", "--image", "{image}", "--prompt", "{prompt}", "--max-tokens", "{maxTokens}"],
+  "maxTokens": 256,
+  "timeoutSeconds": 45,
+  "allowNonLocalEndpoint": false
+}
+```
