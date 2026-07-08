@@ -236,6 +236,10 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.qwen3VL.safetyNote.lowercased().contains("passive"))
     #expect(LocalVLMPreset.qwen25VL.licenseNote.contains("2026-07-08"))
     #expect(LocalVLMPreset.qwen25VL.runtimeNotes.contains("Expected strengths: OCR, documents, charts, layout, and UI screenshots."))
+    #expect(LocalVLMPreset.smolVLM.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.smolVLM.recommendedMaxTokens == 128)
+    #expect(LocalVLMPreset.smolVLM.recommendedTimeoutSeconds == 30)
+    #expect(LocalVLMPreset.smolVLM.runtimeNotes.contains("Low-resource fallback for users who cannot run MiniCPM, Qwen, or InternVL."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -253,7 +257,8 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(comparisonPresetIDs == [
         "minicpm-v-4.6",
         "qwen3-vl",
-        "qwen2.5-vl"
+        "qwen2.5-vl",
+        "smolvlm"
     ])
     #expect(caseIDs == [
         "ui-screenshot",

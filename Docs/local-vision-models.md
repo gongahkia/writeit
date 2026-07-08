@@ -11,7 +11,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 - MiniCPM-V 4.6: best first local candidate for a Mac-local VLM path. Source checked 2026-07-08: Apache-2.0 on Hugging Face, image/video/text, edge/mobile oriented, and OpenBMB reports vLLM, SGLang, llama.cpp, and Ollama support.
 - Qwen3-VL: strongest open-weight family to evaluate for quality. Source checked 2026-07-08: Apache-2.0 GitHub repo with 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B releases. GUI-agent capabilities must stay disabled; passive VQA only.
 - Qwen2.5-VL 7B: stable fallback. Source checked 2026-07-08: Apache-2.0 7B Instruct checkpoint, 3B edge variant documented, strong OCR/document/layout/chart/UI screenshot use cases.
-- SmolVLM: Apache-2.0, small, fast, memory-efficient 2B-class option. Good fallback for low-memory machines, weaker than larger Qwen/InternVL families.
+- SmolVLM: source checked 2026-07-08. Apache-2.0, small, fast, memory-efficient 2B-class option. Low-resource fallback only; weaker quality than MiniCPM, Qwen, and InternVL.
 - Gemma 4: Apache-2.0, multimodal open-weights family with edge sizes. Evaluate once local runtime support is mature.
 - InternVL3.5: MIT project with 1B/2B/4B/8B+ variants. Strong quality candidate; verify each model card license before bundling weights.
 - Pixtral 12B: Apache-2.0 but deprecated by Mistral; keep only as a comparison baseline.
@@ -56,6 +56,12 @@ Expected strengths: dense OCR, scanned documents, forms, charts, icon/layout und
 Runtime support checked: vLLM/SGLang examples on the Hugging Face model card, Ollama `qwen2.5vl`, and llama.cpp-compatible quantizations linked from the model card. Keep local endpoints on localhost unless `allowNonLocalEndpoint` is explicit.
 
 Benchmark comparison: run `Fixtures/VLM/benchmark-template.json` across `minicpm-v-4.6`, `qwen3-vl`, and `qwen2.5-vl`; compare OCR exactness, layout fidelity, chart reading, UI element grounding, latency, and refusal/observe-only behavior.
+
+## SmolVLM Fallback Preset
+
+Preset id: `smolvlm`. Source/license checked 2026-07-08: https://huggingface.co/blog/smolvlm and https://github.com/huggingface/smollm. This is a config-only fallback; no weights are bundled. Use it only when the machine cannot run MiniCPM-V 4.6, Qwen3-VL, Qwen2.5-VL, or InternVL at acceptable latency.
+
+Positioning: small-memory, low-cost passive VQA. It is not the best-quality default. Expect weaker dense OCR, chart reasoning, document layout, and UI grounding than MiniCPM/Qwen/InternVL. Preset metadata recommends `maxTokens` 128 and timeout 30 seconds to keep low-resource runs bounded.
 
 ## MLX-VLM Setup
 

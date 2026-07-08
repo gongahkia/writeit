@@ -15,6 +15,8 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public let status: Status
     public let safetyNote: String
     public let runtimeNotes: [String]
+    public let recommendedMaxTokens: Int
+    public let recommendedTimeoutSeconds: Double
 
     public init(
         id: String,
@@ -22,7 +24,9 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
         licenseNote: String,
         status: Status,
         safetyNote: String,
-        runtimeNotes: [String]
+        runtimeNotes: [String],
+        recommendedMaxTokens: Int = 256,
+        recommendedTimeoutSeconds: Double = 45
     ) {
         self.id = id
         self.displayName = displayName
@@ -30,6 +34,8 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
         self.status = status
         self.safetyNote = safetyNote
         self.runtimeNotes = runtimeNotes
+        self.recommendedMaxTokens = max(1, recommendedMaxTokens)
+        self.recommendedTimeoutSeconds = max(1, recommendedTimeoutSeconds)
     }
 
     public static let miniCPMV46 = LocalVLMPreset(
@@ -74,10 +80,16 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let smolVLM = LocalVLMPreset(
         id: "smolvlm",
         displayName: "SmolVLM",
-        licenseNote: "Apache-2.0; verify selected checkpoint.",
+        licenseNote: "Apache-2.0; checked 2026-07-08 at https://huggingface.co/blog/smolvlm.",
         status: .fallback,
         safetyNote: "Use for low-resource passive screen questions.",
-        runtimeNotes: ["Low-resource fallback.", "Expect weaker quality than larger VLMs."]
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "Low-resource fallback for users who cannot run MiniCPM, Qwen, or InternVL.",
+            "Expect weaker OCR/layout/chart quality than larger VLMs."
+        ],
+        recommendedMaxTokens: 128,
+        recommendedTimeoutSeconds: 30
     )
 
     public static let gemma4 = LocalVLMPreset(
