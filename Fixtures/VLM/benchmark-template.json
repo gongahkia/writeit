@@ -14,7 +14,14 @@
     "qwen3-vl",
     "qwen2.5-vl",
     "smolvlm",
-    "gemma-4"
+    "gemma-4",
+    "internvl3.5"
+  ],
+  "comparisonModelIDs": [
+    "OpenGVLab/InternVL3_5-1B",
+    "OpenGVLab/InternVL3_5-2B",
+    "OpenGVLab/InternVL3_5-4B",
+    "OpenGVLab/InternVL3_5-8B"
   ],
   "runtimeVariants": [
     {

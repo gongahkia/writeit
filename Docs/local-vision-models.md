@@ -13,7 +13,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 - Qwen2.5-VL 7B: stable fallback. Source checked 2026-07-08: Apache-2.0 7B Instruct checkpoint, 3B edge variant documented, strong OCR/document/layout/chart/UI screenshot use cases.
 - SmolVLM: source checked 2026-07-08. Apache-2.0, small, fast, memory-efficient 2B-class option. Low-resource fallback only; weaker quality than MiniCPM, Qwen, and InternVL.
 - Gemma 4: source checked 2026-07-08. Apache-2.0 for `google/gemma-4-E2B-it`; Google MLX docs verify a local MLX-VLM path for `mlx-community/gemma-4-e2b-it-4bit`. Keep as a fallback until benchmarked locally.
-- InternVL3.5: MIT project with 1B/2B/4B/8B+ variants. Strong quality candidate; verify each model card license before bundling weights.
+- InternVL3.5: source checked 2026-07-08. Apache-2.0 for selected 1B/2B/4B/8B checkpoints. Strong quality candidate; config-only fallback until local benchmarks pass.
 - Pixtral 12B: Apache-2.0 but deprecated by Mistral; keep only as a comparison baseline.
 - Apple FastVLM: relevant architecture/runtime direction for MLX/Core ML integration; treat as research/demo path until a maintained production packaging path is selected.
 
@@ -68,6 +68,14 @@ Positioning: small-memory, low-cost passive VQA. It is not the best-quality defa
 Preset id: `gemma-4`. Selected checkpoint: `google/gemma-4-E2B-it`. Source/license checked 2026-07-08: https://huggingface.co/google/gemma-4-E2B-it and https://ai.google.dev/gemma/docs/core/model_card_4. The official model card reports Apache-2.0. No weights, MLX conversions, LiteRT packages, or runtime packages are bundled.
 
 Runtime path checked 2026-07-08: Google MLX docs list `pip install mlx mlx-lm mlx-vlm`, `mlx_vlm.generate --model mlx-community/gemma-4-e2b-it-4bit --prompt "Describe this image." --image <path_to_image>`, and `mlx_vlm.server --model mlx-community/gemma-4-e2b-it-4bit`, with an OpenAI-compatible localhost endpoint at `http://localhost:8080/v1`: https://ai.google.dev/gemma/docs/integrations/mlx. The downstream MLX conversion card is https://huggingface.co/mlx-community/gemma-4-e2b-it-4bit; verify conversion metadata and redistribution terms before redistributing converted weights.
+
+## InternVL3.5 Fallback Preset
+
+Preset id: `internvl3.5`. Selected checkpoints: `OpenGVLab/InternVL3_5-1B`, `OpenGVLab/InternVL3_5-2B`, `OpenGVLab/InternVL3_5-4B`, and `OpenGVLab/InternVL3_5-8B`. Source/license checked 2026-07-08: https://huggingface.co/OpenGVLab/InternVL3_5-1B, https://huggingface.co/OpenGVLab/InternVL3_5-2B, https://huggingface.co/OpenGVLab/InternVL3_5-4B, and https://huggingface.co/OpenGVLab/InternVL3_5-8B. Each selected card reports Apache-2.0. No weights, quantizations, or runtime packages are bundled. The preset is disabled by default because `screen.describe` only loads after `local-vlm.json` exists and validates.
+
+Runtime paths checked 2026-07-08: the selected HF cards list Transformers, vLLM, SGLang, Docker Model Runner, and quantization browse routes. The shared model card also documents LMDeploy with `lmdeploy serve api_server OpenGVLab/InternVL3_5-8B --server-port 23333 --tp 1 --backend pytorch`, exposing an OpenAI-compatible local service. References: https://github.com/OpenGVLab/InternVL and https://internvl.github.io/blog/2025-08-26-InternVL-3.5/.
+
+Hardware expectations: upstream states models up to 30B can deploy on one A100 GPU, with 38B requiring two A100 GPUs and the 235B language model requiring eight A100 GPUs. The selected 1B/2B/4B/8B set shares a 0.3B vision encoder and totals about 1.1B, 2.3B, 4.7B, and 8.5B parameters. [Inference] Start Mac-local validation with 1B or 2B, and treat 4B/8B as GPU-backed or quantized-runtime targets until benchmark data exists. GUI and embodied-agent abilities must remain disabled behind passive `screen.describe`.
 
 ## MLX-VLM Setup
 

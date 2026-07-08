@@ -245,6 +245,11 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.gemma4.status == .fallback)
     #expect(LocalVLMPreset.gemma4.runtimeNotes.contains("Config-only preset; no weights bundled."))
     #expect(LocalVLMPreset.gemma4.runtimeNotes.contains("Local runtime checked: MLX-VLM with mlx-community/gemma-4-e2b-it-4bit on Apple Silicon."))
+    #expect(LocalVLMPreset.internVL35.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.internVL35.licenseNote.contains("https://huggingface.co/OpenGVLab/InternVL3_5-1B"))
+    #expect(LocalVLMPreset.internVL35.status == .fallback)
+    #expect(LocalVLMPreset.internVL35.runtimeNotes.contains("Config-only preset; no weights bundled."))
+    #expect(LocalVLMPreset.internVL35.runtimeNotes.contains("Selected variants: OpenGVLab/InternVL3_5-1B, 2B, 4B, and 8B."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -254,6 +259,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let cases = try #require(json["cases"] as? [[String: Any]])
     let caseIDs = Set(cases.compactMap { $0["id"] as? String })
     let comparisonPresetIDs = try #require(json["comparisonPresetIDs"] as? [String])
+    let comparisonModelIDs = try #require(json["comparisonModelIDs"] as? [String])
 
     #expect(json["presetID"] as? String == LocalVLMPreset.miniCPMV46.id)
     #expect(json["modelID"] as? String == "openbmb/MiniCPM-V-4.6")
@@ -264,7 +270,14 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "qwen3-vl",
         "qwen2.5-vl",
         "smolvlm",
-        "gemma-4"
+        "gemma-4",
+        "internvl3.5"
+    ])
+    #expect(comparisonModelIDs == [
+        "OpenGVLab/InternVL3_5-1B",
+        "OpenGVLab/InternVL3_5-2B",
+        "OpenGVLab/InternVL3_5-4B",
+        "OpenGVLab/InternVL3_5-8B"
     ])
     #expect(caseIDs == [
         "ui-screenshot",

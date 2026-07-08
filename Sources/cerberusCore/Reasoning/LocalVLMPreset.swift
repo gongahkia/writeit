@@ -108,10 +108,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let internVL35 = LocalVLMPreset(
         id: "internvl3.5",
         displayName: "InternVL3.5",
-        licenseNote: "Project reports MIT; verify each checkpoint license before use.",
-        status: .verifyBeforeUse,
-        safetyNote: "Use only after checkpoint license verification.",
-        runtimeNotes: ["Strong quality candidate.", "Evaluate 1B/2B/4B/8B variants."]
+        licenseNote: "Apache-2.0 for 1B/2B/4B/8B checkpoints; checked 2026-07-08 at https://huggingface.co/OpenGVLab/InternVL3_5-1B.",
+        status: .fallback,
+        safetyNote: "GUI and embodied-agent capabilities must stay disabled; passive VQA only.",
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "Selected variants: OpenGVLab/InternVL3_5-1B, 2B, 4B, and 8B.",
+            "[Inference] Start local Mac evaluation with 1B or 2B; treat 4B and 8B as GPU or quantized-runtime targets."
+        ]
     )
 
     public static let fastVLM = LocalVLMPreset(
