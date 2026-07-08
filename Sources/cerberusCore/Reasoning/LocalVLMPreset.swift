@@ -134,10 +134,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let pixtral12B = LocalVLMPreset(
         id: "pixtral-12b",
         displayName: "Pixtral 12B",
-        licenseNote: "Apache-2.0 but deprecated by Mistral.",
+        licenseNote: "Apache-2.0 but deprecated by Mistral; checked 2026-07-08 at https://docs.mistral.ai/models/model-cards/pixtral-12b-24-09.",
         status: .baselineOnly,
-        safetyNote: "Do not recommend except as a comparison baseline.",
-        runtimeNotes: ["Deprecated baseline only."]
+        safetyNote: "Do not recommend except as a historical comparison baseline.",
+        runtimeNotes: [
+            "Config-only baseline; no weights bundled.",
+            "Mistral docs mark Pixtral 12B deprecated and list Ministral 3 14B as replacement.",
+            "Keep out of recommended/default preset paths."
+        ]
     )
 
     public static let all: [LocalVLMPreset] = [

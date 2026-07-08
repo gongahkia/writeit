@@ -255,6 +255,10 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.fastVLM.status == .experimental)
     #expect(LocalVLMPreset.fastVLM.runtimeNotes.contains("Config-only preset; no weights bundled."))
     #expect(LocalVLMPreset.fastVLM.runtimeNotes.contains("Local Apple Silicon path checked: export with model_export, then run python -m mlx_vlm.generate against the exported model."))
+    #expect(LocalVLMPreset.pixtral12B.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.pixtral12B.status == .baselineOnly)
+    #expect(LocalVLMPreset.pixtral12B.runtimeNotes.contains("Config-only baseline; no weights bundled."))
+    #expect(LocalVLMPreset.pixtral12B.runtimeNotes.contains("Keep out of recommended/default preset paths."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -265,6 +269,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let caseIDs = Set(cases.compactMap { $0["id"] as? String })
     let comparisonPresetIDs = try #require(json["comparisonPresetIDs"] as? [String])
     let comparisonModelIDs = try #require(json["comparisonModelIDs"] as? [String])
+    let baselineOnlyPresetIDs = try #require(json["baselineOnlyPresetIDs"] as? [String])
 
     #expect(json["presetID"] as? String == LocalVLMPreset.miniCPMV46.id)
     #expect(json["modelID"] as? String == "openbmb/MiniCPM-V-4.6")
@@ -284,6 +289,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "OpenGVLab/InternVL3_5-4B",
         "OpenGVLab/InternVL3_5-8B"
     ])
+    #expect(baselineOnlyPresetIDs == ["pixtral-12b"])
     #expect(caseIDs == [
         "ui-screenshot",
         "dense-text",
@@ -329,6 +335,17 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     )
 
     #expect(configuration.statusLine == "MLX-VLM: apple/FastVLM-0.5B (experimental)")
+}
+
+@Test func pixtralConfigurationStatusLineLabelsBaselineOnlyPreset() {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .openAICompatible,
+        presetID: LocalVLMPreset.pixtral12B.id,
+        modelID: "pixtral-12b-2409"
+    )
+
+    #expect(configuration.statusLine == "OpenAI-compatible: pixtral-12b-2409 (baseline only)")
 }
 
 @Test func localVLMConfigurationDecodesValidFile() throws {

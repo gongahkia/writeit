@@ -14,7 +14,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 - SmolVLM: source checked 2026-07-08. Apache-2.0, small, fast, memory-efficient 2B-class option. Low-resource fallback only; weaker quality than MiniCPM, Qwen, and InternVL.
 - Gemma 4: source checked 2026-07-08. Apache-2.0 for `google/gemma-4-E2B-it`; Google MLX docs verify a local MLX-VLM path for `mlx-community/gemma-4-e2b-it-4bit`. Keep as a fallback until benchmarked locally.
 - InternVL3.5: source checked 2026-07-08. Apache-2.0 for selected 1B/2B/4B/8B checkpoints. Strong quality candidate; config-only fallback until local benchmarks pass.
-- Pixtral 12B: Apache-2.0 but deprecated by Mistral; keep only as a comparison baseline.
+- Pixtral 12B: source checked 2026-07-08. Apache-2.0, deprecated by Mistral, and baseline-only for historical comparison.
 - Apple FastVLM: source checked 2026-07-08. Apple-native MLX/Core ML research/demo path with Apple AMLR research-only weights. Keep experimental and never default.
 
 ## Integration Path
@@ -87,6 +87,12 @@ Runtime commands checked 2026-07-08:
 - Demo app path: `app/get_pretrained_mlx_model.sh --model 0.5b --dest app/FastVLM/model`, then build/run the Xcode app. The app README states iOS 18.2+ and macOS 15.2+ support: https://github.com/apple/ml-fastvlm/tree/main/app.
 
 FastVLM remains research/demo only. Do not make it the default provider. If `presetID` is `fastvlm`, the settings status line includes `(experimental)`.
+
+## Pixtral 12B Baseline
+
+Preset id: `pixtral-12b`. Source/license checked 2026-07-08: https://docs.mistral.ai/models/model-cards/pixtral-12b-24-09 and https://mistral.ai/news/pixtral-12b/. Mistral's model card reports Apache-2.0 and marks Pixtral 12B as deprecated, with Ministral 3 14B listed as the replacement. Mistral's announcement page also says Pixtral 12B is no longer maintained and has been replaced by newer vision and multimodal models.
+
+Cerberus keeps Pixtral 12B only as a historical comparison baseline. It is not recommended, not default, and not part of the normal fallback path. If `presetID` is `pixtral-12b`, the settings status line includes `(baseline only)`. No weights or hosted Mistral API paths are bundled.
 
 ## MLX-VLM Setup
 

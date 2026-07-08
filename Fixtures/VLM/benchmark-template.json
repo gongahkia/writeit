@@ -23,6 +23,9 @@
     "OpenGVLab/InternVL3_5-4B",
     "OpenGVLab/InternVL3_5-8B"
   ],
+  "baselineOnlyPresetIDs": [
+    "pixtral-12b"
+  ],
   "runtimeVariants": [
     {
       "provider": "mlx_vlm",
