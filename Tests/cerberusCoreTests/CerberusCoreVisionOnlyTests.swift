@@ -240,6 +240,11 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.smolVLM.recommendedMaxTokens == 128)
     #expect(LocalVLMPreset.smolVLM.recommendedTimeoutSeconds == 30)
     #expect(LocalVLMPreset.smolVLM.runtimeNotes.contains("Low-resource fallback for users who cannot run MiniCPM, Qwen, or InternVL."))
+    #expect(LocalVLMPreset.gemma4.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.gemma4.licenseNote.contains("https://huggingface.co/google/gemma-4-E2B-it"))
+    #expect(LocalVLMPreset.gemma4.status == .fallback)
+    #expect(LocalVLMPreset.gemma4.runtimeNotes.contains("Config-only preset; no weights bundled."))
+    #expect(LocalVLMPreset.gemma4.runtimeNotes.contains("Local runtime checked: MLX-VLM with mlx-community/gemma-4-e2b-it-4bit on Apple Silicon."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -258,7 +263,8 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "minicpm-v-4.6",
         "qwen3-vl",
         "qwen2.5-vl",
-        "smolvlm"
+        "smolvlm",
+        "gemma-4"
     ])
     #expect(caseIDs == [
         "ui-screenshot",

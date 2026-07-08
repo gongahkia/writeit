@@ -13,7 +13,8 @@
     "minicpm-v-4.6",
     "qwen3-vl",
     "qwen2.5-vl",
-    "smolvlm"
+    "smolvlm",
+    "gemma-4"
   ],
   "runtimeVariants": [
     {

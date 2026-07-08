@@ -95,10 +95,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let gemma4 = LocalVLMPreset(
         id: "gemma-4",
         displayName: "Gemma 4",
-        licenseNote: "Apache-2.0 model card reported; verify exact checkpoint before use.",
-        status: .verifyBeforeUse,
-        safetyNote: "Do not expose until local runtime support is verified.",
-        runtimeNotes: ["Edge-size candidate.", "Runtime maturity must be checked."]
+        licenseNote: "Apache-2.0 for google/gemma-4-E2B-it; checked 2026-07-08 at https://huggingface.co/google/gemma-4-E2B-it and https://ai.google.dev/gemma/docs/core/model_card_4.",
+        status: .fallback,
+        safetyNote: "Use for passive screen VQA only; verify downstream conversion terms before redistribution.",
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "Local runtime checked: MLX-VLM with mlx-community/gemma-4-e2b-it-4bit on Apple Silicon.",
+            "Google MLX docs expose a localhost OpenAI-compatible server at http://localhost:8080/v1."
+        ]
     )
 
     public static let internVL35 = LocalVLMPreset(
