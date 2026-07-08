@@ -121,10 +121,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let fastVLM = LocalVLMPreset(
         id: "fastvlm",
         displayName: "Apple FastVLM",
-        licenseNote: "Research/demo path; verify model and code terms before use.",
+        licenseNote: "Apple AMLR research-only weights; checked 2026-07-08 at https://huggingface.co/apple/FastVLM-0.5B/blob/main/LICENSE.",
         status: .experimental,
-        safetyNote: "Experimental MLX/Core ML direction only.",
-        runtimeNotes: ["Useful Apple Silicon architecture reference.", "Do not default-enable."]
+        safetyNote: "Research/demo only; do not default-enable or use for product flows without license review.",
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "Selected demo checkpoints: apple/FastVLM-0.5B, apple/FastVLM-1.5B, and apple/FastVLM-7B.",
+            "Local Apple Silicon path checked: export with model_export, then run python -m mlx_vlm.generate against the exported model."
+        ]
     )
 
     public static let pixtral12B = LocalVLMPreset(

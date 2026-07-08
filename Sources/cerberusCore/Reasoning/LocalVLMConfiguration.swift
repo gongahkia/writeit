@@ -65,9 +65,26 @@ public struct LocalVLMConfiguration: Codable, Equatable, Sendable {
             return "Local VLM disabled; configure local-vlm.json to enable screen.describe"
         }
         let model = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = statusSuffix
         return model.isEmpty
-            ? "\(provider.displayName) enabled without a model id"
-            : "\(provider.displayName): \(model)"
+            ? "\(provider.displayName) enabled without a model id\(suffix)"
+            : "\(provider.displayName): \(model)\(suffix)"
+    }
+
+    private var statusSuffix: String {
+        guard let preset = LocalVLMPreset.preset(id: presetID) else {
+            return ""
+        }
+        switch preset.status {
+        case .experimental:
+            return " (experimental)"
+        case .verifyBeforeUse:
+            return " (verify before use)"
+        case .baselineOnly:
+            return " (baseline only)"
+        case .recommended, .fallback:
+            return ""
+        }
     }
 
     public var requestOptions: LocalVLMRequestOptions {

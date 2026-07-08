@@ -15,7 +15,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 - Gemma 4: source checked 2026-07-08. Apache-2.0 for `google/gemma-4-E2B-it`; Google MLX docs verify a local MLX-VLM path for `mlx-community/gemma-4-e2b-it-4bit`. Keep as a fallback until benchmarked locally.
 - InternVL3.5: source checked 2026-07-08. Apache-2.0 for selected 1B/2B/4B/8B checkpoints. Strong quality candidate; config-only fallback until local benchmarks pass.
 - Pixtral 12B: Apache-2.0 but deprecated by Mistral; keep only as a comparison baseline.
-- Apple FastVLM: relevant architecture/runtime direction for MLX/Core ML integration; treat as research/demo path until a maintained production packaging path is selected.
+- Apple FastVLM: source checked 2026-07-08. Apple-native MLX/Core ML research/demo path with Apple AMLR research-only weights. Keep experimental and never default.
 
 ## Integration Path
 
@@ -76,6 +76,17 @@ Preset id: `internvl3.5`. Selected checkpoints: `OpenGVLab/InternVL3_5-1B`, `Ope
 Runtime paths checked 2026-07-08: the selected HF cards list Transformers, vLLM, SGLang, Docker Model Runner, and quantization browse routes. The shared model card also documents LMDeploy with `lmdeploy serve api_server OpenGVLab/InternVL3_5-8B --server-port 23333 --tp 1 --backend pytorch`, exposing an OpenAI-compatible local service. References: https://github.com/OpenGVLab/InternVL and https://internvl.github.io/blog/2025-08-26-InternVL-3.5/.
 
 Hardware expectations: upstream states models up to 30B can deploy on one A100 GPU, with 38B requiring two A100 GPUs and the 235B language model requiring eight A100 GPUs. The selected 1B/2B/4B/8B set shares a 0.3B vision encoder and totals about 1.1B, 2.3B, 4.7B, and 8.5B parameters. [Inference] Start Mac-local validation with 1B or 2B, and treat 4B/8B as GPU-backed or quantized-runtime targets until benchmark data exists. GUI and embodied-agent abilities must remain disabled behind passive `screen.describe`.
+
+## Apple FastVLM Experimental Preset
+
+Preset id: `fastvlm`. Selected demo checkpoints: `apple/FastVLM-0.5B`, `apple/FastVLM-1.5B`, and `apple/FastVLM-7B`. Source/license checked 2026-07-08: https://huggingface.co/apple/FastVLM-0.5B, https://huggingface.co/apple/FastVLM-1.5B, https://huggingface.co/apple/FastVLM-7B, and https://huggingface.co/apple/FastVLM-0.5B/blob/main/LICENSE. Hugging Face reports `apple-amlr`; the license text limits weights and derivatives to research purposes. No weights, exported models, Core ML packages, or runtime packages are bundled.
+
+Runtime commands checked 2026-07-08:
+- Official repo setup and PyTorch path: `conda create -n fastvlm python=3.10`, `pip install -e .`, `bash get_models.sh`, then `python predict.py --model-path /path/to/checkpoint-dir --image-file /path/to/image.png --prompt "Describe the image."`: https://github.com/apple/ml-fastvlm.
+- Apple Silicon export path: `python export_vision_encoder.py --model-path /path/to/fastvlm-checkpoint`, patch `mlx-vlm` at commit `1884b551bc741f26b2d54d68fa89d4e934b9a3de`, `python -m mlx_vlm.convert --hf-path /path/to/fastvlm-checkpoint --mlx-path /path/to/exported-fastvlm --only-llm`, then `python -m mlx_vlm.generate --model /path/to/exported-fastvlm --image /path/to/image.png --prompt "Describe the image." --max-tokens 256 --temp 0.0`: https://github.com/apple/ml-fastvlm/tree/main/model_export.
+- Demo app path: `app/get_pretrained_mlx_model.sh --model 0.5b --dest app/FastVLM/model`, then build/run the Xcode app. The app README states iOS 18.2+ and macOS 15.2+ support: https://github.com/apple/ml-fastvlm/tree/main/app.
+
+FastVLM remains research/demo only. Do not make it the default provider. If `presetID` is `fastvlm`, the settings status line includes `(experimental)`.
 
 ## MLX-VLM Setup
 

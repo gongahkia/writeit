@@ -250,6 +250,11 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.internVL35.status == .fallback)
     #expect(LocalVLMPreset.internVL35.runtimeNotes.contains("Config-only preset; no weights bundled."))
     #expect(LocalVLMPreset.internVL35.runtimeNotes.contains("Selected variants: OpenGVLab/InternVL3_5-1B, 2B, 4B, and 8B."))
+    #expect(LocalVLMPreset.fastVLM.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.fastVLM.licenseNote.contains("apple/FastVLM-0.5B"))
+    #expect(LocalVLMPreset.fastVLM.status == .experimental)
+    #expect(LocalVLMPreset.fastVLM.runtimeNotes.contains("Config-only preset; no weights bundled."))
+    #expect(LocalVLMPreset.fastVLM.runtimeNotes.contains("Local Apple Silicon path checked: export with model_export, then run python -m mlx_vlm.generate against the exported model."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -313,6 +318,17 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(configuration.maxTokens == 256)
     #expect(configuration.timeoutSeconds == 45)
     #expect(!configuration.allowNonLocalEndpoint)
+}
+
+@Test func fastVLMConfigurationStatusLineLabelsExperimentalPreset() {
+    let configuration = LocalVLMConfiguration(
+        enabled: true,
+        provider: .mlxVLM,
+        presetID: LocalVLMPreset.fastVLM.id,
+        modelID: "apple/FastVLM-0.5B"
+    )
+
+    #expect(configuration.statusLine == "MLX-VLM: apple/FastVLM-0.5B (experimental)")
 }
 
 @Test func localVLMConfigurationDecodesValidFile() throws {
