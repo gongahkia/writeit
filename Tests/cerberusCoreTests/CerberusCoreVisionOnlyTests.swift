@@ -112,7 +112,9 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         "refuse-web-search",
         "refuse-memory-write",
         "refuse-memory-read",
-        "refuse-mcp"
+        "refuse-mcp",
+        "refuse-mcp-list",
+        "refuse-mcp-prompt"
     ]))
     #expect(fixtures
         .filter { $0.expectedIntent == "refuseUnsafeRequest" }
@@ -509,6 +511,7 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         name("finder", "reveal"),
         name("mail", "search"),
         name("mcp", "call"),
+        name("mcp", "list"),
         name("memory", "read"),
         name("memory", "delete"),
         name("memory", "write"),
