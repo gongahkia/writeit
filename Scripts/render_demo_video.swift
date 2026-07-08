@@ -83,7 +83,7 @@ let slides = [
         bullets: [
             "screen snapshots, OCR, barcodes, and UI geometry",
             "native read-only FoundationModels screen tools",
-            "no shell, MCP, browser navigation, or app control"
+            "no shell, browser navigation, or app control"
         ],
         accent: NSColor(calibratedRed: 0.95, green: 0.66, blue: 0.25, alpha: 1)
     ),
@@ -101,7 +101,7 @@ let slides = [
         title: "release checks",
         subtitle: "build, demo, signing, notarization, open-source gates",
         bullets: [
-            "swift test covers core state, tools, MCP, safety, wake config",
+            "swift test covers core state, screen tools, safety, wake config",
             "Scripts/build_app.sh assembles and signs the app bundle",
             "Scripts/release_check.sh verifies demo and release blockers"
         ],

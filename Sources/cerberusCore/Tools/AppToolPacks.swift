@@ -44,7 +44,7 @@ public enum AppToolPacks {
             appName: "Calendar",
             aliases: ["calendar"],
             toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
-            guidance: "Use screen reads only; never read or edit calendar data through EventKit."
+            guidance: "Use screen reads only; never read or edit calendar data."
         ),
         AppToolPack(
             appName: "Mail",

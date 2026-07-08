@@ -5,7 +5,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
     public let request: String
     public let activeApplicationName: String?
     public let allowedToolNames: [String]
-    public let fileSearchScopePaths: [String]
     public let projectWorkspaceHints: [ProjectWorkspaceHint]
     public let activeApplicationHints: [String]
     public let expectedIntent: String
@@ -17,7 +16,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
         case request
         case activeApplicationName
         case allowedToolNames
-        case fileSearchScopePaths
         case projectWorkspaceHints
         case activeApplicationHints
         case expectedIntent
@@ -30,7 +28,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
         request: String,
         activeApplicationName: String? = nil,
         allowedToolNames: [String],
-        fileSearchScopePaths: [String] = [],
         projectWorkspaceHints: [ProjectWorkspaceHint] = [],
         activeApplicationHints: [String] = [],
         expectedIntent: String,
@@ -41,7 +38,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
         self.request = request
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
-        self.fileSearchScopePaths = fileSearchScopePaths
         self.projectWorkspaceHints = projectWorkspaceHints
         self.activeApplicationHints = activeApplicationHints
         self.expectedIntent = expectedIntent
@@ -55,7 +51,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
         request = try container.decode(String.self, forKey: .request)
         activeApplicationName = try container.decodeIfPresent(String.self, forKey: .activeApplicationName)
         allowedToolNames = try container.decode([String].self, forKey: .allowedToolNames)
-        fileSearchScopePaths = try container.decodeIfPresent([String].self, forKey: .fileSearchScopePaths) ?? []
         projectWorkspaceHints = try container.decodeIfPresent([ProjectWorkspaceHint].self, forKey: .projectWorkspaceHints) ?? []
         activeApplicationHints = try container.decodeIfPresent([String].self, forKey: .activeApplicationHints) ?? []
         expectedIntent = try container.decode(String.self, forKey: .expectedIntent)
@@ -67,7 +62,6 @@ public struct GoldenRequestFixture: Codable, Equatable, Sendable {
         AssistantContext(
             activeApplicationName: activeApplicationName,
             allowedToolNames: allowedToolNames,
-            fileSearchScopePaths: fileSearchScopePaths,
             projectWorkspaceHints: projectWorkspaceHints,
             activeApplicationHints: activeApplicationHints
         )

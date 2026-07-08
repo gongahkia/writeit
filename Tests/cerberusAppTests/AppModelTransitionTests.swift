@@ -579,8 +579,8 @@ private final class FakePermissionCenter: PermissionChecking {
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("audit.log")
     let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 7, count: 32))
-    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "today", resultSummary: "3 events")
-    _ = try await auditLog.append(toolName: "mail.search", argumentsSummary: "invoice", resultSummary: "2 messages")
+    _ = try await auditLog.append(toolName: "screen.ocr", argumentsSummary: "main display", resultSummary: "12 text boxes")
+    _ = try await auditLog.append(toolName: "screen.snapshot", argumentsSummary: "main display", resultSummary: "captured screen")
     let speaker = FakeSpeaker()
     let model = CerberusAppModel(
         speaker: speaker,
@@ -591,11 +591,11 @@ private final class FakePermissionCenter: PermissionChecking {
 
     model.answerLastToolAction()
     try await waitUntil {
-        speaker.spoken == ["Last tool call: mail.search. Result: 2 messages"]
+        speaker.spoken == ["Last tool call: screen.snapshot. Result: captured screen"]
     }
 
-    #expect(model.statusLine == "Last tool call: mail.search. Result: 2 messages")
-    #expect(model.recentAuditEntries.first?.toolName == "mail.search")
+    #expect(model.statusLine == "Last tool call: screen.snapshot. Result: captured screen")
+    #expect(model.recentAuditEntries.first?.toolName == "screen.snapshot")
 }
 
 @MainActor
@@ -634,8 +634,8 @@ private final class FakePermissionCenter: PermissionChecking {
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("audit.log")
     let auditLog = AuditLog(fileURL: fileURL, fixedSigningKeyData: Data(repeating: 13, count: 32))
-    _ = try await auditLog.append(toolName: "calendar.read", argumentsSummary: "today", resultSummary: "3 events")
-    _ = try await auditLog.append(toolName: "files.search", argumentsSummary: "notes", resultSummary: "2 files")
+    _ = try await auditLog.append(toolName: "screen.ocr", argumentsSummary: "main display", resultSummary: "12 text boxes")
+    _ = try await auditLog.append(toolName: "screen.snapshot", argumentsSummary: "main display", resultSummary: "captured screen")
     let model = CerberusAppModel(
         auditLog: auditLog,
         startsRuntimeServices: false,
@@ -644,10 +644,10 @@ private final class FakePermissionCenter: PermissionChecking {
 
     model.refreshAuditEntries()
     try await waitUntil {
-        model.recentAuditEntries.map(\.toolName) == ["files.search", "calendar.read"]
+        model.recentAuditEntries.map(\.toolName) == ["screen.snapshot", "screen.ocr"]
     }
 
-    #expect(model.recentAuditEntries.first?.resultSummary == "2 files")
+    #expect(model.recentAuditEntries.first?.resultSummary == "captured screen")
 }
 
 private func waitUntil(

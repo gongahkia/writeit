@@ -9,4 +9,4 @@ The shipped vision-only app surface does not register MCP tools, start MCP liste
 - `screen.barcodes`
 - `screen.ui_elements`
 
-Legacy MCP code remains in `cerberusCore` test coverage as historical implementation material. It is not part of the shipped observer-only product surface.
+MCP code has been removed from `cerberusCore`; do not reintroduce it without a new product decision.

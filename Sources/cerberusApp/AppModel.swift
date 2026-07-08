@@ -1255,7 +1255,6 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: activeApplicationName,
                 allowedToolNames: enabledToolNames,
-                fileSearchScopePaths: [],
                 projectWorkspaceHints: detectedProjectWorkspaces(),
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,
@@ -1348,7 +1347,6 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: activeApplicationName,
                 allowedToolNames: allowedToolNames,
-                fileSearchScopePaths: [],
                 projectWorkspaceHints: detectedProjectWorkspaces(),
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,

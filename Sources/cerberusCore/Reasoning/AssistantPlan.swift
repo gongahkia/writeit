@@ -17,7 +17,7 @@ public struct AssistantPlan: Equatable, Sendable {
     @Guide(description: "A short response that can be spoken aloud in one or two sentences.")
     public let spokenResponse: String
 
-    @Guide(description: "True when this plan would change files, calendar data, reminders, app state, or shell state.")
+    @Guide(description: "True when this plan would change local state. The vision-only app should leave this false.")
     public let requiresConfirmation: Bool
 
     @Guide(description: "The exact registered tool name to call, or an empty string when no tool is needed.")
@@ -71,7 +71,6 @@ public struct AssistantContext: Equatable, Sendable {
 
     public let activeApplicationName: String?
     public let allowedToolNames: [String]
-    public let fileSearchScopePaths: [String]
     public let projectWorkspaceHints: [ProjectWorkspaceHint]
     public let activeApplicationHints: [String]
     public let recentTurns: [RecentTurn]
@@ -79,14 +78,12 @@ public struct AssistantContext: Equatable, Sendable {
     public init(
         activeApplicationName: String? = nil,
         allowedToolNames: [String] = [],
-        fileSearchScopePaths: [String] = [],
         projectWorkspaceHints: [ProjectWorkspaceHint] = [],
         activeApplicationHints: [String] = [],
         recentTurns: [RecentTurn] = []
     ) {
         self.activeApplicationName = activeApplicationName
         self.allowedToolNames = allowedToolNames
-        self.fileSearchScopePaths = fileSearchScopePaths
         self.projectWorkspaceHints = projectWorkspaceHints
         self.activeApplicationHints = activeApplicationHints
         self.recentTurns = recentTurns
@@ -103,14 +100,6 @@ public struct AssistantContext: Equatable, Sendable {
             lines.append("Allowed tools: none")
         } else {
             lines.append("Allowed tools: \(allowedToolNames.joined(separator: ", "))")
-        }
-
-        if allowedToolNames.contains("files.search") {
-            if fileSearchScopePaths.isEmpty {
-                lines.append("File search folders: none approved; ask the user to add folders in Settings before files.search.")
-            } else {
-                lines.append("File search folders: \(fileSearchScopePaths.joined(separator: ", "))")
-            }
         }
 
         if !projectWorkspaceHints.isEmpty {
