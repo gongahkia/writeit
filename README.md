@@ -4,6 +4,7 @@ AirPods-driven, local-first screen-reading assistant for macOS.
 
 The project is intentionally scoped as a native macOS utility:
 
+- unobtrusive menu bar operation; "invisible" means no main window by default, not hidden from screen sharing, proctoring, participants, or system UI
 - menu bar first, no main window by default
 - first-run setup banner for required macOS permissions with per-permission progress persistence
 - microphone activates only after an explicit trigger unless `Wake phrase` is enabled
@@ -71,6 +72,7 @@ See `Docs/local-vision-models.md` for optional local VLM candidates.
 See `Docs/vlm-benchmark.md` for optional local VLM benchmark and golden-fixture evaluation.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
+See `Docs/product-principles.md` for FOSS, local-first, user-visible positioning.
 See `Docs/consent-and-misuse-policy.md` for interview, exam, meeting, and third-party consent rules.
 See `Docs/real-time-assistant-market-map.md` for the dated Cluely-style competitor map and product recommendation.
 See `Docs/airpods.md` for AirPods motion troubleshooting.

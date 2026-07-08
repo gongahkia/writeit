@@ -9,6 +9,7 @@
 - "capture what I am looking at"
 - "summarize the visible error message"
 - "describe the chart on screen with the local vision model"
+- "read the visible notes in my own menu bar session"
 
 ## Refused Operation Requests
 
