@@ -60,6 +60,21 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
     }
 }
 
+private struct DelayedLocalVLMProvider: LocalVLMProviding {
+    let providerName = "delayed-vlm"
+    let modelID = "delayed-model"
+    let delayNanoseconds: UInt64
+
+    func answer(
+        imageURL: URL,
+        prompt: String,
+        options: LocalVLMRequestOptions
+    ) async throws -> LocalVLMResponse {
+        try await Task.sleep(nanoseconds: delayNanoseconds)
+        return LocalVLMResponse(text: "delayed answer")
+    }
+}
+
 @Test func defaultToolCatalogContainsOnlyScreenTools() {
     let names = DefaultToolCatalog.summaries.map(\.name)
 
@@ -195,6 +210,89 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
 
     #expect(provider.providerName == "Ollama")
     #expect(provider.modelID == "llava")
+}
+
+@Test func localVLMProviderExecutorReturnsFakeProviderResponse() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+
+    let response = try await LocalVLMProviderExecutor.answer(
+        using: FakeLocalVLMProvider(),
+        imageURL: imageURL,
+        prompt: "describe",
+        options: LocalVLMRequestOptions(maxTokens: 5, timeoutSeconds: 1)
+    )
+
+    #expect(response.text == "A visible test screen.")
+    #expect(response.metadata["imageExists"] == "true")
+    #expect(response.metadata["maxTokens"] == "5")
+}
+
+@Test func localVLMProviderExecutorRejectsInvalidImagePath() async {
+    var caughtInvalidPath = false
+
+    do {
+        _ = try await LocalVLMProviderExecutor.answer(
+            using: FakeLocalVLMProvider(),
+            imageURL: URL(fileURLWithPath: "/tmp/cerberus-missing-vlm-image.png"),
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 5, timeoutSeconds: 1)
+        )
+    } catch LocalVLMProviderError.invalidImagePath {
+        caughtInvalidPath = true
+    } catch {}
+
+    #expect(caughtInvalidPath)
+}
+
+@Test func localVLMProviderExecutorTimesOutFakeProvider() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    var caughtTimeout = false
+
+    do {
+        _ = try await LocalVLMProviderExecutor.answer(
+            using: DelayedLocalVLMProvider(delayNanoseconds: 2_000_000_000),
+            imageURL: imageURL,
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 5, timeoutSeconds: 1)
+        )
+    } catch LocalVLMProviderError.timedOut {
+        caughtTimeout = true
+    } catch {}
+
+    #expect(caughtTimeout)
+}
+
+@Test func localVLMProviderExecutorReportsCancellation() async throws {
+    let imageURL = try TestImageFactory.writeImageData()
+    defer {
+        try? FileManager.default.removeItem(at: imageURL)
+    }
+    let task = Task {
+        try await LocalVLMProviderExecutor.answer(
+            using: DelayedLocalVLMProvider(delayNanoseconds: 5_000_000_000),
+            imageURL: imageURL,
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 5, timeoutSeconds: 45)
+        )
+    }
+    task.cancel()
+    var caughtCancellation = false
+
+    do {
+        _ = try await task.value
+    } catch LocalVLMProviderError.cancelled {
+        caughtCancellation = true
+    } catch is CancellationError {
+        caughtCancellation = true
+    } catch {}
+
+    #expect(caughtCancellation)
 }
 
 @Test func invalidEnabledLocalVLMConfigurationFailsClosed() {

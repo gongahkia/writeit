@@ -20,6 +20,23 @@ public struct LocalVLMResponse: Equatable, Sendable {
     }
 }
 
+public enum LocalVLMProviderError: Error, Equatable, LocalizedError, Sendable {
+    case invalidImagePath(String)
+    case timedOut(Double)
+    case cancelled
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidImagePath(let path):
+            "Local VLM image path is not a readable file: \(path)"
+        case .timedOut(let seconds):
+            "Local VLM provider timed out after \(seconds) seconds."
+        case .cancelled:
+            "Local VLM provider request was cancelled."
+        }
+    }
+}
+
 public protocol LocalVLMProviding: Sendable {
     var providerName: String { get }
     var modelID: String { get }
@@ -29,6 +46,50 @@ public protocol LocalVLMProviding: Sendable {
         prompt: String,
         options: LocalVLMRequestOptions
     ) async throws -> LocalVLMResponse
+}
+
+public enum LocalVLMProviderExecutor {
+    public static func answer(
+        using provider: any LocalVLMProviding,
+        imageURL: URL,
+        prompt: String,
+        options: LocalVLMRequestOptions
+    ) async throws -> LocalVLMResponse {
+        try validateImageURL(imageURL)
+        return try await withThrowingTaskGroup(of: LocalVLMResponse.self) { group in
+            group.addTask {
+                try await provider.answer(imageURL: imageURL, prompt: prompt, options: options)
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeoutNanoseconds(options.timeoutSeconds))
+                throw LocalVLMProviderError.timedOut(options.timeoutSeconds)
+            }
+            defer {
+                group.cancelAll()
+            }
+            do {
+                guard let response = try await group.next() else {
+                    throw LocalVLMProviderError.cancelled
+                }
+                return response
+            } catch is CancellationError {
+                throw LocalVLMProviderError.cancelled
+            }
+        }
+    }
+
+    private static func validateImageURL(_ imageURL: URL) throws {
+        var isDirectory = ObjCBool(false)
+        let exists = imageURL.isFileURL
+            && FileManager.default.fileExists(atPath: imageURL.path, isDirectory: &isDirectory)
+        guard exists, !isDirectory.boolValue else {
+            throw LocalVLMProviderError.invalidImagePath(imageURL.path)
+        }
+    }
+
+    private static func timeoutNanoseconds(_ seconds: Double) -> UInt64 {
+        UInt64(max(0.001, seconds) * 1_000_000_000)
+    }
 }
 
 public enum LocalVLMEndpointPolicy {

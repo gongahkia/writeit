@@ -79,7 +79,8 @@ public struct ScreenDescribeTool: AssistantTool {
         try ScreenCaptureSupport.writePNG(capture.image, to: fileURL)
         try ScreenSnapshotCache.cleanDirectory(outputDirectoryURL, preserving: fileURL, policy: cachePolicy)
 
-        let response = try await provider.answer(
+        let response = try await LocalVLMProviderExecutor.answer(
+            using: provider,
             imageURL: fileURL,
             prompt: prompt,
             options: options
