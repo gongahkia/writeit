@@ -10,7 +10,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 
 - MiniCPM-V 4.6: best first local candidate for a Mac-local VLM path. Source checked 2026-07-08: Apache-2.0 on Hugging Face, image/video/text, edge/mobile oriented, and OpenBMB reports vLLM, SGLang, llama.cpp, and Ollama support.
 - Qwen3-VL: strongest open-weight family to evaluate for quality. Source checked 2026-07-08: Apache-2.0 GitHub repo with 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B releases. GUI-agent capabilities must stay disabled; passive VQA only.
-- Qwen2.5-VL 7B: stable Apache-2.0 fallback with strong OCR/document/layout reputation and broad runtime support.
+- Qwen2.5-VL 7B: stable fallback. Source checked 2026-07-08: Apache-2.0 7B Instruct checkpoint, 3B edge variant documented, strong OCR/document/layout/chart/UI screenshot use cases.
 - SmolVLM: Apache-2.0, small, fast, memory-efficient 2B-class option. Good fallback for low-memory machines, weaker than larger Qwen/InternVL families.
 - Gemma 4: Apache-2.0, multimodal open-weights family with edge sizes. Evaluate once local runtime support is mature.
 - InternVL3.5: MIT project with 1B/2B/4B/8B+ variants. Strong quality candidate; verify each model card license before bundling weights.
@@ -46,6 +46,16 @@ Benchmark checklist: UI screenshot, dense text, chart, code editor, QR/barcode, 
 Preset id: `qwen3-vl`. Source/license checked 2026-07-08: https://github.com/QwenLM/Qwen3-VL and https://huggingface.co/collections/Qwen/qwen3-vl. Supported release sizes observed in upstream notes: 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B.
 
 Qwen3-VL upstream documents visual-agent capabilities for GUI operation. Cerberus must not expose those behaviors. Use `screen.describe` only for passive screen VQA, OCR-style explanation, visible state summaries, and uncertainty reporting. Do not use it for clicking, typing, app control, navigation, web operation, mobile/desktop agent tasks, or action plans. `ScreenDescribeTool` wraps every local VLM prompt with observe-only instructions before calling the provider.
+
+## Qwen2.5-VL Fallback Preset
+
+Preset id: `qwen2.5-vl`. Source/license checked 2026-07-08: https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct and https://ollama.com/library/qwen2.5vl. This is a config-only fallback; no weights are bundled. Use the 7B Instruct checkpoint first for OCR/document/layout evaluation; the 3B variant is the smaller practical edge candidate and must be verified separately.
+
+Expected strengths: dense OCR, scanned documents, forms, charts, icon/layout understanding, and UI screenshots. Qwen2.5-VL also documents visual-agent capability, so it remains behind the same passive `screen.describe` prompt wrapper as Qwen3-VL.
+
+Runtime support checked: vLLM/SGLang examples on the Hugging Face model card, Ollama `qwen2.5vl`, and llama.cpp-compatible quantizations linked from the model card. Keep local endpoints on localhost unless `allowNonLocalEndpoint` is explicit.
+
+Benchmark comparison: run `Fixtures/VLM/benchmark-template.json` across `minicpm-v-4.6`, `qwen3-vl`, and `qwen2.5-vl`; compare OCR exactness, layout fidelity, chart reading, UI element grounding, latency, and refusal/observe-only behavior.
 
 ## MLX-VLM Setup
 

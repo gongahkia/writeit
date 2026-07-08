@@ -234,6 +234,8 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.qwen3VL.licenseNote.contains("2026-07-08"))
     #expect(LocalVLMPreset.qwen3VL.runtimeNotes.contains("Supported sizes checked: 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B."))
     #expect(LocalVLMPreset.qwen3VL.safetyNote.lowercased().contains("passive"))
+    #expect(LocalVLMPreset.qwen25VL.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.qwen25VL.runtimeNotes.contains("Expected strengths: OCR, documents, charts, layout, and UI screenshots."))
 }
 
 @Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
@@ -242,11 +244,17 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     let cases = try #require(json["cases"] as? [[String: Any]])
     let caseIDs = Set(cases.compactMap { $0["id"] as? String })
+    let comparisonPresetIDs = try #require(json["comparisonPresetIDs"] as? [String])
 
     #expect(json["presetID"] as? String == LocalVLMPreset.miniCPMV46.id)
     #expect(json["modelID"] as? String == "openbmb/MiniCPM-V-4.6")
     #expect(json["sourceCheckedDate"] as? String == "2026-07-08")
     #expect(json["weightsBundled"] as? Bool == false)
+    #expect(comparisonPresetIDs == [
+        "minicpm-v-4.6",
+        "qwen3-vl",
+        "qwen2.5-vl"
+    ])
     #expect(caseIDs == [
         "ui-screenshot",
         "dense-text",

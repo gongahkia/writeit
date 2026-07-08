@@ -61,10 +61,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let qwen25VL = LocalVLMPreset(
         id: "qwen2.5-vl",
         displayName: "Qwen2.5-VL",
-        licenseNote: "Apache-2.0 for common 7B checkpoint; verify selected checkpoint.",
+        licenseNote: "Apache-2.0 for 7B Instruct; checked 2026-07-08 at https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct.",
         status: .fallback,
         safetyNote: "Use for OCR/document/layout screen questions only.",
-        runtimeNotes: ["Stable fallback.", "Broad runtime support."]
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "Practical variants checked: 3B edge model and 7B Instruct; verify exact checkpoint before use.",
+            "Expected strengths: OCR, documents, charts, layout, and UI screenshots."
+        ]
     )
 
     public static let smolVLM = LocalVLMPreset(
