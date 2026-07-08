@@ -5,57 +5,6 @@ import FoundationModels
 import UniformTypeIdentifiers
 import cerberusCore
 
-struct PendingMCPClientRequest: Identifiable {
-    enum Kind {
-        case samplingPrompt
-        case samplingResponse
-        case elicitation
-    }
-
-    let id = UUID()
-    let kind: Kind
-    let serverName: String
-    let summary: String
-    let detail: String
-
-    var title: String {
-        switch kind {
-        case .samplingPrompt:
-            "MCP sampling request"
-        case .samplingResponse:
-            "MCP sampling response"
-        case .elicitation:
-            "MCP elicitation request"
-        }
-    }
-
-    var draftLabel: String {
-        switch kind {
-        case .samplingPrompt:
-            "Prompt"
-        case .samplingResponse:
-            "Response"
-        case .elicitation:
-            "Content JSON"
-        }
-    }
-
-    var approveTitle: String {
-        switch kind {
-        case .samplingPrompt:
-            "Send"
-        case .samplingResponse:
-            "Return"
-        case .elicitation:
-            "Accept"
-        }
-    }
-
-    var allowsDecline: Bool {
-        kind == .elicitation
-    }
-}
-
 private let defaultHeadGestureCooldownSeconds = 1.2
 
 enum MenuBarStatusTint: Equatable {
@@ -71,15 +20,6 @@ enum MenuBarStatusTint: Equatable {
     }
 }
 
-struct MCPClientElicitationFieldDraft: Identifiable {
-    let field: MCPElicitationField
-    var value: String
-
-    var id: String {
-        field.id
-    }
-}
-
 struct AppDataLocation: Identifiable, Equatable {
     let name: String
     let url: URL
@@ -87,12 +27,6 @@ struct AppDataLocation: Identifiable, Equatable {
     var id: String {
         name
     }
-}
-
-private enum MCPClientRequestDecision: Sendable {
-    case approve(String)
-    case decline
-    case cancel
 }
 
 @MainActor
@@ -126,7 +60,6 @@ protocol AppAssistanting: Sendable {
     func updateModel(_ model: SystemLanguageModel) async
     func plan(for request: String, context: AssistantContext) async throws -> AssistantPlan
     func answerWithReadOnlyTools(for request: String, context: AssistantContext) async throws -> String
-    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String
     func summarize(toolResult: ToolResult, for request: String) async throws -> String
 }
 
@@ -147,10 +80,6 @@ private actor DisabledRuntimeAssistant: AppAssistanting {
     }
 
     func answerWithReadOnlyTools(for request: String, context: AssistantContext) async throws -> String {
-        "Runtime services are disabled."
-    }
-
-    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
         "Runtime services are disabled."
     }
 
@@ -182,33 +111,6 @@ extension Speaker: AppSpeaking {}
 
 extension Assistant: AppAssistanting {}
 
-final class MCPClientRequestBroker: @unchecked Sendable {
-    @MainActor weak var model: CerberusAppModel?
-
-    var handlers: MCPClientRequestHandlers {
-        MCPClientRequestHandlers(
-            sampling: { [weak self] request in
-                guard let self else {
-                    throw ToolExecutionError.denied("MCP sampling broker is unavailable.")
-                }
-                guard let model = await MainActor.run(body: { self.model }) else {
-                    throw ToolExecutionError.denied("MCP sampling UI is unavailable.")
-                }
-                return try await model.handleMCPSamplingRequest(request)
-            },
-            elicitation: { [weak self] request in
-                guard let self else {
-                    throw ToolExecutionError.denied("MCP elicitation broker is unavailable.")
-                }
-                guard let model = await MainActor.run(body: { self.model }) else {
-                    throw ToolExecutionError.denied("MCP elicitation UI is unavailable.")
-                }
-                return try await model.handleMCPElicitationRequest(request)
-            }
-        )
-    }
-}
-
 @MainActor
 final class CerberusAppModel: ObservableObject {
     @Published private(set) var stateMachine = AssistantStateMachine()
@@ -226,10 +128,6 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var isAudioOutputLikelyAirPods = false
     @Published private(set) var recentAuditEntries: [AuditLogEntry] = []
     @Published private(set) var transcriptRecords: [TranscriptRecord] = []
-    @Published private(set) var memoryRecords: [MemoryRecord] = []
-    @Published private(set) var pendingMCPClientRequest: PendingMCPClientRequest?
-    @Published private(set) var mcpListenerStatusLine = "MCP listener off"
-    @Published private(set) var mcpServerHealthLines: [MCPServerHealthLine] = []
     @Published private(set) var foundationModelAvailabilityLine = "Foundation Models status unknown"
     @Published private(set) var foundationModelAvailabilityDetailLine = "Refresh to check Apple Intelligence state"
     @Published private(set) var foundationModelAdapterStatusLine = "Adapter status unknown"
@@ -239,19 +137,12 @@ final class CerberusAppModel: ObservableObject {
     @Published private(set) var foundationModelProfile = "default"
     @Published private(set) var screenSnapshotStatusLine = "Screen snapshots not checked"
     @Published private(set) var screenSnapshotCount = 0
-    @Published private(set) var fileSearchScopePaths: [String] = []
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published private var toolConfirmationOverrides: Set<String> = []
     @Published var selectedPanelSection: PanelSection = .session
     @Published var toolProfileID = ToolProfile.visionOnly.id
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
-    @Published var isSessionMemoryWriteDisabled = false {
-        didSet {
-            syncToolRegistryAllowlist()
-            refreshAssistantToolPrompt()
-        }
-    }
     @Published var requiresConfirmationForAllTools = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.requiresConfirmationForAllTools) {
         didSet {
             UserDefaults.standard.set(requiresConfirmationForAllTools, forKey: CerberusSettingsKeys.requiresConfirmationForAllTools)
@@ -306,8 +197,6 @@ final class CerberusAppModel: ObservableObject {
             }
         }
     }
-    @Published private(set) var isMCPToolEnabled = false
-    @Published private(set) var isShellToolEnabled = false
     @Published var headNodThreshold = min(0.8, max(0.15, UserDefaults.standard.object(forKey: CerberusSettingsKeys.headNodThreshold) as? Double ?? 0.35)) {
         didSet {
             let clamped = min(0.8, max(0.15, headNodThreshold))
@@ -343,8 +232,6 @@ final class CerberusAppModel: ObservableObject {
     }
     @Published var isHeadGestureValidationLoggingEnabled = false
     @Published var transcriptDraft = ""
-    @Published var mcpClientDraft = ""
-    @Published var mcpElicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
 
     private let permissionCenter: any PermissionChecking
     private let transcriber: any AppTranscribing
@@ -356,33 +243,22 @@ final class CerberusAppModel: ObservableObject {
     private let headGestureDetector = HeadGestureDetector()
     private let headGestureValidationLog = HeadGestureValidationLog()
     private let mediaKeyInterceptor = MediaKeyInterceptor()
-    private let fileSearchScopeStore: FileSearchScopeStore
     private let toolRegistry: ToolRegistry
     private let confirmationGate = ConfirmationGate()
     private let auditLog: AuditLog
     private let assistant: any AppAssistanting
     private let baseReadOnlyNativeTools: [any FoundationModels.Tool]
     private let transcriptStore: EncryptedTranscriptStore
-    private let memoryStore = EncryptedMemoryStore()
     private let telemetryStore = LocalTelemetryStore()
     private let adapterLoader = FoundationModelAdapterLoader()
     private let foundationModelStatusProvider = FoundationModelAvailabilityStatusProvider()
     private let taskNotificationPolicy = LongRunningTaskNotificationPolicy()
     private let taskNotificationScheduler: any LocalTaskNotificationScheduling = UserNotificationTaskScheduler()
     private let skipsFoundationModelAvailabilityCheck: Bool
-    private let mcpServerRegistry: MCPServerRegistry
-    private let mcpClientRequestBroker: MCPClientRequestBroker
-    private let mcpNativeToolLoader: MCPNativeToolLoader
     private var audioOutputRouteMonitor: AudioOutputRouteMonitor?
     private var pendingPlan: AssistantPlan?
     private var activeRequest: String?
     private var recentTransitionHistory = RecentTransitionHistory()
-    private var pendingMCPDecisionContinuation: CheckedContinuation<MCPClientRequestDecision, Never>?
-    private var mcpListenerSetupTask: Task<Void, Never>?
-    private var mcpListenerTasks: [Task<Void, Never>] = []
-    private var mcpListenerLastEventIDs: [String: String] = [:]
-    private var mcpServerHealthStates: [String: MCPServerHealthState] = [:]
-    private var mcpServerHealthDetails: [String: String] = [:]
     private var adapterFailureCircuitBreaker = AdapterFailureCircuitBreaker()
     private var silenceTask: Task<Void, Never>?
     private var confirmationVoiceTimeoutTask: Task<Void, Never>?
@@ -390,22 +266,6 @@ final class CerberusAppModel: ObservableObject {
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
-    private static let mcpToolSummaries: [ToolSummary] = []
-
-    private static func makeMCPTools(clientRequestHandlers: MCPClientRequestHandlers) -> [AnyAssistantTool] {
-        [
-            AnyAssistantTool(MCPTool(runner: MCPConfiguredToolRunner(clientRequestHandlers: clientRequestHandlers))),
-            AnyAssistantTool(MCPResourceListTool(runner: MCPConfiguredResourceRunner(clientRequestHandlers: clientRequestHandlers))),
-            AnyAssistantTool(MCPResourceReadTool(runner: MCPConfiguredResourceRunner(clientRequestHandlers: clientRequestHandlers))),
-            AnyAssistantTool(MCPPromptListTool(runner: MCPConfiguredPromptRunner(clientRequestHandlers: clientRequestHandlers))),
-            AnyAssistantTool(MCPPromptGetTool(runner: MCPConfiguredPromptRunner(clientRequestHandlers: clientRequestHandlers))),
-            AnyAssistantTool(MCPOAuthDiscoverTool()),
-            AnyAssistantTool(MCPOAuthStartTool()),
-            AnyAssistantTool(MCPOAuthExchangeTool()),
-            AnyAssistantTool(MCPOAuthRefreshTool()),
-            AnyAssistantTool(MCPOAuthAuthorizeLocalTool())
-        ]
-    }
 
     init(
         transcriber: any AppTranscribing = Transcriber(),
@@ -415,32 +275,20 @@ final class CerberusAppModel: ObservableObject {
         toolRegistry injectedToolRegistry: ToolRegistry? = nil,
         auditLog injectedAuditLog: AuditLog = AuditLog(),
         transcriptStore injectedTranscriptStore: EncryptedTranscriptStore = EncryptedTranscriptStore(),
-        fileSearchScopeStore injectedFileSearchScopeStore: FileSearchScopeStore? = nil,
         permissionCenter injectedPermissionCenter: (any PermissionChecking)? = nil,
         startsRuntimeServices: Bool = true,
         skipsFoundationModelAvailabilityCheck: Bool = false
     ) {
-        let mcpClientRequestBroker = MCPClientRequestBroker()
-        let mcpServerRegistry = MCPServerRegistry()
-        let fileSearchScopeStore = injectedFileSearchScopeStore ?? FileSearchScopeStore()
         let tools = DefaultToolCatalog.makeTools(includesUIElementTool: startsRuntimeServices)
         let baseReadOnlyNativeTools = injectedAssistant == nil && startsRuntimeServices
             ? DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: injectedAuditLog)
             : []
-        self.mcpClientRequestBroker = mcpClientRequestBroker
-        self.mcpServerRegistry = mcpServerRegistry
-        self.fileSearchScopeStore = fileSearchScopeStore
         self.permissionCenter = injectedPermissionCenter ?? PermissionCenter()
         self.auditLog = injectedAuditLog
         self.transcriptStore = injectedTranscriptStore
         self.transcriber = transcriber
         self.wakeWordTranscriber = wakeWordTranscriber
         self.speaker = speaker
-        self.mcpNativeToolLoader = MCPNativeToolLoader(
-            registry: mcpServerRegistry,
-            clientRequestHandlers: mcpClientRequestBroker.handlers,
-            auditLog: injectedAuditLog
-        )
         self.baseReadOnlyNativeTools = baseReadOnlyNativeTools
         self.skipsFoundationModelAvailabilityCheck = skipsFoundationModelAvailabilityCheck
         toolRegistry = injectedToolRegistry ?? ((try? ToolRegistry(tools: tools)) ?? ToolRegistry())
@@ -450,14 +298,11 @@ final class CerberusAppModel: ObservableObject {
                 readOnlyNativeTools: baseReadOnlyNativeTools
             )
             : DisabledRuntimeAssistant())
-        mcpClientRequestBroker.model = self
-        fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
         refreshPermissions()
         refreshAudioOutputRoute()
         refreshWakeWordMonitorLine()
         refreshFoundationModelStatus()
         refreshScreenSnapshotStatus()
-        refreshMCPServerHealthStatus()
         if startsRuntimeServices {
             startAudioOutputRouteMonitor()
         }
@@ -549,7 +394,6 @@ final class CerberusAppModel: ObservableObject {
             AppDataLocation(name: "Telemetry", url: LocalTelemetryStore.defaultFileURL()),
             AppDataLocation(name: "Wake samples", url: WakeWordSampleDataset.defaultDirectoryURL()),
             AppDataLocation(name: "Adapter config", url: FoundationModelAdapterLoader.defaultFileURL()),
-            AppDataLocation(name: "MCP config", url: MCPServerRegistry.defaultFileURL()),
             AppDataLocation(name: "Screen snapshots", url: ScreenSnapshotTool.defaultOutputDirectoryURL())
         ]
     }
@@ -594,31 +438,8 @@ final class CerberusAppModel: ObservableObject {
         toolProfileID = profile.id
         ambientToolAllowlist = ToolSessionAllowlist(disabledToolNames: configuration.disabledAmbientToolNames)
         requiresConfirmationForAllTools = configuration.requiresConfirmationForAllTools
-        isMCPToolEnabled = configuration.mcpEnabled
-        isShellToolEnabled = configuration.shellEnabled
         syncToolRegistryAllowlist()
         refreshAssistantToolPrompt()
-    }
-
-    func isMCPServerEnabled(_ serverName: String) -> Bool {
-        mcpServerHealthLines.first { $0.name == serverName }?.serverEnabled ?? false
-    }
-
-    func setMCPServer(_ serverName: String, enabled: Bool) {
-        Task {
-            do {
-                try await mcpServerRegistry.setEnabled(enabled, for: serverName)
-                await mcpServerRegistry.reload()
-                if isMCPToolEnabled {
-                    startMCPHTTPListeners()
-                } else {
-                    refreshMCPServerHealthStatus()
-                }
-                refreshAssistantToolPrompt()
-            } catch {
-                statusLine = error.localizedDescription
-            }
-        }
     }
 
     func revealAppDataLocation(_ location: AppDataLocation) {
@@ -659,42 +480,6 @@ final class CerberusAppModel: ObservableObject {
         } catch {
             statusLine = error.localizedDescription
         }
-    }
-
-    func addFileSearchScope() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = true
-        panel.prompt = "Add"
-        panel.message = "Choose folders cerberus may search by filename."
-
-        guard panel.runModal() == .OK else {
-            return
-        }
-
-        addFileSearchScopePaths(panel.urls.map(\.path))
-    }
-
-    func addFileSearchScopePaths(_ paths: [String]) {
-        do {
-            for path in paths {
-                try fileSearchScopeStore.add(path)
-            }
-            refreshFileSearchScopeStatus()
-        } catch {
-            statusLine = error.localizedDescription
-        }
-    }
-
-    func removeFileSearchScope(_ path: String) {
-        fileSearchScopePaths = fileSearchScopeStore.remove(path)
-        refreshFileSearchScopeStatus()
-    }
-
-    private func refreshFileSearchScopeStatus() {
-        fileSearchScopePaths = fileSearchScopeStore.approvedScopePaths()
-        statusLine = fileSearchScopePaths.isEmpty ? "No file search folders approved." : "File search folders updated."
     }
 
     var menuBarSystemImage: String {
@@ -774,7 +559,6 @@ final class CerberusAppModel: ObservableObject {
         }
         speaker.stop()
         clearPendingConfirmation()
-        finishMCPClientRequest(.cancel)
         apply(.cancelRequested)
         if restartWakeWord {
             startWakeWordMonitoringIfNeeded()
@@ -792,7 +576,6 @@ final class CerberusAppModel: ObservableObject {
         }
         speaker.stop()
         clearPendingConfirmation()
-        finishMCPClientRequest(.cancel)
         apply(.reset)
         startWakeWordMonitoringIfNeeded()
     }
@@ -915,62 +698,6 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
-    func refreshMemoryRecords() {
-        Task {
-            do {
-                memoryRecords = try await memoryStore.records()
-                    .sorted { $0.timestamp > $1.timestamp }
-            } catch {
-                statusLine = error.localizedDescription
-            }
-        }
-    }
-
-    func exportMemoryRecords() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "cerberus-memories.json"
-        panel.prompt = "Export"
-        panel.message = "Export decrypted memory records as JSON."
-
-        guard panel.runModal() == .OK, let url = panel.url else {
-            return
-        }
-
-        Task {
-            do {
-                try await memoryStore.exportPlaintextJSON(to: url)
-                statusLine = "Exported memories to \(url.path)"
-            } catch {
-                statusLine = error.localizedDescription
-            }
-        }
-    }
-
-    func deleteMemoryRecords() {
-        let alert = NSAlert()
-        alert.messageText = "Delete memories?"
-        alert.informativeText = "This removes encrypted memory records stored by cerberus."
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
-        alert.alertStyle = .warning
-
-        guard alert.runModal() == .alertFirstButtonReturn else {
-            return
-        }
-
-        Task {
-            do {
-                try await memoryStore.deleteAll()
-                memoryRecords = []
-                statusLine = "Deleted memories."
-            } catch {
-                statusLine = error.localizedDescription
-            }
-        }
-    }
-
     func exportDiagnosticsBundle() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
@@ -999,7 +726,6 @@ final class CerberusAppModel: ObservableObject {
                         foundationModelAvailabilityDetailLine,
                         foundationModelAdapterStatusLine,
                         wakeWordMonitorLine,
-                        mcpListenerStatusLine,
                         screenSnapshotStatusLine,
                         audioOutputRouteLine,
                         speechOutputRoutingLine
@@ -1187,85 +913,6 @@ final class CerberusAppModel: ObservableObject {
             activeRequest = nil
             apply(.confirmationDenied)
             speaker.speak("Cancelled.")
-        }
-    }
-
-    func approveMCPClientRequest() {
-        if pendingMCPClientRequest?.kind == .elicitation, !mcpElicitationFieldDrafts.isEmpty {
-            do {
-                finishMCPClientRequest(.approve(try Self.elicitationContentJSON(from: mcpElicitationFieldDrafts)))
-            } catch {
-                statusLine = error.localizedDescription
-            }
-            return
-        }
-
-        finishMCPClientRequest(.approve(mcpClientDraft))
-    }
-
-    func declineMCPClientRequest() {
-        finishMCPClientRequest(.decline)
-    }
-
-    func cancelMCPClientRequest() {
-        finishMCPClientRequest(.cancel)
-    }
-
-    func handleMCPSamplingRequest(_ request: MCPSamplingRequest) async throws -> MCPSamplingResponse {
-        let promptDraft = request.messagesText.isEmpty ? request.rawParamsJSON : request.messagesText
-        let promptDecision = await requestMCPClientDecision(
-            PendingMCPClientRequest(
-                kind: .samplingPrompt,
-                serverName: request.serverName,
-                summary: "Server \(request.serverName) requested a nested model completion.",
-                detail: request.systemPrompt ?? "No server system prompt."
-            ),
-            draft: promptDraft
-        )
-        guard case let .approve(approvedPrompt) = promptDecision else {
-            throw ToolExecutionError.denied("MCP sampling request was not approved.")
-        }
-
-        statusLine = "MCP sampling running."
-        let generated = try await assistant.sampleForMCP(
-            messagesText: approvedPrompt,
-            systemPrompt: request.systemPrompt
-        )
-        let responseDecision = await requestMCPClientDecision(
-            PendingMCPClientRequest(
-                kind: .samplingResponse,
-                serverName: request.serverName,
-                summary: "Review the response before returning it to \(request.serverName).",
-                detail: "Model: cerberus"
-            ),
-            draft: generated
-        )
-        guard case let .approve(approvedResponse) = responseDecision else {
-            throw ToolExecutionError.denied("MCP sampling response was not approved.")
-        }
-
-        return MCPSamplingResponse(text: approvedResponse)
-    }
-
-    func handleMCPElicitationRequest(_ request: MCPElicitationRequest) async throws -> MCPElicitationResponse {
-        let decision = await requestMCPClientDecision(
-            PendingMCPClientRequest(
-                kind: .elicitation,
-                serverName: request.serverName,
-                summary: request.message,
-                detail: request.schemaJSON
-            ),
-            draft: Self.defaultElicitationDraft(for: request),
-            elicitationFieldDrafts: Self.defaultElicitationFieldDrafts(for: request)
-        )
-
-        switch decision {
-        case let .approve(contentJSON):
-            return MCPElicitationResponse(action: .accept, contentJSON: contentJSON)
-        case .decline:
-            return MCPElicitationResponse(action: .decline)
-        case .cancel:
-            return MCPElicitationResponse(action: .cancel)
         }
     }
 
@@ -1608,7 +1255,7 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: activeApplicationName,
                 allowedToolNames: enabledToolNames,
-                fileSearchScopePaths: fileSearchScopePaths,
+                fileSearchScopePaths: [],
                 projectWorkspaceHints: detectedProjectWorkspaces(),
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,
@@ -1701,7 +1348,7 @@ final class CerberusAppModel: ObservableObject {
             let context = AssistantContext(
                 activeApplicationName: activeApplicationName,
                 allowedToolNames: allowedToolNames,
-                fileSearchScopePaths: fileSearchScopePaths,
+                fileSearchScopePaths: [],
                 projectWorkspaceHints: detectedProjectWorkspaces(),
                 activeApplicationHints: ActiveApplicationContextPolicy.hints(
                     for: activeApplicationName,
@@ -1848,32 +1495,6 @@ final class CerberusAppModel: ObservableObject {
         }
     }
 
-    private func requestMCPClientDecision(
-        _ request: PendingMCPClientRequest,
-        draft: String,
-        elicitationFieldDrafts: [MCPClientElicitationFieldDraft] = []
-    ) async -> MCPClientRequestDecision {
-        finishMCPClientRequest(.cancel)
-        pendingMCPClientRequest = request
-        mcpClientDraft = draft
-        mcpElicitationFieldDrafts = elicitationFieldDrafts
-        statusLine = request.summary
-        return await withCheckedContinuation { continuation in
-            pendingMCPDecisionContinuation = continuation
-        }
-    }
-
-    private func finishMCPClientRequest(_ decision: MCPClientRequestDecision) {
-        pendingMCPClientRequest = nil
-        mcpClientDraft = ""
-        mcpElicitationFieldDrafts = []
-        guard let continuation = pendingMCPDecisionContinuation else {
-            return
-        }
-        pendingMCPDecisionContinuation = nil
-        continuation.resume(returning: decision)
-    }
-
     private func speak(_ response: String) {
         recordTranscript(response: response)
         apply(.responseReady(response))
@@ -1973,7 +1594,7 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private func detectedProjectWorkspaces() -> [ProjectWorkspaceHint] {
-        ProjectWorkspaceDetector.detect(in: fileSearchScopePaths)
+        []
     }
 
     private var enabledToolSummaries: [ToolSummary] {
@@ -2010,204 +1631,6 @@ final class CerberusAppModel: ObservableObject {
                 readOnlyNativeTools: nativeToolBase
             )
         }
-    }
-
-    private func startMCPHTTPListeners() {
-        stopMCPHTTPListeners()
-        mcpListenerStatusLine = "MCP listener starting."
-        mcpListenerSetupTask = Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
-
-            do {
-                let configurations = MCPHTTPListenerPolicy.listenerConfigurations(
-                    from: try await mcpServerRegistry.configurations()
-                )
-                for configuration in configurations {
-                    mcpServerHealthStates[configuration.name] = .listening
-                    mcpServerHealthDetails[configuration.name] = "starting listener"
-                }
-                refreshMCPServerHealthStatus()
-                guard !configurations.isEmpty else {
-                    mcpListenerStatusLine = "No Streamable HTTP MCP servers configured."
-                    return
-                }
-
-                mcpListenerTasks = configurations.map { configuration in
-                    Task { @MainActor [weak self] in
-                        await self?.runMCPHTTPListener(configuration: configuration)
-                    }
-                }
-                mcpListenerStatusLine = configurations.count == 1
-                    ? "Listening to 1 MCP HTTP server."
-                    : "Listening to \(configurations.count) MCP HTTP servers."
-                for configuration in configurations {
-                    mcpServerHealthStates[configuration.name] = .listening
-                    mcpServerHealthDetails[configuration.name] = "listening for background requests"
-                }
-                refreshMCPServerHealthStatus()
-            } catch {
-                mcpListenerStatusLine = error.localizedDescription
-                refreshMCPServerHealthStatus()
-            }
-        }
-    }
-
-    private func stopMCPHTTPListeners() {
-        mcpListenerSetupTask?.cancel()
-        mcpListenerSetupTask = nil
-        mcpListenerTasks.forEach { $0.cancel() }
-        mcpListenerTasks = []
-        mcpListenerLastEventIDs = [:]
-        mcpServerHealthStates = [:]
-        mcpServerHealthDetails = [:]
-        mcpListenerStatusLine = "MCP listener off"
-        refreshMCPServerHealthStatus()
-        finishMCPClientRequest(.cancel)
-    }
-
-    private func runMCPHTTPListener(configuration: MCPServerConfiguration) async {
-        while isMCPToolEnabled, !Task.isCancelled {
-            do {
-                let result = try await MCPStreamableHTTPClient(
-                    configuration: configuration,
-                    clientRequestHandlers: mcpClientRequestBroker.handlers
-                ).listenForServerRequests(lastEventID: mcpListenerLastEventIDs[configuration.name])
-                guard result.endpointAvailable else {
-                    mcpListenerStatusLine = "\(configuration.name) does not expose MCP HTTP GET SSE."
-                    mcpServerHealthStates[configuration.name] = .unsupported
-                    mcpServerHealthDetails[configuration.name] = "GET SSE unavailable"
-                    refreshMCPServerHealthStatus()
-                    return
-                }
-
-                if let lastEventID = result.lastEventID {
-                    mcpListenerLastEventIDs[configuration.name] = lastEventID
-                }
-                if result.handledMessages > 0 {
-                    mcpListenerStatusLine = "\(configuration.name) handled \(result.handledMessages) background MCP request(s)."
-                    mcpServerHealthStates[configuration.name] = .handled
-                    mcpServerHealthDetails[configuration.name] = "handled \(result.handledMessages) background request(s)"
-                    refreshMCPServerHealthStatus()
-                }
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-            } catch is CancellationError {
-                return
-            } catch {
-                mcpListenerStatusLine = "\(configuration.name) MCP listener error: \(error.localizedDescription)"
-                mcpServerHealthStates[configuration.name] = .error
-                mcpServerHealthDetails[configuration.name] = error.localizedDescription
-                refreshMCPServerHealthStatus()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-            }
-        }
-    }
-
-    private func refreshMCPServerHealthStatus() {
-        Task { @MainActor [weak self] in
-            guard let self else {
-                return
-            }
-            do {
-                mcpServerHealthLines = MCPServerHealthReporter.lines(
-                    configurations: try await mcpServerRegistry.allConfigurations(),
-                    enabled: isMCPToolEnabled,
-                    states: mcpServerHealthStates,
-                    details: mcpServerHealthDetails
-                )
-            } catch {
-                mcpServerHealthLines = [
-                    MCPServerHealthLine(name: "mcp config", transport: .stdio, state: .error, detail: error.localizedDescription)
-                ]
-            }
-        }
-    }
-
-    private static func defaultElicitationDraft(for request: MCPElicitationRequest) -> String {
-        guard let data = request.schemaJSON.data(using: .utf8),
-              let schema = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let properties = schema["properties"] as? [String: [String: Any]] else {
-            return "{}"
-        }
-
-        let required = schema["required"] as? [String] ?? []
-        var content: [String: Any] = [:]
-        for key in required {
-            guard let property = properties[key] else {
-                continue
-            }
-            if let defaultValue = property["default"] {
-                content[key] = defaultValue
-                continue
-            }
-            switch property["type"] as? String {
-            case "boolean":
-                content[key] = false
-            case "number", "integer":
-                content[key] = 0
-            default:
-                content[key] = ""
-            }
-        }
-
-        guard JSONSerialization.isValidJSONObject(content),
-              let encoded = try? JSONSerialization.data(withJSONObject: content, options: [.prettyPrinted, .sortedKeys]),
-              let string = String(data: encoded, encoding: .utf8) else {
-            return "{}"
-        }
-        return string
-    }
-
-    private static func defaultElicitationFieldDrafts(for request: MCPElicitationRequest) -> [MCPClientElicitationFieldDraft] {
-        defaultElicitationFieldDrafts(for: request.fields)
-    }
-
-    static func defaultElicitationFieldDrafts(for fields: [MCPElicitationField]) -> [MCPClientElicitationFieldDraft] {
-        fields.map { field in
-            let value = field.defaultValue ?? {
-                if let firstEnumValue = field.enumValues.first {
-                    return firstEnumValue
-                }
-                switch field.type {
-                case .boolean:
-                    return "false"
-                default:
-                    return ""
-                }
-            }()
-            return MCPClientElicitationFieldDraft(field: field, value: value)
-        }
-    }
-
-    static func elicitationContentJSON(from drafts: [MCPClientElicitationFieldDraft]) throws -> String {
-        var content: [String: Any] = [:]
-        for draft in drafts {
-            let trimmed = draft.value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty, !draft.field.required, draft.field.type != .boolean {
-                continue
-            }
-
-            switch draft.field.type {
-            case .string:
-                content[draft.field.name] = trimmed
-            case .boolean:
-                content[draft.field.name] = trimmed == "true"
-            case .integer:
-                guard let value = Int(trimmed) else {
-                    throw ToolExecutionError.invalidArguments("MCP elicitation field must be an integer: \(draft.field.name)")
-                }
-                content[draft.field.name] = value
-            case .number:
-                guard let value = Double(trimmed) else {
-                    throw ToolExecutionError.invalidArguments("MCP elicitation field must be a number: \(draft.field.name)")
-                }
-                content[draft.field.name] = value
-            }
-        }
-
-        let encoded = try JSONSerialization.data(withJSONObject: content, options: [.prettyPrinted, .sortedKeys])
-        return String(decoding: encoded, as: UTF8.self)
     }
 
     private func refreshConfiguredAdapter() {

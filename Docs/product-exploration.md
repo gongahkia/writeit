@@ -6,7 +6,7 @@ Decision: keep any iOS companion as a separate project.
 
 Rationale:
 
-- The current app is a macOS menu bar utility with macOS-only APIs: SpeechAnalyzer, Foundation Models, ScreenCaptureKit, Accessibility, EventKit desktop permissions, Apple Events, XPC shell execution, and menu bar state.
+- The current app is a macOS menu bar utility with macOS-only APIs: SpeechAnalyzer, Foundation Models, ScreenCaptureKit, Accessibility, Input Monitoring, Screen Recording, and menu bar state.
 - Sharing a product target now would couple iOS release, entitlement, and privacy review work to the macOS v1 release gates.
 - A companion is only useful after target-hardware validation proves the macOS AirPods workflow needs a second-screen setup, push notification, or remote trigger surface.
 
@@ -19,7 +19,7 @@ Not in scope for macOS v1:
 
 - Shared SwiftUI app target.
 - Cross-device transcript sync.
-- iCloud-backed memory sync.
+- iCloud-backed assistant memory sync.
 - Remote tool execution from iOS.
 
 ## Non-AirPods Trigger Surfaces
@@ -58,8 +58,8 @@ Decision: do not add a cloud model fallback unless local Foundation Models quali
 
 Rationale:
 
-- The project positioning is local-first: planning, transcripts, memory, screen OCR, audit logs, and adapter data stay on device by default.
-- A cloud fallback would change data-flow guarantees for speech transcripts, screen-derived text, file names, Mail metadata, calendar/reminder content, and tool outputs.
+- The project positioning is local-first: planning, transcripts, screen OCR, audit logs, and adapter data stay on device by default.
+- A cloud fallback would change data-flow guarantees for speech transcripts, screen-derived text, visible file names, and screen-tool outputs.
 - Cloud routing would require new UX for consent, per-request disclosure, retention expectations, deletion semantics, network failure states, and audit entries.
 
 Minimum gates before reconsidering:
@@ -74,11 +74,11 @@ Fallback shape if approved later:
 
 - Default off.
 - Explicit user confirmation before the first cloud request.
-- No raw screen images, encrypted memory exports, audit logs, or transcript history in cloud prompts.
+- No raw screen images, audit logs, or transcript history in cloud prompts.
 - Prefer short tool-planning prompts over broad conversation dumps.
 
 Rejected for now:
 
 - Silent fallback when local model is unavailable.
 - Cloud summarization of unfiltered tool payloads.
-- Cloud storage or sync for transcripts, memory, or validation artifacts.
+- Cloud storage or sync for transcripts or validation artifacts.

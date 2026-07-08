@@ -23,7 +23,7 @@ It does not call live tools unless explicitly requested:
 Scripts/benchmark_model.sh --native-read-only-tools --request "what text is on my screen?"
 ```
 
-The native-tool mode uses the same read-only FoundationModels `Tool` session as the app, so local permissions and tool runtime costs affect the result. Use the synthetic mode for model-loop latency without Screen Recording, Calendar, Mail, or file-system side effects.
+The native-tool mode uses the same read-only FoundationModels `Tool` session as the app, so local permissions and screen-tool runtime costs affect the result. Use the synthetic mode for model-loop latency without Screen Recording or live screen reads.
 
 Plan drift fixtures:
 

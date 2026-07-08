@@ -221,29 +221,13 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
-@Test func toolEnablementKeepsShellDisabledEvenIfRequested() {
-    let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
-    let mcp = [ToolSummary(name: "mcp.call", capability: "Call MCP tool.", mutatesState: true)]
-    let shell = ShellTool().summary
-
-    let defaultNames = ToolEnablementPolicy()
-        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
-        .map(\.name)
-    let shellEnabledNames = ToolEnablementPolicy(shellEnabled: true)
-        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
-        .map(\.name)
-
-    #expect(defaultNames == ["calendar.read"])
-    #expect(shellEnabledNames == ["calendar.read"])
-}
-
 @Test func toolEnablementAppliesSessionDisabledToolNames() {
     let ambient = [
         ToolSummary(name: "memory.read", capability: "Read memory.", mutatesState: false),
         ToolSummary(name: "memory.write", capability: "Write memory.", mutatesState: true)
     ]
     let names = ToolEnablementPolicy(sessionDisabledToolNames: ["memory.write"])
-        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: [], shellSummary: ShellTool().summary)
+        .enabledSummaries(ambientSummaries: ambient)
         .map(\.name)
 
     #expect(names == ["memory.read"])
@@ -258,25 +242,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
     let visionOnly = ToolProfile.visionOnly.configuration(ambientSummaries: ambientSummaries)
 
     #expect(visionOnly.disabledAmbientToolNames.isEmpty)
-    #expect(!visionOnly.mcpEnabled)
-    #expect(!visionOnly.shellEnabled)
     #expect(!visionOnly.requiresConfirmationForAllTools)
-}
-
-@Test func toolEnablementKeepsMCPDisabledEvenIfRequested() {
-    let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
-    let mcp = [MCPTool().summary]
-    let shell = ShellTool().summary
-
-    let defaultNames = ToolEnablementPolicy()
-        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
-        .map(\.name)
-    let mcpEnabledNames = ToolEnablementPolicy(mcpEnabled: true)
-        .enabledSummaries(ambientSummaries: ambient, mcpSummaries: mcp, shellSummary: shell)
-        .map(\.name)
-
-    #expect(defaultNames == ["calendar.read"])
-    #expect(mcpEnabledNames == ["calendar.read"])
 }
 
 @Test func shellRunRequiresConfirmationForAllowlistedCommands() async throws {

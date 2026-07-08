@@ -157,101 +157,6 @@ struct StatusPanel: View {
             .buttonStyle(.bordered)
         }
 
-        if let pendingMCPClientRequest = model.pendingMCPClientRequest {
-            mcpClientRequestControls(pendingMCPClientRequest)
-        }
-    }
-
-    private func mcpClientRequestControls(_ request: PendingMCPClientRequest) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(request.title, systemImage: "server.rack")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(request.summary)
-                .font(.caption)
-                .lineLimit(3)
-
-            Text(request.detail)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(4)
-
-            Text(request.draftLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if request.kind == .elicitation, !model.mcpElicitationFieldDrafts.isEmpty {
-                ForEach($model.mcpElicitationFieldDrafts) { $draft in
-                    elicitationField($draft)
-                }
-            } else {
-                TextEditor(text: $model.mcpClientDraft)
-                    .font(.caption.monospaced())
-                    .frame(minHeight: 82)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(.quaternary)
-                    }
-            }
-
-            HStack(spacing: 8) {
-                Button {
-                    model.approveMCPClientRequest()
-                } label: {
-                    Label(request.approveTitle, systemImage: "checkmark")
-                }
-
-                if request.allowsDecline {
-                    Button {
-                        model.declineMCPClientRequest()
-                    } label: {
-                        Label("Decline", systemImage: "minus.circle")
-                    }
-                }
-
-                Button(role: .cancel) {
-                    model.cancelMCPClientRequest()
-                } label: {
-                    Label("Cancel", systemImage: "xmark")
-                }
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(.top, 4)
-    }
-
-    @ViewBuilder
-    private func elicitationField(_ draft: Binding<MCPClientElicitationFieldDraft>) -> some View {
-        let field = draft.wrappedValue.field
-        VStack(alignment: .leading, spacing: 4) {
-            if field.type == .boolean {
-                Toggle(field.displayName, isOn: Binding(
-                    get: { draft.wrappedValue.value == "true" },
-                    set: { draft.wrappedValue.value = $0 ? "true" : "false" }
-                ))
-                .font(.caption)
-            } else if !field.enumValues.isEmpty {
-                Picker(field.displayName, selection: draft.value) {
-                    ForEach(Array(field.enumValues.enumerated()), id: \.element) { index, value in
-                        Text(index < field.enumNames.count ? field.enumNames[index] : value)
-                            .tag(value)
-                    }
-                }
-                .font(.caption)
-            } else {
-                TextField(field.displayName, text: draft.value)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.caption)
-            }
-
-            if let description = field.description, !description.isEmpty {
-                Text(description)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
     }
 
     private var transcript: some View {
@@ -422,70 +327,6 @@ struct StatusPanel: View {
         }
     }
 
-    private var memories: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Memories")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button {
-                    model.exportMemoryRecords()
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Export memories")
-                .help("Export memories")
-                .disabled(model.memoryRecords.isEmpty)
-
-                Button(role: .destructive) {
-                    model.deleteMemoryRecords()
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Delete memories")
-                .help("Delete memories")
-                .disabled(model.memoryRecords.isEmpty)
-
-                Button {
-                    model.refreshMemoryRecords()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Refresh memories")
-                .help("Refresh memories")
-            }
-
-            Toggle("Do not remember this session", isOn: $model.isSessionMemoryWriteDisabled)
-                .font(.caption)
-
-            if model.memoryRecords.isEmpty {
-                Text("No memories yet")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 12)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 10) {
-                        ForEach(model.memoryRecords.prefix(20)) { record in
-                            memoryRow(record)
-                        }
-                    }
-                }
-                .frame(maxHeight: 160)
-            }
-        }
-        .task {
-            model.refreshMemoryRecords()
-        }
-    }
-
     private func auditRow(_ entry: AuditLogEntry) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -532,29 +373,6 @@ struct StatusPanel: View {
             Text(record.response)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(3)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-    }
-
-    private func memoryRow(_ record: MemoryRecord) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(record.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-
-                if !record.tags.isEmpty {
-                    Text(record.tags.joined(separator: ", "))
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Text(record.content)
-                .font(.caption)
                 .lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

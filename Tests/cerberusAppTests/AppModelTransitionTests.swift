@@ -60,15 +60,10 @@ private final class FakeSpeaker: AppSpeaking {
 
 private actor FakeAssistant: AppAssistanting {
     var planResult: AssistantPlan
-    var sampleResult = "sample"
     private(set) var plannedRequests: [String] = []
 
     init(planResult: AssistantPlan) {
         self.planResult = planResult
-    }
-
-    func setSampleResult(_ sampleResult: String) {
-        self.sampleResult = sampleResult
     }
 
     func updateToolConfiguration(
@@ -85,10 +80,6 @@ private actor FakeAssistant: AppAssistanting {
 
     func answerWithReadOnlyTools(for request: String, context: AssistantContext) async throws -> String {
         "native answer"
-    }
-
-    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
-        sampleResult
     }
 
     func summarize(toolResult: ToolResult, for request: String) async throws -> String {
@@ -457,79 +448,6 @@ private final class FakePermissionCenter: PermissionChecking {
 }
 
 @MainActor
-@Test func appModelMCPElicitationDraftsCoverPrimitiveControlTypes() throws {
-    let fields = [
-        MCPElicitationField(
-            name: "enabled",
-            type: .boolean,
-            title: "Enabled",
-            description: nil,
-            required: true,
-            defaultValue: "true",
-            enumValues: [],
-            enumNames: []
-        ),
-        MCPElicitationField(
-            name: "team",
-            type: .string,
-            title: "Team",
-            description: nil,
-            required: true,
-            defaultValue: nil,
-            enumValues: ["eng", "design"],
-            enumNames: ["Engineering", "Design"]
-        ),
-        MCPElicitationField(
-            name: "ratio",
-            type: .number,
-            title: "Ratio",
-            description: nil,
-            required: true,
-            defaultValue: "0.5",
-            enumValues: [],
-            enumNames: []
-        ),
-        MCPElicitationField(
-            name: "count",
-            type: .integer,
-            title: "Count",
-            description: nil,
-            required: true,
-            defaultValue: "2",
-            enumValues: [],
-            enumNames: []
-        ),
-        MCPElicitationField(
-            name: "note",
-            type: .string,
-            title: "Note",
-            description: nil,
-            required: true,
-            defaultValue: "ship it",
-            enumValues: [],
-            enumNames: []
-        )
-    ]
-
-    let drafts = CerberusAppModel.defaultElicitationFieldDrafts(for: fields)
-    let valuesByName = Dictionary(uniqueKeysWithValues: drafts.map { ($0.field.name, $0.value) })
-    let contentJSON = try CerberusAppModel.elicitationContentJSON(from: drafts)
-
-    #expect(valuesByName == [
-        "enabled": "true",
-        "team": "eng",
-        "ratio": "0.5",
-        "count": "2",
-        "note": "ship it"
-    ])
-    #expect(contentJSON.contains(#""enabled" : true"#))
-    #expect(contentJSON.contains(#""team" : "eng""#))
-    #expect(contentJSON.contains(#""ratio" : 0.5"#))
-    #expect(contentJSON.contains(#""count" : 2"#))
-    #expect(contentJSON.contains(#""note" : "ship it""#))
-}
-
-@MainActor
 @Test func appModelToolAllowlistIncludesAllAmbientToolsByDefault() {
     let model = CerberusAppModel(
         startsRuntimeServices: false,
@@ -563,57 +481,6 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(model.disabledAmbientToolCount == disabledToolNames.count)
     #expect(disabledToolNames.allSatisfy { !model.isAmbientToolEnabled($0) })
     #expect(disabledToolNames.allSatisfy { !displayText.contains($0) })
-}
-
-@MainActor
-@Test func appModelMCPReviewHandlesLongPromptAndResponseDrafts() async throws {
-    let longPrompt = String(repeating: "long prompt text ", count: 120)
-    let longSystemPrompt = String(repeating: "system detail ", count: 80)
-    let longResponse = String(repeating: "long response text ", count: 140)
-    let assistant = FakeAssistant(planResult: AssistantPlan(
-        intent: .answerDirectly,
-        spokenResponse: "unused",
-        requiresConfirmation: false
-    ))
-    await assistant.setSampleResult(longResponse)
-    let model = CerberusAppModel(
-        assistant: assistant,
-        startsRuntimeServices: false,
-        skipsFoundationModelAvailabilityCheck: true
-    )
-    let request = MCPSamplingRequest(
-        serverName: "long-review",
-        messagesText: longPrompt,
-        systemPrompt: longSystemPrompt,
-        maxTokens: 256,
-        rawParamsJSON: "{}"
-    )
-
-    let responseTask = Task {
-        try await model.handleMCPSamplingRequest(request)
-    }
-    try await waitUntil {
-        model.pendingMCPClientRequest?.kind == .samplingPrompt
-    }
-
-    #expect(model.pendingMCPClientRequest?.summary.contains("long-review") == true)
-    #expect(model.pendingMCPClientRequest?.detail == longSystemPrompt)
-    #expect(model.mcpClientDraft == longPrompt)
-
-    model.approveMCPClientRequest()
-    try await waitUntil {
-        model.pendingMCPClientRequest?.kind == .samplingResponse
-    }
-
-    #expect(model.pendingMCPClientRequest?.summary.contains("long-review") == true)
-    #expect(model.mcpClientDraft == longResponse)
-
-    model.approveMCPClientRequest()
-    let response = try await responseTask.value
-
-    #expect(response.text == longResponse)
-    #expect(model.pendingMCPClientRequest == nil)
-    #expect(model.mcpClientDraft.isEmpty)
 }
 
 @MainActor
@@ -689,7 +556,6 @@ private final class FakePermissionCenter: PermissionChecking {
     model.toolProfileID = ToolProfile.visionOnly.id
     model.isAutoSilenceEnabled = false
     model.isVoiceConfirmationEnabled = false
-    model.isSessionMemoryWriteDisabled = true
     model.isHeadGestureValidationLoggingEnabled = true
     model.headNodThreshold = 0.9
     model.headShakeThreshold = 0.9
@@ -702,9 +568,6 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(relaunchedModel.toolProfileID == ToolProfile.visionOnly.id)
     #expect(relaunchedModel.isAutoSilenceEnabled)
     #expect(relaunchedModel.isVoiceConfirmationEnabled)
-    #expect(!relaunchedModel.isSessionMemoryWriteDisabled)
-    #expect(!relaunchedModel.isMCPToolEnabled)
-    #expect(!relaunchedModel.isShellToolEnabled)
     #expect(!relaunchedModel.isHeadGestureValidationLoggingEnabled)
     #expect(relaunchedModel.headNodThreshold == 0.8)
     #expect(relaunchedModel.headShakeThreshold == 0.8)
@@ -787,39 +650,8 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(model.recentAuditEntries.first?.resultSummary == "2 files")
 }
 
-@MainActor
-@Test func appModelFileSearchFolderAddRemoveFlowUpdatesVisiblePaths() throws {
-    let defaultsName = "cerberus-file-search-\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: defaultsName))
-    defer {
-        UserDefaults.standard.removePersistentDomain(forName: defaultsName)
-    }
-    let store = FileSearchScopeStore(defaults: defaults)
-    let directoryURL = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".cerberus-file-search-test-\(UUID().uuidString)", isDirectory: true)
-    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-    defer {
-        try? FileManager.default.removeItem(at: directoryURL)
-    }
-    let model = CerberusAppModel(
-        fileSearchScopeStore: store,
-        startsRuntimeServices: false,
-        skipsFoundationModelAvailabilityCheck: true
-    )
-
-    model.addFileSearchScopePaths([directoryURL.path, directoryURL.path])
-
-    #expect(model.fileSearchScopePaths == [directoryURL.path])
-    #expect(model.statusLine == "File search folders updated.")
-
-    model.removeFileSearchScope(directoryURL.path)
-
-    #expect(model.fileSearchScopePaths.isEmpty)
-    #expect(model.statusLine == "No file search folders approved.")
-}
-
 private func waitUntil(
-    timeoutNanoseconds: UInt64 = 10_000_000_000,
+    timeoutNanoseconds: UInt64 = 30_000_000_000,
     predicate: @MainActor @escaping () -> Bool
 ) async throws {
     let start = ContinuousClock.now

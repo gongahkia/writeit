@@ -2,19 +2,13 @@ import Foundation
 
 public struct ToolProfileConfiguration: Equatable, Sendable {
     public let disabledAmbientToolNames: Set<String>
-    public let mcpEnabled: Bool
-    public let shellEnabled: Bool
     public let requiresConfirmationForAllTools: Bool
 
     public init(
         disabledAmbientToolNames: Set<String>,
-        mcpEnabled: Bool,
-        shellEnabled: Bool,
         requiresConfirmationForAllTools: Bool
     ) {
         self.disabledAmbientToolNames = disabledAmbientToolNames
-        self.mcpEnabled = mcpEnabled
-        self.shellEnabled = shellEnabled
         self.requiresConfirmationForAllTools = requiresConfirmationForAllTools
     }
 }
@@ -36,8 +30,6 @@ public enum ToolProfile: String, CaseIterable, Identifiable, Sendable {
         case .visionOnly:
             ToolProfileConfiguration(
                 disabledAmbientToolNames: [],
-                mcpEnabled: false,
-                shellEnabled: false,
                 requiresConfirmationForAllTools: false
             )
         }

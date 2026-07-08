@@ -59,10 +59,6 @@ private actor AppearanceScreenshotAssistant: AppAssistanting {
         "ready"
     }
 
-    func sampleForMCP(messagesText: String, systemPrompt: String?) async throws -> String {
-        "sample"
-    }
-
     func summarize(toolResult: ToolResult, for request: String) async throws -> String {
         "done"
     }
