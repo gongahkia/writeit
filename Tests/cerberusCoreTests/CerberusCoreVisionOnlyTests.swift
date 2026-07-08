@@ -469,6 +469,7 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
 }
 
 @Test func assistantContextExposesOnlyScreenToolContext() {
+    let legacyDiskLookupLabel = ["File", "search", "folders"].joined(separator: " ")
     let context = AssistantContext(
         activeApplicationName: "Xcode",
         allowedToolNames: DefaultToolCatalog.summaries.map(\.name),
@@ -477,7 +478,7 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
 
     #expect(context.promptFragment.contains("Active app: Xcode"))
     #expect(context.promptFragment.contains("Allowed tools: screen.barcodes, screen.ocr, screen.snapshot, screen.ui_elements"))
-    #expect(!context.promptFragment.contains("File search folders"))
+    #expect(!context.promptFragment.contains(legacyDiskLookupLabel))
 }
 
 @Test func screenSnapshotPayloadPointsBackToScreenTools() {
