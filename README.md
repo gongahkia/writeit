@@ -77,6 +77,7 @@ See `Docs/consent-and-misuse-policy.md` for interview, exam, meeting, and third-
 See `Docs/real-time-assistant-market-map.md` for the dated Cluely-style competitor map and product recommendation.
 See `Docs/meeting-notetaker-market-map.md` for the dated safer meeting assistant competitor map.
 See `Docs/local-capture-personal-memory-market-map.md` for the dated local capture and personal memory competitor map.
+See `Docs/voice-dictation-market-map.md` for the dated voice-first macOS dictation competitor map.
 See `Docs/airpods.md` for AirPods motion troubleshooting.
 See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, and screen capture recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
