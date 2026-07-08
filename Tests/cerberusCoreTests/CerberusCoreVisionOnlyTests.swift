@@ -22,6 +22,33 @@ private struct FakeLocalVLMProvider: LocalVLMProviding {
     }
 }
 
+private actor PromptRecorder {
+    private var prompts: [String] = []
+
+    func record(_ prompt: String) {
+        prompts.append(prompt)
+    }
+
+    func lastPrompt() -> String? {
+        prompts.last
+    }
+}
+
+private struct RecordingPromptLocalVLMProvider: LocalVLMProviding {
+    let providerName = "recording-vlm"
+    let modelID = "qwen3-vl-test"
+    let recorder: PromptRecorder
+
+    func answer(
+        imageURL: URL,
+        prompt: String,
+        options: LocalVLMRequestOptions
+    ) async throws -> LocalVLMResponse {
+        await recorder.record(prompt)
+        return LocalVLMResponse(text: "I can describe the UI, but I cannot operate it.")
+    }
+}
+
 private actor RecordingHTTPTransport: LocalVLMHTTPTransport {
     struct Request: Sendable {
         let body: Data
@@ -150,7 +177,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
 
 @Test func goldenRequestFixturesStayScreenOnly() throws {
     let fixtures = try loadGoldenRequestFixtures()
-    let screenToolNames = Set(DefaultToolCatalog.summaries.map(\.name))
+    let screenToolNames = Set(DefaultToolCatalog.makeTools(localVLMProvider: FakeLocalVLMProvider()).map(\.name))
 
     #expect(!fixtures.isEmpty)
     #expect(fixtures.allSatisfy { Set($0.allowedToolNames).isSubset(of: screenToolNames) })
@@ -179,7 +206,9 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "refuse-memory-read",
         "refuse-mcp",
         "refuse-mcp-list",
-        "refuse-mcp-prompt"
+        "refuse-mcp-prompt",
+        "refuse-vlm-click",
+        "refuse-vlm-operate-ui"
     ]))
     #expect(fixtures
         .filter { $0.expectedIntent == "refuseUnsafeRequest" }
@@ -202,6 +231,8 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(LocalVLMPreset.miniCPMV46.licenseNote.contains("2026-07-08"))
     #expect(LocalVLMPreset.miniCPMV46.licenseNote.contains("https://huggingface.co/openbmb/MiniCPM-V-4.6"))
     #expect(LocalVLMPreset.miniCPMV46.runtimeNotes.contains("Config-only preset; no weights bundled."))
+    #expect(LocalVLMPreset.qwen3VL.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.qwen3VL.runtimeNotes.contains("Supported sizes checked: 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B."))
     #expect(LocalVLMPreset.qwen3VL.safetyNote.lowercased().contains("passive"))
 }
 
@@ -807,6 +838,38 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(result.metadata["scope"] == "active_window")
     #expect(result.metadata["maxTokens"] == "24")
     #expect(result.untrustedPayload.contains("scope: active_window"))
+}
+
+@Test func screenDescribeWrapsGUIControlRequestsAsPassiveObservation() async throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-passive-test-\(UUID().uuidString)", isDirectory: true)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    let image = try #require(TestImageFactory.makeTestImage())
+    let recorder = PromptRecorder()
+    let tool = ScreenDescribeTool(
+        provider: RecordingPromptLocalVLMProvider(recorder: recorder),
+        options: LocalVLMRequestOptions(maxTokens: 24, timeoutSeconds: 2),
+        outputDirectoryURL: directoryURL,
+        cachePolicy: ScreenSnapshotCachePolicy(maximumFileCount: 2, maximumAge: 60),
+        hasScreenCaptureAccess: { true },
+        captureImage: { scope in
+            CapturedScreenImage(image: image, scope: scope, sourceDescription: "test \(scope.rawValue)")
+        }
+    )
+
+    let result = try await tool.run(arguments: ScreenDescribeTool.Arguments(
+        prompt: "click the button and operate this UI"
+    ))
+    let prompt = try #require(await recorder.lastPrompt())
+
+    #expect(prompt.contains("Passive screen description only."))
+    #expect(prompt.contains("Do not click, type, navigate, operate apps"))
+    #expect(prompt.contains("If the user asks for GUI-agent behavior"))
+    #expect(prompt.contains("click the button and operate this UI"))
+    #expect(result.spokenSummary == "I can describe the UI, but I cannot operate it.")
+    #expect(result.untrustedPayload.contains("question: click the button and operate this UI"))
 }
 
 @Test func toolProfileIsVisionOnly() {

@@ -82,7 +82,7 @@ public struct ScreenDescribeTool: AssistantTool {
         let response = try await LocalVLMProviderExecutor.answer(
             using: provider,
             imageURL: fileURL,
-            prompt: prompt,
+            prompt: Self.passivePrompt(for: prompt),
             options: options
         )
         let answer = ScreenTextRedactor.redact(response.text)
@@ -110,6 +110,18 @@ public struct ScreenDescribeTool: AssistantTool {
                 "modelID": provider.modelID
             ].merging(response.metadata) { current, _ in current }
         )
+    }
+
+    static func passivePrompt(for prompt: String) -> String {
+        """
+        Passive screen description only.
+        Observe the supplied screenshot and answer the user's visual question.
+        Do not click, type, navigate, operate apps, invoke tools, plan GUI actions, or provide step-by-step computer-control instructions.
+        If the user asks for GUI-agent behavior, refuse that action briefly and provide only an observe-only description of relevant visible UI.
+
+        User question:
+        \(prompt)
+        """
     }
 
     static func payload(

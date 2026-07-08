@@ -9,7 +9,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 ## Candidate Models
 
 - MiniCPM-V 4.6: best first local candidate for a Mac-local VLM path. Source checked 2026-07-08: Apache-2.0 on Hugging Face, image/video/text, edge/mobile oriented, and OpenBMB reports vLLM, SGLang, llama.cpp, and Ollama support.
-- Qwen3-VL: strongest open-weight family to evaluate for quality. Apache-2.0 repo; 2B/4B/8B/32B and larger MoE releases exist. Likely heavier than MiniCPM for local Mac latency.
+- Qwen3-VL: strongest open-weight family to evaluate for quality. Source checked 2026-07-08: Apache-2.0 GitHub repo with 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B releases. GUI-agent capabilities must stay disabled; passive VQA only.
 - Qwen2.5-VL 7B: stable Apache-2.0 fallback with strong OCR/document/layout reputation and broad runtime support.
 - SmolVLM: Apache-2.0, small, fast, memory-efficient 2B-class option. Good fallback for low-memory machines, weaker than larger Qwen/InternVL families.
 - Gemma 4: Apache-2.0, multimodal open-weights family with edge sizes. Evaluate once local runtime support is mature.
@@ -40,6 +40,12 @@ Runtime variants to evaluate:
 - vLLM/SGLang: use `openai_compatible`; non-local GPU servers require `allowNonLocalEndpoint: true` and send screenshots off-Mac.
 
 Benchmark checklist: UI screenshot, dense text, chart, code editor, QR/barcode, low-light image. Template: `Fixtures/VLM/benchmark-template.json`.
+
+## Qwen3-VL Passive Preset
+
+Preset id: `qwen3-vl`. Source/license checked 2026-07-08: https://github.com/QwenLM/Qwen3-VL and https://huggingface.co/collections/Qwen/qwen3-vl. Supported release sizes observed in upstream notes: 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B.
+
+Qwen3-VL upstream documents visual-agent capabilities for GUI operation. Cerberus must not expose those behaviors. Use `screen.describe` only for passive screen VQA, OCR-style explanation, visible state summaries, and uncertainty reporting. Do not use it for clicking, typing, app control, navigation, web operation, mobile/desktop agent tasks, or action plans. `ScreenDescribeTool` wraps every local VLM prompt with observe-only instructions before calling the provider.
 
 ## MLX-VLM Setup
 

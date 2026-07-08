@@ -48,10 +48,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let qwen3VL = LocalVLMPreset(
         id: "qwen3-vl",
         displayName: "Qwen3-VL",
-        licenseNote: "Apache-2.0 repo; verify selected checkpoint.",
+        licenseNote: "Apache-2.0; checked 2026-07-08 at https://github.com/QwenLM/Qwen3-VL.",
         status: .recommended,
         safetyNote: "GUI-agent capabilities must stay disabled; passive VQA only.",
-        runtimeNotes: ["Evaluate quality first.", "Expect heavier local latency than small models."]
+        runtimeNotes: [
+            "Supported sizes checked: 2B, 4B, 8B, 30B-A3B, 32B, and 235B-A22B.",
+            "Upstream documents visual-agent capabilities; Cerberus must wrap prompts as observe-only.",
+            "Expect heavier local latency than MiniCPM-V 4.6."
+        ]
     )
 
     public static let qwen25VL = LocalVLMPreset(
