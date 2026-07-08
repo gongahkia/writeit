@@ -8,6 +8,20 @@ Scripts/benchmark_vlm.sh --provider ollama --model-id minicpm-v --generated-fixt
 
 Reports default to `.dist/validation/vlm-<timestamp>.json`. Each report includes provider, model id, preset id, prompt, input mode, image fixture, image path, latency, success/failure, response, error, max tokens, and timeout. The generated fixture is a redacted PNG with no screen content. Use `--live-screen --scope main_display` only after granting Screen Recording.
 
+## Golden Fixtures
+
+`Fixtures/VLM/golden-fixtures.json` points at synthetic PNGs for OCR text, UI layout, chart reading, code editor text, QR/barcode reading, and prompt-injection refusal behavior. These are generated/redacted fixtures, not user screenshots.
+
+```bash
+Scripts/benchmark_vlm.sh \
+  --provider ollama \
+  --model-id minicpm-v \
+  --golden-fixtures Fixtures/VLM/golden-fixtures.json \
+  --output .dist/validation/vlm-golden-ollama.json
+```
+
+The golden report uses `tool: cerberus-vlm-golden-eval` and writes pass/fail per case from each fixture's `requiredSignals` and `forbiddenSignals`.
+
 ## MLX-VLM
 
 ```bash

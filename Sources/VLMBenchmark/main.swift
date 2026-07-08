@@ -11,12 +11,22 @@ struct VLMBenchmarkCommand {
         }
 
         let options = try Options(arguments: arguments)
-        let input = try await options.resolveImageInput()
         let configuration = try options.localVLMConfiguration()
         guard let provider = try LocalVLMProviderFactory.provider(for: configuration) else {
             throw ToolExecutionError.invalidArguments("Local VLM benchmark requires an enabled provider config or --provider.")
         }
 
+        if let goldenFixturesURL = options.goldenFixturesURL {
+            try await runGoldenFixtures(
+                at: goldenFixturesURL,
+                provider: provider,
+                configuration: configuration,
+                outputURL: options.outputURL
+            )
+            return
+        }
+
+        let input = try await options.resolveImageInput()
         print("provider: \(provider.providerName)")
         print("model: \(provider.modelID)")
         print("preset: \(configuration.presetID)")
@@ -45,6 +55,59 @@ struct VLMBenchmarkCommand {
     }
 }
 
+private func runGoldenFixtures(
+    at fixturesURL: URL,
+    provider: any LocalVLMProviding,
+    configuration: LocalVLMConfiguration,
+    outputURL: URL
+) async throws {
+    let fixtures = try VLMGoldenFixtures.load(from: fixturesURL)
+    let startedAt = Date()
+    var results: [VLMGoldenFixtureResult] = []
+    for fixture in fixtures {
+        let imageURL = fixtureImageURL(fixture.imagePath, fixturesURL: fixturesURL)
+        let report = await VLMBenchmarkRunner.run(
+            using: provider,
+            presetID: configuration.presetID,
+            prompt: fixture.prompt,
+            imageURL: imageURL,
+            imageFixture: fixture.imagePath,
+            inputMode: .fixture,
+            options: configuration.requestOptions
+        )
+        let result = VLMGoldenFixtureResult(fixture: fixture, report: report)
+        results.append(result)
+        print(result.passed ? "PASS \(fixture.id)" : "FAIL \(fixture.id)")
+        if !result.missingRequiredSignals.isEmpty {
+            print("missing: \(result.missingRequiredSignals.joined(separator: ", "))")
+        }
+        if !result.presentForbiddenSignals.isEmpty {
+            print("forbidden: \(result.presentForbiddenSignals.joined(separator: ", "))")
+        }
+    }
+
+    let evaluationReport = VLMGoldenEvaluationReport(
+        startedAt: startedAt,
+        completedAt: Date(),
+        provider: provider.providerName,
+        modelID: provider.modelID,
+        presetID: configuration.presetID,
+        results: results
+    )
+    try BenchmarkReportWriter.write(evaluationReport, to: outputURL)
+    print("golden.total: \(evaluationReport.totalCount)")
+    print("golden.passed: \(evaluationReport.passedCount)")
+    print("wrote report: \(outputURL.path)")
+}
+
+private func fixtureImageURL(_ imagePath: String, fixturesURL: URL) -> URL {
+    let expanded = (imagePath as NSString).expandingTildeInPath
+    if (expanded as NSString).isAbsolutePath {
+        return URL(fileURLWithPath: expanded)
+    }
+    return fixturesURL.deletingLastPathComponent().appendingPathComponent(imagePath)
+}
+
 private struct Options {
     let prompt: String
     let outputURL: URL
@@ -62,6 +125,7 @@ private struct Options {
     let liveScreen: Bool
     let scope: String?
     let fixtureDirectoryURL: URL
+    let goldenFixturesURL: URL?
 
     init(arguments: [String]) throws {
         var prompt = "Describe the visible UI, primary text, and any uncertainty."
@@ -81,6 +145,7 @@ private struct Options {
         var liveScreen = false
         var scope: String?
         var fixtureDirectoryURL = Self.fileURL(".dist/validation/vlm-fixtures")
+        var goldenFixturesURL: URL?
         var iterator = arguments.makeIterator()
 
         while let argument = iterator.next() {
@@ -161,6 +226,11 @@ private struct Options {
                     throw ToolExecutionError.invalidArguments("--fixture-dir requires a path.")
                 }
                 fixtureDirectoryURL = Self.fileURL(value)
+            case "--golden-fixtures":
+                guard let value = iterator.next() else {
+                    throw ToolExecutionError.invalidArguments("--golden-fixtures requires a path.")
+                }
+                goldenFixturesURL = Self.fileURL(value)
             default:
                 throw ToolExecutionError.invalidArguments("Unknown argument: \(argument)")
             }
@@ -189,6 +259,7 @@ private struct Options {
         self.liveScreen = liveScreen
         self.scope = scope
         self.fixtureDirectoryURL = fixtureDirectoryURL
+        self.goldenFixturesURL = goldenFixturesURL
     }
 
     func localVLMConfiguration() throws -> LocalVLMConfiguration {
@@ -231,10 +302,11 @@ private struct Options {
 
     static func printUsage() {
         print("""
-        usage: cerberus-vlm-benchmark [--config local-vlm.json] [--provider mlx_vlm|ollama|llama_cpp|openai_compatible] [--model-id id] [--prompt text] [--image file.png|--generated-fixture|--live-screen] [--output .dist/validation/vlm.json]
+        usage: cerberus-vlm-benchmark [--config local-vlm.json] [--provider mlx_vlm|ollama|llama_cpp|openai_compatible] [--model-id id] [--prompt text] [--image file.png|--generated-fixture|--live-screen] [--golden-fixtures Fixtures/VLM/golden-fixtures.json] [--output .dist/validation/vlm.json]
 
         Writes a JSON report with provider, model id, prompt, image fixture, latency, success/failure, and response.
         Defaults to a generated redacted PNG and .dist/validation/vlm-<timestamp>.json.
+        --golden-fixtures runs offline fixture images and writes pass/fail per case.
         Use --arg repeatedly for mlx_vlm subprocess arguments; placeholders match local-vlm.json: {model}, {image}, {prompt}, {maxTokens}, {timeoutSeconds}.
         """)
     }

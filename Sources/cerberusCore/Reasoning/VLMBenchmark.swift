@@ -67,6 +67,130 @@ public struct VLMBenchmarkReport: Codable, Equatable, Sendable {
     }
 }
 
+public struct VLMGoldenFixture: Codable, Equatable, Sendable {
+    public let id: String
+    public let imagePath: String
+    public let prompt: String
+    public let answerRubric: String
+    public let requiredSignals: [String]
+    public let forbiddenSignals: [String]
+
+    public init(
+        id: String,
+        imagePath: String,
+        prompt: String,
+        answerRubric: String,
+        requiredSignals: [String],
+        forbiddenSignals: [String] = []
+    ) {
+        self.id = id
+        self.imagePath = imagePath
+        self.prompt = prompt
+        self.answerRubric = answerRubric
+        self.requiredSignals = requiredSignals
+        self.forbiddenSignals = forbiddenSignals
+    }
+}
+
+public struct VLMGoldenFixtureResult: Codable, Equatable, Sendable {
+    public let id: String
+    public let imagePath: String
+    public let prompt: String
+    public let passed: Bool
+    public let providerSucceeded: Bool
+    public let latencySeconds: Double
+    public let response: String
+    public let error: String?
+    public let matchedRequiredSignals: [String]
+    public let missingRequiredSignals: [String]
+    public let presentForbiddenSignals: [String]
+
+    public init(fixture: VLMGoldenFixture, report: VLMBenchmarkReport) {
+        let response = report.response.lowercased()
+        let matched = fixture.requiredSignals.filter { response.contains($0.lowercased()) }
+        let missing = fixture.requiredSignals.filter { !response.contains($0.lowercased()) }
+        let presentForbidden = fixture.forbiddenSignals.filter { response.contains($0.lowercased()) }
+
+        id = fixture.id
+        imagePath = fixture.imagePath
+        prompt = fixture.prompt
+        providerSucceeded = report.success
+        latencySeconds = report.latencySeconds
+        self.response = report.response
+        error = report.error
+        matchedRequiredSignals = matched
+        missingRequiredSignals = missing
+        presentForbiddenSignals = presentForbidden
+        passed = report.success && missing.isEmpty && presentForbidden.isEmpty
+    }
+}
+
+public struct VLMGoldenEvaluationReport: Codable, Equatable, Sendable {
+    public let tool: String
+    public let startedAt: Date
+    public let completedAt: Date
+    public let provider: String
+    public let modelID: String
+    public let presetID: String
+    public let totalCount: Int
+    public let passedCount: Int
+    public let results: [VLMGoldenFixtureResult]
+
+    public init(
+        tool: String = "cerberus-vlm-golden-eval",
+        startedAt: Date,
+        completedAt: Date,
+        provider: String,
+        modelID: String,
+        presetID: String,
+        results: [VLMGoldenFixtureResult]
+    ) {
+        self.tool = tool
+        self.startedAt = startedAt
+        self.completedAt = completedAt
+        self.provider = provider
+        self.modelID = modelID
+        self.presetID = presetID
+        totalCount = results.count
+        passedCount = results.filter(\.passed).count
+        self.results = results
+    }
+}
+
+public enum VLMGoldenFixtures {
+    public static func load(from fileURL: URL) throws -> [VLMGoldenFixture] {
+        let data = try Data(contentsOf: fileURL)
+        let fixtures = try JSONDecoder().decode([VLMGoldenFixture].self, from: data)
+        try validate(fixtures)
+        return fixtures
+    }
+
+    public static func validate(_ fixtures: [VLMGoldenFixture]) throws {
+        guard !fixtures.isEmpty else {
+            throw ToolExecutionError.invalidArguments("VLM golden fixtures must not be empty.")
+        }
+        var ids = Set<String>()
+        for fixture in fixtures {
+            let trimmedID = fixture.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedID.isEmpty else {
+                throw ToolExecutionError.invalidArguments("VLM golden fixture id is required.")
+            }
+            guard ids.insert(trimmedID).inserted else {
+                throw ToolExecutionError.invalidArguments("Duplicate VLM golden fixture id: \(trimmedID)")
+            }
+            guard !fixture.imagePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ToolExecutionError.invalidArguments("VLM golden fixture \(trimmedID) requires imagePath.")
+            }
+            guard !fixture.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw ToolExecutionError.invalidArguments("VLM golden fixture \(trimmedID) requires prompt.")
+            }
+            guard !fixture.requiredSignals.isEmpty else {
+                throw ToolExecutionError.invalidArguments("VLM golden fixture \(trimmedID) requires requiredSignals.")
+            }
+        }
+    }
+}
+
 public enum VLMBenchmarkRunner {
     public static func run(
         using provider: any LocalVLMProviding,

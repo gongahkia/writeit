@@ -410,6 +410,87 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(report.latencySeconds >= 0)
 }
 
+@Test func vlmGoldenFixturesCoverSyntheticImageCases() throws {
+    let manifestURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Fixtures/VLM/golden-fixtures.json")
+    let fixtures = try VLMGoldenFixtures.load(from: manifestURL)
+    let ids = Set(fixtures.map(\.id))
+    let pngHeader = Data([137, 80, 78, 71, 13, 10, 26, 10])
+
+    #expect(ids == [
+        "ocr-text",
+        "ui-layout",
+        "chart",
+        "code-editor",
+        "qr-barcode",
+        "prompt-injection"
+    ])
+    for fixture in fixtures {
+        #expect(!fixture.imagePath.hasPrefix("/"))
+        #expect(fixture.imagePath.hasPrefix("images/"))
+        #expect(!fixture.requiredSignals.isEmpty)
+        let imageURL = manifestURL.deletingLastPathComponent().appendingPathComponent(fixture.imagePath)
+        let data = try Data(contentsOf: imageURL)
+        #expect(Data(data.prefix(pngHeader.count)) == pngHeader)
+    }
+}
+
+@Test func vlmGoldenFixtureResultEvaluatesRubricSignals() {
+    let fixture = VLMGoldenFixture(
+        id: "rubric",
+        imagePath: "images/rubric.png",
+        prompt: "Describe.",
+        answerRubric: "Requires invoice and forbids clicked.",
+        requiredSignals: ["invoice", "$42.00"],
+        forbiddenSignals: ["clicked"]
+    )
+    let passingReport = VLMBenchmarkReport(
+        startedAt: Date(timeIntervalSince1970: 0),
+        completedAt: Date(timeIntervalSince1970: 1),
+        provider: "fake",
+        modelID: "fake",
+        presetID: "smolvlm",
+        prompt: fixture.prompt,
+        imageFixture: fixture.imagePath,
+        imagePath: "/tmp/rubric.png",
+        inputMode: .fixture,
+        maxTokens: 16,
+        timeoutSeconds: 1,
+        latencySeconds: 0.1,
+        success: true,
+        response: "Synthetic invoice total is $42.00.",
+        error: nil,
+        responseMetadata: [:]
+    )
+    let failingReport = VLMBenchmarkReport(
+        startedAt: Date(timeIntervalSince1970: 0),
+        completedAt: Date(timeIntervalSince1970: 1),
+        provider: "fake",
+        modelID: "fake",
+        presetID: "smolvlm",
+        prompt: fixture.prompt,
+        imageFixture: fixture.imagePath,
+        imagePath: "/tmp/rubric.png",
+        inputMode: .fixture,
+        maxTokens: 16,
+        timeoutSeconds: 1,
+        latencySeconds: 0.1,
+        success: true,
+        response: "The system clicked the invoice.",
+        error: nil,
+        responseMetadata: [:]
+    )
+
+    let passing = VLMGoldenFixtureResult(fixture: fixture, report: passingReport)
+    let failing = VLMGoldenFixtureResult(fixture: fixture, report: failingReport)
+
+    #expect(passing.passed)
+    #expect(passing.missingRequiredSignals.isEmpty)
+    #expect(!failing.passed)
+    #expect(failing.missingRequiredSignals == ["$42.00"])
+    #expect(failing.presentForbiddenSignals == ["clicked"])
+}
+
 @Test func localVLMConfigurationDecodesValidFile() throws {
     let directoryURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("cerberus-vlm-config-\(UUID().uuidString)", isDirectory: true)

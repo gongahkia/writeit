@@ -39,7 +39,7 @@ Runtime variants to evaluate:
 - llama.cpp: use a vision-capable GGUF plus required multimodal projector/options; keep endpoint on `127.0.0.1:8080`.
 - vLLM/SGLang: use `openai_compatible`; non-local GPU servers require `allowNonLocalEndpoint: true` and send screenshots off-Mac.
 
-Benchmark checklist: UI screenshot, dense text, chart, code editor, QR/barcode, low-light image. Template: `Fixtures/VLM/benchmark-template.json`. CLI usage: `Docs/vlm-benchmark.md`.
+Benchmark checklist: UI screenshot, dense text, chart, code editor, QR/barcode, low-light image. Template: `Fixtures/VLM/benchmark-template.json`. Golden synthetic image fixtures: `Fixtures/VLM/golden-fixtures.json`. CLI usage: `Docs/vlm-benchmark.md`.
 
 ## Qwen3-VL Passive Preset
 
