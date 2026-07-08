@@ -470,7 +470,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         providerName: "MLX-VLM",
         modelID: "sub-model",
         executableURL: URL(fileURLWithPath: "/bin/echo"),
-        arguments: ["answer", "{model}", "{maxTokens}"]
+        arguments: ["answer", "{model}", "{maxTokens}", "{image}", "{prompt}"]
     )
 
     let response = try await provider.answer(
@@ -479,7 +479,24 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 2)
     )
 
-    #expect(response.text == "answer sub-model 7")
+    #expect(response.text == "answer sub-model 7 /tmp/no-image.png describe")
+}
+
+@Test func localVLMSubprocessProviderRequiresImageAndPromptTemplates() async {
+    let provider = LocalVLMSubprocessProvider(
+        providerName: "MLX-VLM",
+        modelID: "sub-model",
+        executableURL: URL(fileURLWithPath: "/bin/echo"),
+        arguments: ["answer", "{model}"]
+    )
+
+    await #expect(throws: ToolExecutionError.self) {
+        try await provider.answer(
+            imageURL: URL(fileURLWithPath: "/tmp/no-image.png"),
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 2)
+        )
+    }
 }
 
 @Test func localVLMSubprocessProviderReportsFailure() async {
@@ -487,7 +504,7 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         providerName: "MLX-VLM",
         modelID: "sub-model",
         executableURL: URL(fileURLWithPath: "/bin/sh"),
-        arguments: ["-c", "echo failed >&2; exit 3"]
+        arguments: ["-c", "echo failed >&2; exit 3", "{image}", "{prompt}"]
     )
 
     await #expect(throws: ToolExecutionError.self) {
@@ -503,8 +520,8 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     let provider = LocalVLMSubprocessProvider(
         providerName: "MLX-VLM",
         modelID: "sub-model",
-        executableURL: URL(fileURLWithPath: "/bin/sleep"),
-        arguments: ["2"]
+        executableURL: URL(fileURLWithPath: "/bin/sh"),
+        arguments: ["-c", "sleep 2", "{image}", "{prompt}"]
     )
 
     await #expect(throws: ToolExecutionError.self) {
@@ -514,6 +531,34 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
             options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 1)
         )
     }
+}
+
+@Test func localVLMSubprocessProviderReportsCancellation() async {
+    let provider = LocalVLMSubprocessProvider(
+        providerName: "MLX-VLM",
+        modelID: "sub-model",
+        executableURL: URL(fileURLWithPath: "/bin/sh"),
+        arguments: ["-c", "sleep 5", "{image}", "{prompt}"]
+    )
+    let task = Task {
+        try await provider.answer(
+            imageURL: URL(fileURLWithPath: "/tmp/no-image.png"),
+            prompt: "describe",
+            options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 45)
+        )
+    }
+    task.cancel()
+    var caughtCancellation = false
+
+    do {
+        _ = try await task.value
+    } catch LocalVLMProviderError.cancelled {
+        caughtCancellation = true
+    } catch is CancellationError {
+        caughtCancellation = true
+    } catch {}
+
+    #expect(caughtCancellation)
 }
 
 @Test func localVLMCatalogRegistrationIsOptional() {

@@ -29,6 +29,12 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 
 `screen.describe` is disabled unless `~/Library/Application Support/cerberus/local-vlm.json` exists and validates. HTTP providers are localhost-only by default. If `allowNonLocalEndpoint` is true, screenshots and prompts are sent to that configured host; Cerberus does not download or install models automatically.
 
+## MLX-VLM Setup
+
+MLX-VLM is user-installed and user-updated. Create a separate Python environment, install `mlx-vlm`, verify the model from the shell, then point `local-vlm.json` at that interpreter or wrapper script. Upstream usage documents both `python -m mlx_vlm.generate ... --image <path>` and `python -m mlx_vlm.server`; see https://github.com/Blaizzy/mlx-vlm/blob/main/docs/usage.md.
+
+Cerberus passes only the screenshot file path, prompt, model id, token limit, and timeout through configured argument placeholders. The subprocess provider requires `{image}` and `{prompt}` placeholders so screenshots are explicit inputs. Server mode must remain localhost unless `allowNonLocalEndpoint` is explicitly enabled.
+
 Ollama example:
 
 ```json

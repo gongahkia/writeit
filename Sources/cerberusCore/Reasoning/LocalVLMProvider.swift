@@ -222,36 +222,54 @@ public struct LocalVLMSubprocessProvider: LocalVLMProviding {
         prompt: String,
         options: LocalVLMRequestOptions
     ) async throws -> LocalVLMResponse {
-        try await Task.detached(priority: .userInitiated) {
-            try self.runSubprocess(imageURL: imageURL, prompt: prompt, options: options)
-        }.value
+        let box = LocalVLMProcessBox()
+        return try await withTaskCancellationHandler {
+            guard !Task.isCancelled else {
+                throw LocalVLMProviderError.cancelled
+            }
+            let task = Task.detached(priority: .userInitiated) {
+                try self.runSubprocess(imageURL: imageURL, prompt: prompt, options: options, box: box)
+            }
+            do {
+                let response = try await task.value
+                guard !Task.isCancelled else {
+                    throw LocalVLMProviderError.cancelled
+                }
+                return response
+            } catch {
+                if Task.isCancelled {
+                    throw LocalVLMProviderError.cancelled
+                }
+                throw error
+            }
+        } onCancel: {
+            box.terminate()
+        }
     }
 
     private func runSubprocess(
         imageURL: URL,
         prompt: String,
-        options: LocalVLMRequestOptions
+        options: LocalVLMRequestOptions,
+        box: LocalVLMProcessBox
     ) throws -> LocalVLMResponse {
+        try validateArgumentTemplates()
         let resolvedArguments = substitutedArguments(
             imageURL: imageURL,
             prompt: prompt,
             options: options
         )
-        guard !resolvedArguments.isEmpty else {
-            throw ToolExecutionError.invalidArguments("Local VLM subprocess arguments must include {image} and {prompt} placeholders.")
-        }
-
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = resolvedArguments
 
         let stdout = Pipe()
         let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
+        box.configure(
+            executableURL: executableURL,
+            arguments: resolvedArguments,
+            standardOutput: stdout,
+            standardError: stderr
+        )
 
-        try process.run()
-        let box = LocalVLMProcessBox(process)
+        try box.run()
         let group = DispatchGroup()
         group.enter()
         DispatchQueue.global(qos: .userInitiated).async {
@@ -303,17 +321,52 @@ public struct LocalVLMSubprocessProvider: LocalVLMProviding {
             }
         }
     }
+
+    private func validateArgumentTemplates() throws {
+        let template = arguments.joined(separator: "\u{0}")
+        guard template.contains("{image}"), template.contains("{prompt}") else {
+            throw ToolExecutionError.invalidArguments("Local VLM subprocess arguments must include {image} and {prompt} placeholders.")
+        }
+    }
 }
 
 private final class LocalVLMProcessBox: @unchecked Sendable {
-    private let process: Process
+    private let process = Process()
+    private let lock = NSLock()
+    private var isCancelled = false
 
-    init(_ process: Process) {
-        self.process = process
-    }
+    init() {}
 
     var terminationStatus: Int32 {
         process.terminationStatus
+    }
+
+    func configure(
+        executableURL: URL,
+        arguments: [String],
+        standardOutput: Pipe,
+        standardError: Pipe
+    ) {
+        process.executableURL = executableURL
+        process.arguments = arguments
+        process.standardOutput = standardOutput
+        process.standardError = standardError
+    }
+
+    func run() throws {
+        lock.lock()
+        let cancelled = isCancelled
+        lock.unlock()
+        guard !cancelled else {
+            throw LocalVLMProviderError.cancelled
+        }
+        try process.run()
+        lock.lock()
+        let shouldTerminate = isCancelled && process.isRunning
+        lock.unlock()
+        if shouldTerminate {
+            process.terminate()
+        }
     }
 
     func waitUntilExit() {
@@ -321,6 +374,12 @@ private final class LocalVLMProcessBox: @unchecked Sendable {
     }
 
     func terminate() {
-        process.terminate()
+        lock.lock()
+        isCancelled = true
+        let running = process.isRunning
+        lock.unlock()
+        if running {
+            process.terminate()
+        }
     }
 }
