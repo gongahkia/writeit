@@ -41,6 +41,10 @@ let package = Package(
             name: "cerberus-model-benchmark",
             targets: ["ModelBenchmark"]
         ),
+        .executable(
+            name: "cerberus-vlm-benchmark",
+            targets: ["VLMBenchmark"]
+        ),
         .library(
             name: "CerberusCore",
             targets: ["cerberusCore"]
@@ -162,6 +166,21 @@ let package = Package(
             ],
             linkerSettings: [
                 .linkedFramework("FoundationModels")
+            ]
+        ),
+        .executableTarget(
+            name: "VLMBenchmark",
+            dependencies: ["cerberusCore"],
+            path: "Sources/VLMBenchmark",
+            swiftSettings: [
+                .enableUpcomingFeature("ExistentialAny")
+            ],
+            linkerSettings: [
+                .linkedFramework("CoreGraphics"),
+                .linkedFramework("FoundationModels"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("ScreenCaptureKit"),
+                .linkedFramework("UniformTypeIdentifiers")
             ]
         ),
         .testTarget(

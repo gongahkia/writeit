@@ -348,6 +348,68 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(configuration.statusLine == "OpenAI-compatible: pixtral-12b-2409 (baseline only)")
 }
 
+@Test func vlmBenchmarkReportEncodingIncludesRequiredFields() throws {
+    let report = VLMBenchmarkReport(
+        startedAt: Date(timeIntervalSince1970: 0),
+        completedAt: Date(timeIntervalSince1970: 1),
+        provider: "Ollama",
+        modelID: "minicpm-v",
+        presetID: "minicpm-v-4.6",
+        prompt: "Describe the fixture.",
+        imageFixture: "vlm-redacted-fixture.png",
+        imagePath: "/tmp/vlm-redacted-fixture.png",
+        inputMode: .generatedRedacted,
+        maxTokens: 9,
+        timeoutSeconds: 4,
+        latencySeconds: 0.25,
+        success: true,
+        response: "A test fixture.",
+        error: nil,
+        responseMetadata: ["provider": "Ollama"]
+    )
+    let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-report-\(UUID().uuidString)")
+        .appendingPathComponent("vlm.json")
+
+    try BenchmarkReportWriter.write(report, to: fileURL)
+    let json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any])
+
+    #expect(json["tool"] as? String == "cerberus-vlm-benchmark")
+    #expect(json["provider"] as? String == "Ollama")
+    #expect(json["modelID"] as? String == "minicpm-v")
+    #expect(json["prompt"] as? String == "Describe the fixture.")
+    #expect(json["imageFixture"] as? String == "vlm-redacted-fixture.png")
+    #expect(json["latencySeconds"] as? Double == 0.25)
+    #expect(json["success"] as? Bool == true)
+    #expect(json["response"] as? String == "A test fixture.")
+}
+
+@Test func vlmBenchmarkRunnerRecordsFakeProviderMetrics() async throws {
+    let imageURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-image-\(UUID().uuidString).png")
+    try Data("fake-image".utf8).write(to: imageURL, options: .atomic)
+
+    let report = await VLMBenchmarkRunner.run(
+        using: FakeLocalVLMProvider(),
+        presetID: LocalVLMPreset.smolVLM.id,
+        prompt: "What is visible?",
+        imageURL: imageURL,
+        imageFixture: imageURL.lastPathComponent,
+        inputMode: .fixture,
+        options: LocalVLMRequestOptions(maxTokens: 7, timeoutSeconds: 1)
+    )
+
+    #expect(report.success)
+    #expect(report.provider == "fake-vlm")
+    #expect(report.modelID == "fake-model")
+    #expect(report.response == "A visible test screen.")
+    #expect(report.responseMetadata["imageExists"] == "true")
+    #expect(report.responseMetadata["maxTokens"] == "7")
+    #expect(report.maxTokens == 7)
+    #expect(report.timeoutSeconds == 1)
+    #expect(report.latencySeconds >= 0)
+}
+
 @Test func localVLMConfigurationDecodesValidFile() throws {
     let directoryURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("cerberus-vlm-config-\(UUID().uuidString)", isDirectory: true)
