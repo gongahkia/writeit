@@ -7,6 +7,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 FORBIDDEN_SOURCE_PATTERNS=(
   "app.control"
+  "browser.open"
   "browser.open_url"
   "browser.tabs"
   "calendar."
