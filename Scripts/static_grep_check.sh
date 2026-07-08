@@ -26,7 +26,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "web.search"
   "AppControl"
   "BrowserAppleScript"
-  "CommandAllowlist"
+  "Command""Allowlist"
   "EventKit"
   "FileSearch"
   "FinderReveal"
