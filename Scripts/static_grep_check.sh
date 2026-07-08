@@ -23,7 +23,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "reminders""."
   "shell"".""run"
   "shortcuts"".""run"
-  "web.search"
+  "web"".""search"
   "App""Control"
   "Browser""AppleScript"
   "Command""Allowlist"
