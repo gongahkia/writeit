@@ -230,6 +230,43 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     }
 }
 
+@Test func everyAssistantTransitionMapsToExpectedEarcon() {
+    let explicitCases: [(AssistantState, AssistantEvent, AssistantState, Earcon)] = [
+        (.idle, .wakeDetected(.manual), .listening, .wake),
+        (.listening, .silenceDetected, .reasoning, .reasoning),
+        (.listening, .cancelRequested, .idle, .cancel),
+        (.reasoning, .cancelRequested, .idle, .cancel),
+        (.reasoning, .confirmationRequired("Read screen"), .awaitingConfirm, .confirmation),
+        (.reasoning, .executionStarted("screen.ocr"), .executing, .executing),
+        (.reasoning, .responseReady("Done"), .speaking, .speaking),
+        (.awaitingConfirm, .confirmationAccepted, .executing, .approved),
+        (.awaitingConfirm, .confirmationDenied, .idle, .denied),
+        (.awaitingConfirm, .cancelRequested, .idle, .cancel),
+        (.executing, .executionFinished("Done"), .speaking, .toolResult),
+        (.speaking, .speechFinished, .idle, .complete),
+        (.speaking, .cancelRequested, .idle, .cancel)
+    ]
+
+    for (from, event, to, earcon) in explicitCases {
+        var machine = AssistantStateMachine(initialState: from)
+        let transition = machine.handle(event)
+        #expect(transition?.to == to)
+        #expect(transition.map { EarconMapper.earcon(for: $0) } == earcon)
+    }
+
+    for state in AssistantState.allCases {
+        var failedMachine = AssistantStateMachine(initialState: state)
+        let failedTransition = failedMachine.handle(.failed("Error"))
+        #expect(failedTransition?.to == .speaking)
+        #expect(failedTransition.map { EarconMapper.earcon(for: $0) } == .error)
+
+        var resetMachine = AssistantStateMachine(initialState: state)
+        let resetTransition = resetMachine.handle(.reset)
+        #expect(resetTransition?.to == .idle)
+        #expect(resetTransition.map { EarconMapper.earcon(for: $0) } == .cancel)
+    }
+}
+
 @Test func localVLMPresetsCoverSupportedCandidates() {
     let ids = LocalVLMPreset.all.map(\.id)
 
