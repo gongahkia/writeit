@@ -221,6 +221,15 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         .allSatisfy { $0.expectedToolName.isEmpty && !$0.expectedRequiresConfirmation })
 }
 
+@Test func assistantPlanPolicyCoversGoldenRequestFixtures() throws {
+    let fixtures = try loadGoldenRequestFixtures()
+
+    for fixture in fixtures {
+        let plan = try #require(AssistantPlanPolicy.replacementPlan(for: fixture.request, context: fixture.context))
+        #expect(GoldenRequestFixtureResult(fixture: fixture, plan: plan).matches)
+    }
+}
+
 @Test func localVLMPresetsCoverSupportedCandidates() {
     let ids = LocalVLMPreset.all.map(\.id)
 

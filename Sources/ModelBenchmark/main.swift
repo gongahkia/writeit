@@ -11,16 +11,17 @@ struct ModelBenchmarkCommand {
         }
 
         let options = try Options(arguments: arguments)
+        if let goldenFixturesURL = options.goldenFixturesURL {
+            try await runGoldenFixtures(at: goldenFixturesURL)
+            return
+        }
+
         let assistant = Assistant(
             toolSummaries: DefaultToolCatalog.summaries,
             readOnlyNativeTools: options.enableNativeReadOnlyTools
                 ? DefaultToolCatalog.readOnlyFoundationModelTools()
                 : []
         )
-        if let goldenFixturesURL = options.goldenFixturesURL {
-            try await runGoldenFixtures(at: goldenFixturesURL, assistant: assistant)
-            return
-        }
         if options.prewarm {
             await assistant.prewarm()
         }
@@ -105,15 +106,18 @@ struct ModelBenchmarkCommand {
     }
 }
 
-private func runGoldenFixtures(at url: URL, assistant: Assistant) async throws {
+private func runGoldenFixtures(at url: URL) async throws {
     let data = try Data(contentsOf: url)
     let fixtures = try GoldenRequestFixtures.parseJSONL(data)
     guard !fixtures.isEmpty else {
         throw ToolExecutionError.invalidArguments("No golden request fixtures found.")
     }
 
+    let summariesByName = Dictionary(uniqueKeysWithValues: DefaultToolCatalog.summaries.map { ($0.name, $0) })
     var results: [GoldenRequestFixtureResult] = []
     for fixture in fixtures {
+        let fixtureSummaries = fixture.allowedToolNames.compactMap { summariesByName[$0] }
+        let assistant = Assistant(toolSummaries: fixtureSummaries)
         let plan = try await assistant.plan(for: fixture.request, context: fixture.context)
         let result = GoldenRequestFixtureResult(fixture: fixture, plan: plan)
         results.append(result)

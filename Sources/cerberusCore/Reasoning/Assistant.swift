@@ -53,6 +53,10 @@ public actor Assistant {
     }
 
     public func plan(for request: String, context: AssistantContext = AssistantContext()) async throws -> AssistantPlan {
+        if let preflight = AssistantPlanPolicy.preflightPlan(for: request) {
+            return preflight
+        }
+
         let prompt = """
         Context:
         \(context.promptFragment)
@@ -65,16 +69,28 @@ public actor Assistant {
             to: prompt,
             generating: AssistantPlan.self
         )
-        return response.content
+        return AssistantPlanPolicy.normalized(response.content, request: request, context: context)
     }
 
     public func answerWithReadOnlyTools(
         for request: String,
         context: AssistantContext = AssistantContext()
     ) async throws -> String {
-        guard let readOnlyToolSession else {
+        let selectedToolNames = Self.selectedReadOnlyToolNames(
+            for: request,
+            context: context,
+            availableToolNames: readOnlyNativeTools.map(\.name)
+        )
+        let tools = readOnlyNativeTools.filter { selectedToolNames.contains($0.name) }
+        guard !tools.isEmpty else {
             throw ToolExecutionError.denied("No native read-only FoundationModels tools are enabled.")
         }
+        let selectedSummaries = toolSummaries.filter { selectedToolNames.contains($0.name) }
+        let session = LanguageModelSession(
+            model: model,
+            tools: tools,
+            instructions: SystemPrompt.renderReadOnlyToolInstructions(toolSummaries: selectedSummaries)
+        )
 
         let prompt = """
         Context:
@@ -86,7 +102,7 @@ public actor Assistant {
         Answer concisely. Use the provided read-only tools when current local data is needed.
         """
 
-        let response = try await readOnlyToolSession.respond(to: prompt)
+        let response = try await session.respond(to: prompt)
         return response.content
     }
 
@@ -130,5 +146,19 @@ public actor Assistant {
                 tools: readOnlyNativeTools,
                 instructions: SystemPrompt.renderReadOnlyToolInstructions(toolSummaries: toolSummaries)
             )
+    }
+
+    private static func selectedReadOnlyToolNames(
+        for request: String,
+        context: AssistantContext,
+        availableToolNames: [String]
+    ) -> Set<String> {
+        let available = Set(availableToolNames)
+        if let toolName = AssistantPlanPolicy.replacementPlan(for: request, context: context)?.toolName,
+           available.contains(toolName) {
+            return [toolName]
+        }
+        let allowed = Set(context.allowedToolNames).intersection(available)
+        return allowed.isEmpty ? available : allowed
     }
 }

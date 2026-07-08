@@ -1378,8 +1378,11 @@ final class CerberusAppModel: ObservableObject {
         do {
             let request = activeRequest ?? plan.spokenResponse
             let readOnlyNames = readOnlyToolNames.intersection(Set(enabledToolNames))
+            let selectedReadOnlyNames = readOnlyNames.contains(plan.toolName)
+                ? Set([plan.toolName])
+                : readOnlyNames
             let activeApplicationName = currentActiveApplicationName()
-            let allowedToolNames = Array(readOnlyNames).sorted()
+            let allowedToolNames = Array(selectedReadOnlyNames).sorted()
             let context = AssistantContext(
                 activeApplicationName: activeApplicationName,
                 allowedToolNames: allowedToolNames,
