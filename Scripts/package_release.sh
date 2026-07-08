@@ -15,6 +15,7 @@ usage() {
   print "env:"
   print "  CODESIGN_IDENTITY='Developer ID Application: Team Name (TEAMID)'"
   print "  NOTARY_PROFILE=cerberus-notary"
+  print "  NOTARY_KEYCHAIN=/path/to/ci.keychain-db"
   print "  APP_BUNDLE=.dist/cerberus.app"
   print "  OUT_DIR=.dist/release"
   print "  ZIP_PATH=.dist/release/cerberus.zip"

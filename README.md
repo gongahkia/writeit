@@ -85,6 +85,7 @@ See `Docs/airpods.md` for AirPods motion troubleshooting.
 See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, and screen capture recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
+See `Docs/release-signing-secrets.md` for optional GitHub Actions release signing secrets.
 See `Docs/architecture.md` for the current app/core/tool/service layout.
 See `Docs/security-model.md` for trust boundaries, execution rules, and reviewer checks.
 See `Docs/threat-model.md` for prompt-injection, tool-misuse, and local-storage threat notes.

@@ -60,6 +60,14 @@ Submit and staple:
 NOTARY_PROFILE=cerberus-notary Scripts/notarize_app.sh
 ```
 
+For CI or temporary keychains:
+
+```sh
+NOTARY_PROFILE=cerberus-ci-notary \
+NOTARY_KEYCHAIN=/path/to/cerberus-signing.keychain-db \
+Scripts/notarize_app.sh
+```
+
 Notarization requires a Developer ID signature. Ad-hoc signed bundles are only for local bundle validation.
 
 ## Release Package
@@ -117,5 +125,6 @@ Scripts/release_check.sh oss
 ```
 
 See `Docs/open-source.md` for the public repository handoff.
+See `Docs/release-signing-secrets.md` for the optional GitHub Actions signing secret policy.
 See `Docs/release-notes.md` for the first tagged build notes.
 See `Docs/rollback.md` for local rollback and removal steps.

@@ -12,6 +12,7 @@ usage() {
   print "env:"
   print "  CODESIGN_IDENTITY='Developer ID Application: Team Name (TEAMID)'"
   print "  NOTARY_PROFILE=cerberus-notary"
+  print "  NOTARY_KEYCHAIN=/path/to/ci.keychain-db"
   print "  APP_BUNDLE=.dist/cerberus.app"
   print "  DEMO_FILE=.dist/demo/cerberus-demo.mov"
 }
@@ -40,8 +41,13 @@ check_dev_id() {
 check_notary() {
   require_command xcrun
   local profile="${NOTARY_PROFILE:-}"
+  local keychain="${NOTARY_KEYCHAIN:-}"
   [[ -n "$profile" ]] || die "set NOTARY_PROFILE to a notarytool keychain profile." 64
-  xcrun notarytool history --keychain-profile "$profile" >/dev/null || die "notarytool profile is missing or invalid." 65
+  local notary_args=(--keychain-profile "$profile")
+  if [[ -n "$keychain" ]]; then
+    notary_args+=(--keychain "$keychain")
+  fi
+  xcrun notarytool history "${notary_args[@]}" >/dev/null || die "notarytool profile is missing or invalid." 65
   [[ -d "$APP_BUNDLE" ]] || die "app bundle not found: $APP_BUNDLE" 66
   xcrun stapler validate "$APP_BUNDLE" >/dev/null || die "app bundle does not have a valid notarization ticket stapled." 65
   print "notary ok"

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_BUNDLE="${1:-$ROOT_DIR/.dist/cerberus.app}"
 PROFILE="${NOTARY_PROFILE:-}"
+KEYCHAIN="${NOTARY_KEYCHAIN:-}"
 
 if [[ -z "$PROFILE" ]]; then
   print -u2 "Set NOTARY_PROFILE to a notarytool keychain profile."
@@ -17,6 +18,10 @@ fi
 
 ZIP_PATH="${APP_BUNDLE%.app}.zip"
 ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
-xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$PROFILE" --wait
+notary_args=(--keychain-profile "$PROFILE")
+if [[ -n "$KEYCHAIN" ]]; then
+  notary_args+=(--keychain "$KEYCHAIN")
+fi
+xcrun notarytool submit "$ZIP_PATH" "${notary_args[@]}" --wait
 xcrun stapler staple "$APP_BUNDLE"
 spctl --assess --type execute --verbose=2 "$APP_BUNDLE"

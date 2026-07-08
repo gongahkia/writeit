@@ -28,6 +28,6 @@
 
 - [ ] run `Scripts/release_smoke.sh`
 - [ ] launch the signed `.app`, not `swift run`
-- [ ] confirm `ShellExecService.xpc` is embedded at `Contents/XPCServices/ShellExecService.xpc`
+- [ ] confirm OCR, UI element, snapshot, and barcode screen flows work from the signed `.app`
 - [ ] confirm the downloaded/quarantined app launches
 - [ ] confirm release notes and rollback notes match the shipped build
