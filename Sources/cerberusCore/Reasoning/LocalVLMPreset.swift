@@ -35,10 +35,14 @@ public struct LocalVLMPreset: Codable, Equatable, Identifiable, Sendable {
     public static let miniCPMV46 = LocalVLMPreset(
         id: "minicpm-v-4.6",
         displayName: "MiniCPM-V 4.6",
-        licenseNote: "Apache-2.0; verify selected checkpoint before distribution.",
+        licenseNote: "Apache-2.0; checked 2026-07-08 at https://huggingface.co/openbmb/MiniCPM-V-4.6.",
         status: .recommended,
         safetyNote: "Use for passive screen VQA only.",
-        runtimeNotes: ["Good first local candidate.", "Evaluate MLX-VLM, Ollama, llama.cpp, vLLM, and SGLang paths."]
+        runtimeNotes: [
+            "Config-only preset; no weights bundled.",
+            "OpenBMB reports vLLM, SGLang, llama.cpp, and Ollama support; verify selected runtime locally.",
+            "Use Fixtures/VLM/benchmark-template.json before recommending."
+        ]
     )
 
     public static let qwen3VL = LocalVLMPreset(

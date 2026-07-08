@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "presetID": "minicpm-v-4.6",
+  "modelID": "openbmb/MiniCPM-V-4.6",
+  "sourceCheckedDate": "2026-07-08",
+  "weightsBundled": false,
+  "sourceURLs": [
+    "https://huggingface.co/openbmb/MiniCPM-V-4.6",
+    "https://github.com/OpenBMB/MiniCPM-V",
+    "https://ollama.com/openbmb/minicpm-v4.6"
+  ],
+  "runtimeVariants": [
+    {
+      "provider": "mlx_vlm",
+      "modelID": "openbmb/MiniCPM-V-4.6",
+      "endpointURLString": null,
+      "allowNonLocalEndpoint": false,
+      "status": "verify-locally"
+    },
+    {
+      "provider": "ollama",
+      "modelID": "openbmb/minicpm-v4.6",
+      "endpointURLString": "http://127.0.0.1:11434",
+      "allowNonLocalEndpoint": false,
+      "status": "verify-locally"
+    },
+    {
+      "provider": "llama_cpp",
+      "modelID": "openbmb/MiniCPM-V-4.6-GGUF",
+      "endpointURLString": "http://127.0.0.1:8080",
+      "allowNonLocalEndpoint": false,
+      "status": "verify-locally"
+    },
+    {
+      "provider": "openai_compatible",
+      "modelID": "openbmb/MiniCPM-V-4.6",
+      "endpointURLString": "http://127.0.0.1:8000",
+      "allowNonLocalEndpoint": false,
+      "status": "verify-locally"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ui-screenshot",
+      "inputPlaceholder": "path/to/ui-screenshot.png",
+      "prompt": "Describe the visible app, primary controls, selected state, and any warnings.",
+      "requiredSignals": ["app identity", "primary controls", "visible state"]
+    },
+    {
+      "id": "dense-text",
+      "inputPlaceholder": "path/to/dense-text.png",
+      "prompt": "Extract the main text and summarize any truncation or unreadable regions.",
+      "requiredSignals": ["text extraction", "layout", "uncertainty"]
+    },
+    {
+      "id": "chart",
+      "inputPlaceholder": "path/to/chart.png",
+      "prompt": "Identify chart type, axes, trend, and notable outliers.",
+      "requiredSignals": ["chart type", "axes", "trend"]
+    },
+    {
+      "id": "code-editor",
+      "inputPlaceholder": "path/to/code-editor.png",
+      "prompt": "Describe the visible file, language, diagnostics, and cursor or selection context.",
+      "requiredSignals": ["language", "diagnostics", "selection"]
+    },
+    {
+      "id": "qr-barcode",
+      "inputPlaceholder": "path/to/qr-barcode.png",
+      "prompt": "Describe the barcode or QR code region and state whether the encoded value is readable.",
+      "requiredSignals": ["code location", "readability", "decoded value if visible"]
+    },
+    {
+      "id": "low-light-image",
+      "inputPlaceholder": "path/to/low-light-image.png",
+      "prompt": "Describe visible objects and explicitly state uncertainty caused by low light.",
+      "requiredSignals": ["objects", "lighting", "uncertainty"]
+    }
+  ],
+  "metrics": {
+    "latencySeconds": null,
+    "tokensPerSecond": null,
+    "firstTokenSeconds": null,
+    "qualityNotes": ""
+  }
+}

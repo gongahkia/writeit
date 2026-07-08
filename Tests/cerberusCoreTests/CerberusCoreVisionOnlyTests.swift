@@ -199,7 +199,31 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "fastvlm",
         "pixtral-12b"
     ])
+    #expect(LocalVLMPreset.miniCPMV46.licenseNote.contains("2026-07-08"))
+    #expect(LocalVLMPreset.miniCPMV46.licenseNote.contains("https://huggingface.co/openbmb/MiniCPM-V-4.6"))
+    #expect(LocalVLMPreset.miniCPMV46.runtimeNotes.contains("Config-only preset; no weights bundled."))
     #expect(LocalVLMPreset.qwen3VL.safetyNote.lowercased().contains("passive"))
+}
+
+@Test func miniCPMV46BenchmarkTemplateCoversRequiredCases() throws {
+    let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Fixtures/VLM/benchmark-template.json")
+    let json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+    let cases = try #require(json["cases"] as? [[String: Any]])
+    let caseIDs = Set(cases.compactMap { $0["id"] as? String })
+
+    #expect(json["presetID"] as? String == LocalVLMPreset.miniCPMV46.id)
+    #expect(json["modelID"] as? String == "openbmb/MiniCPM-V-4.6")
+    #expect(json["sourceCheckedDate"] as? String == "2026-07-08")
+    #expect(json["weightsBundled"] as? Bool == false)
+    #expect(caseIDs == [
+        "ui-screenshot",
+        "dense-text",
+        "chart",
+        "code-editor",
+        "qr-barcode",
+        "low-light-image"
+    ])
 }
 
 @Test func missingLocalVLMConfigurationLoadsDisabled() throws {

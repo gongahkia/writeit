@@ -8,7 +8,7 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 
 ## Candidate Models
 
-- MiniCPM-V 4.6: best first local candidate for a Mac-local VLM path. Apache-2.0, image/video/text, explicitly positioned for on-device deployment including iOS.
+- MiniCPM-V 4.6: best first local candidate for a Mac-local VLM path. Source checked 2026-07-08: Apache-2.0 on Hugging Face, image/video/text, edge/mobile oriented, and OpenBMB reports vLLM, SGLang, llama.cpp, and Ollama support.
 - Qwen3-VL: strongest open-weight family to evaluate for quality. Apache-2.0 repo; 2B/4B/8B/32B and larger MoE releases exist. Likely heavier than MiniCPM for local Mac latency.
 - Qwen2.5-VL 7B: stable Apache-2.0 fallback with strong OCR/document/layout reputation and broad runtime support.
 - SmolVLM: Apache-2.0, small, fast, memory-efficient 2B-class option. Good fallback for low-memory machines, weaker than larger Qwen/InternVL families.
@@ -28,6 +28,18 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 ## Current Config
 
 `screen.describe` is disabled unless `~/Library/Application Support/cerberus/local-vlm.json` exists and validates. HTTP providers are localhost-only by default. If `allowNonLocalEndpoint` is true, screenshots and prompts are sent to that configured host; Cerberus does not download or install models automatically.
+
+## MiniCPM-V 4.6 Preset
+
+Preset id: `minicpm-v-4.6`. Default model id for OpenAI-compatible routes: `openbmb/MiniCPM-V-4.6`. This is config-only; no model weights, GGUF files, or runtime packages are bundled. Source/license checked 2026-07-08: https://huggingface.co/openbmb/MiniCPM-V-4.6 and https://github.com/OpenBMB/MiniCPM-V. Ollama packaging checked 2026-07-08: https://ollama.com/openbmb/minicpm-v4.6.
+
+Runtime variants to evaluate:
+- MLX-VLM: use the generic subprocess path with `python -m mlx_vlm.generate`; validate the checkpoint locally before marking pass.
+- Ollama: use `openbmb/minicpm-v4.6`; keep endpoint on `127.0.0.1:11434`.
+- llama.cpp: use a vision-capable GGUF plus required multimodal projector/options; keep endpoint on `127.0.0.1:8080`.
+- vLLM/SGLang: use `openai_compatible`; non-local GPU servers require `allowNonLocalEndpoint: true` and send screenshots off-Mac.
+
+Benchmark checklist: UI screenshot, dense text, chart, code editor, QR/barcode, low-light image. Template: `Fixtures/VLM/benchmark-template.json`.
 
 ## MLX-VLM Setup
 
@@ -54,7 +66,7 @@ Ollama example:
   "enabled": true,
   "provider": "ollama",
   "presetID": "minicpm-v-4.6",
-  "modelID": "minicpm-v:latest",
+  "modelID": "openbmb/minicpm-v4.6",
   "endpointURLString": "http://127.0.0.1:11434",
   "arguments": [],
   "maxTokens": 256,
@@ -70,7 +82,7 @@ MLX-VLM subprocess example:
   "enabled": true,
   "provider": "mlx_vlm",
   "presetID": "minicpm-v-4.6",
-  "modelID": "openbmb/MiniCPM-V-4_6",
+  "modelID": "openbmb/MiniCPM-V-4.6",
   "executablePath": "/usr/bin/env",
   "arguments": ["python3", "-m", "mlx_vlm.generate", "--model", "{model}", "--image", "{image}", "--prompt", "{prompt}", "--max-tokens", "{maxTokens}"],
   "maxTokens": 256,
