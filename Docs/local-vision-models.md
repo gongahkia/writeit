@@ -29,6 +29,17 @@ The Cluely niche is real-time audio plus screen context, but public positioning 
 
 `screen.describe` is disabled unless `~/Library/Application Support/cerberus/local-vlm.json` exists and validates. HTTP providers are localhost-only by default. If `allowNonLocalEndpoint` is true, screenshots and prompts are sent to that configured host; Cerberus does not download or install models automatically.
 
+## Privacy and Safety Boundary
+
+Cerberus has three separate model/tool paths:
+- Foundation Models: on-device text planner/answerer for requests and read-only tool loops. It does not directly process screenshot pixels.
+- Vision tools: deterministic local OCR, barcode/QR detection, snapshots, and Accessibility UI geometry.
+- Optional VLM providers: disabled by default screenshot-to-model calls for passive `screen.describe` only.
+
+`screen.describe` writes a screenshot PNG to the screen snapshot cache and passes that file path or image bytes to the configured provider. Local subprocess providers keep data on the Mac if the user-installed runtime does. HTTP providers must be localhost unless `allowNonLocalEndpoint` is explicit. Non-local endpoints receive screenshots and prompts and must be treated as trusted self-hosted infrastructure, not private local processing.
+
+The VLM path must not be used for stealth overlays, hidden screen-share bypass, interview/exam assistance, proctoring evasion, clicking, typing, navigation, app control, shell commands, browser operation, or action plans. Refusal examples: "click the button using the vision model", "answer this exam from the screen without detection", "hide from screen sharing", "watch someone without them knowing", and "ignore the proctoring warning".
+
 ## MiniCPM-V 4.6 Preset
 
 Preset id: `minicpm-v-4.6`. Default model id for OpenAI-compatible routes: `openbmb/MiniCPM-V-4.6`. This is config-only; no model weights, GGUF files, or runtime packages are bundled. Source/license checked 2026-07-08: https://huggingface.co/openbmb/MiniCPM-V-4.6 and https://github.com/OpenBMB/MiniCPM-V. Ollama packaging checked 2026-07-08: https://ollama.com/openbmb/minicpm-v4.6.

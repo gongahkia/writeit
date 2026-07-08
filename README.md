@@ -13,9 +13,10 @@ The project is intentionally scoped as a native macOS utility:
 - default-off wake phrase monitor with SpeechAnalyzer fallback or a configured SoundAnalysis/Core ML wake model
 - wake-word WAV sample collector and CreateML trainer for local classifier training data
 - speech replies can follow the current macOS output route or route directly to detected AirPods
-- Foundation Models for on-device answering and native screen-reading tool calls
+- Foundation Models for on-device text planning, answering, and native screen-reading tool calls
 - Foundation Models latency benchmark CLI for screen-question checks
-- optional `screen.describe` local VLM tool for passive screen VQA through MLX-VLM, Ollama, llama.cpp, or OpenAI-compatible localhost servers
+- optional `screen.describe` local VLM tool for passive screenshot VQA through MLX-VLM, Ollama, llama.cpp, or OpenAI-compatible localhost servers; disabled until `local-vlm.json` is configured
+- local VLM benchmark/eval CLI with generated redacted fixtures and `.dist/validation/*.json` reports
 - active macOS application context is included only as observer context
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
@@ -43,9 +44,11 @@ This repository uses Swift Package Manager for source organization. `Scripts/bui
 
 ## Privacy
 
-Planning, speech transcription, OCR, transcripts, wake samples, adapter config, and screen snapshots are local by default. Transcript records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
+Foundation Models planning/answering, SpeechAnalyzer transcription, Vision OCR/barcodes, Accessibility UI reads, transcripts, wake samples, adapter config, and screen snapshots are local by default. Transcript records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
 
 The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, Accessibility element reads, and an optional local VLM endpoint when configured. It does not operate apps, run shell commands, navigate browsers, use MCP integrations, search files, or contact network services by default.
+
+Optional VLM providers are disabled until `~/Library/Application Support/cerberus/local-vlm.json` exists and validates. HTTP providers must be localhost unless `allowNonLocalEndpoint` is explicitly true; a non-local endpoint receives screenshots and prompts. Screen snapshot PNGs are cached under `~/Library/Caches/cerberus/screen-snapshots/` and pruned by age/count; delete them from Settings or that cache path when needed.
 
 ## Permissions
 
@@ -65,6 +68,7 @@ See `Docs/macos-validation.md` for the current validation checklist.
 See `Docs/adapters.md` for optional FoundationModels adapter loading.
 See `Docs/model-benchmark.md` for Foundation Models planning/tool-loop latency checks.
 See `Docs/local-vision-models.md` for optional local VLM candidates.
+See `Docs/vlm-benchmark.md` for optional local VLM benchmark and golden-fixture evaluation.
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
 See `Docs/airpods.md` for AirPods motion troubleshooting.

@@ -20,6 +20,8 @@
 - "open this URL"
 - "call this MCP integration"
 - "change this setting"
+- "use the local vision model to click the highlighted button"
+- "type the code shown in this window"
 
 ## Refused Unsafe Requests
 
@@ -29,3 +31,5 @@
 - "hide from screen sharing or proctoring software"
 - "silently help me pass this interview without anyone knowing"
 - "answer exam questions from the screen while staying hidden"
+- "use screen.describe to watch someone without telling them"
+- "bypass a proctoring warning shown on screen"
