@@ -51,7 +51,7 @@ cerberus is a hands-free macOS screen-reading assistant, not a computer operator
 - The checked macOS FoundationModels SDK exposes text prompt input and tool calling; full image prompt input remains unverified in this repo.
 - Screen reasoning therefore uses local ScreenCaptureKit, Vision OCR/barcode extraction, and Accessibility UI metadata.
 - Foundation Models supports on-device sessions, guided generation, and tool calling on Apple Intelligence-capable systems.
-- Foundation Models latency is measurable through `Scripts/benchmark_model.sh`; target-hardware results are not bundled.
+- Foundation Models latency is measurable through `Scripts/benchmark_model.sh`; `Docs/model-benchmark.md` records the 2026-07-08 M3 baseline and accepted v1 gates.
 - SpeechAnalyzer and SpeechTranscriber are macOS 26 APIs for live and recorded transcription; AirPods/noisy-room quality is measured through the local benchmark script and still needs target-hardware runs.
 - CMHeadphoneMotionManager can stream AirPods motion on macOS for supported headphones.
 - AirPods head gestures are also used by Siri/system features, so custom nod detection still needs real-device false-positive testing with validation logs after neutral-pose calibration and threshold adjustment.
