@@ -1,15 +1,12 @@
 @preconcurrency import ApplicationServices
 import AVFoundation
 import CoreGraphics
-import EventKit
 import Foundation
 import Speech
 
 enum SystemPermission: String, CaseIterable, Identifiable {
     case microphone
     case speechRecognition = "speech_recognition"
-    case calendar
-    case reminders
     case accessibility
     case inputMonitoring = "input_monitoring"
     case screenRecording = "screen_recording"
@@ -22,10 +19,6 @@ enum SystemPermission: String, CaseIterable, Identifiable {
             "Microphone"
         case .speechRecognition:
             "Speech Recognition"
-        case .calendar:
-            "Calendar"
-        case .reminders:
-            "Reminders"
         case .accessibility:
             "Accessibility"
         case .inputMonitoring:
@@ -41,10 +34,6 @@ enum SystemPermission: String, CaseIterable, Identifiable {
             "Enable Microphone in System Settings > Privacy & Security."
         case .speechRecognition:
             "Enable Speech Recognition in System Settings > Privacy & Security."
-        case .calendar:
-            "Enable Calendar access in System Settings > Privacy & Security."
-        case .reminders:
-            "Enable Reminders access in System Settings > Privacy & Security."
         case .accessibility:
             "Enable Accessibility for cerberus in System Settings > Privacy & Security."
         case .inputMonitoring:
@@ -107,8 +96,6 @@ protocol PermissionChecking: AnyObject {
 
 @MainActor
 final class PermissionCenter: PermissionChecking {
-    private let eventStore = EKEventStore()
-
     func currentSnapshots() -> [PermissionSnapshot] {
         SystemPermission.allCases.map { kind in
             PermissionSnapshot(kind: kind, state: currentState(for: kind))
@@ -123,10 +110,6 @@ final class PermissionCenter: PermissionChecking {
             state = await requestMicrophone()
         case .speechRecognition:
             state = await requestSpeechRecognition()
-        case .calendar:
-            state = await requestCalendar()
-        case .reminders:
-            state = await requestReminders()
         case .accessibility:
             state = requestAccessibility()
         case .inputMonitoring:
@@ -144,10 +127,6 @@ final class PermissionCenter: PermissionChecking {
             Self.mapMediaAuthorization(AVCaptureDevice.authorizationStatus(for: .audio))
         case .speechRecognition:
             Self.mapSpeechAuthorization(SFSpeechRecognizer.authorizationStatus())
-        case .calendar:
-            Self.mapEventKitAuthorization(EKEventStore.authorizationStatus(for: .event))
-        case .reminders:
-            Self.mapEventKitAuthorization(EKEventStore.authorizationStatus(for: .reminder))
         case .accessibility:
             AXIsProcessTrusted() ? .granted : .notDetermined
         case .inputMonitoring:
@@ -167,24 +146,6 @@ final class PermissionCenter: PermissionChecking {
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: Self.mapSpeechAuthorization(status))
             }
-        }
-    }
-
-    private func requestCalendar() async -> PermissionState {
-        do {
-            let granted = try await eventStore.requestFullAccessToEvents()
-            return granted ? .granted : currentState(for: .calendar)
-        } catch {
-            return currentState(for: .calendar)
-        }
-    }
-
-    private func requestReminders() async -> PermissionState {
-        do {
-            let granted = try await eventStore.requestFullAccessToReminders()
-            return granted ? .granted : currentState(for: .reminders)
-        } catch {
-            return currentState(for: .reminders)
         }
     }
 
@@ -234,20 +195,4 @@ final class PermissionCenter: PermissionChecking {
         }
     }
 
-    nonisolated private static func mapEventKitAuthorization(_ status: EKAuthorizationStatus) -> PermissionState {
-        switch status {
-        case .fullAccess:
-            .granted
-        case .writeOnly:
-            .writeOnly
-        case .denied:
-            .denied
-        case .restricted:
-            .restricted
-        case .notDetermined:
-            .notDetermined
-        @unknown default:
-            .unknown
-        }
-    }
 }

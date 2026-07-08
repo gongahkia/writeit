@@ -174,18 +174,18 @@ private final class FakePermissionCenter: PermissionChecking {
 }
 
 @MainActor
-@Test func appModelRequiresConfirmationThenExecutesMutatingTool() async throws {
+@Test func appModelRequiresConfirmationThenExecutesConfirmedScreenRead() async throws {
     let transcriber = FakeTranscriber()
     let speaker = FakeSpeaker()
     let assistant = FakeAssistant(planResult: AssistantPlan(
         intent: .callTool,
         spokenResponse: "I need confirmation.",
         requiresConfirmation: true,
-        toolName: "app.control",
+        toolName: "screen.ocr",
         toolArgumentsJSON: "{}",
-        toolArgumentsSummary: "Run stub"
+        toolArgumentsSummary: "Read screen"
     ))
-    let registry = try ToolRegistry(tools: [AnyAssistantTool(StubTool(name: "app.control", mutatesState: true))])
+    let registry = try ToolRegistry(tools: [AnyAssistantTool(StubTool(name: "screen.ocr", mutatesState: false))])
     let model = CerberusAppModel(
         transcriber: transcriber,
         speaker: speaker,
@@ -197,11 +197,11 @@ private final class FakePermissionCenter: PermissionChecking {
 
     model.startListening()
     await Task.yield()
-    model.transcriptDraft = "run stub"
+    model.transcriptDraft = "read screen"
     model.finishListeningAndProcess()
     try await waitUntil { model.state == .awaitingConfirm }
 
-    #expect(model.pendingConfirmation?.summary == "Run stub")
+    #expect(model.pendingConfirmation?.summary == "Read screen")
     #expect(speaker.spoken == ["I need confirmation."])
 
     model.approvePendingConfirmation()
@@ -644,9 +644,7 @@ private final class FakePermissionCenter: PermissionChecking {
     model.hotKeyConfigurationID = HotKeyConfiguration.commandOptionSpace.id
     model.prefersSoundWakeWordClassifier = true
     model.routesSpeechDirectlyToAirPods = true
-    model.allowsMailBodySearch = true
     model.wakePhrase = "hello cerberus"
-    model.isShellProposalMode = false
     model.headNodThreshold = 0.55
     model.headShakeThreshold = 0.65
     model.headGestureCooldownSeconds = 0.8
@@ -662,9 +660,7 @@ private final class FakePermissionCenter: PermissionChecking {
     #expect(relaunchedModel.hotKeyConfigurationID == HotKeyConfiguration.commandOptionSpace.id)
     #expect(relaunchedModel.prefersSoundWakeWordClassifier)
     #expect(relaunchedModel.routesSpeechDirectlyToAirPods)
-    #expect(relaunchedModel.allowsMailBodySearch)
     #expect(relaunchedModel.wakePhrase == "hello cerberus")
-    #expect(!relaunchedModel.isShellProposalMode)
     #expect(relaunchedModel.headNodThreshold == 0.55)
     #expect(relaunchedModel.headShakeThreshold == 0.65)
     #expect(relaunchedModel.headGestureCooldownSeconds == 0.8)
@@ -690,12 +686,10 @@ private final class FakePermissionCenter: PermissionChecking {
         startsRuntimeServices: false,
         skipsFoundationModelAvailabilityCheck: true
     )
-    model.toolProfileID = ToolProfile.explicitOperator.id
+    model.toolProfileID = ToolProfile.visionOnly.id
     model.isAutoSilenceEnabled = false
     model.isVoiceConfirmationEnabled = false
     model.isSessionMemoryWriteDisabled = true
-    model.isMCPToolEnabled = true
-    model.isShellToolEnabled = true
     model.isHeadGestureValidationLoggingEnabled = true
     model.headNodThreshold = 0.9
     model.headShakeThreshold = 0.9
@@ -705,7 +699,7 @@ private final class FakePermissionCenter: PermissionChecking {
         skipsFoundationModelAvailabilityCheck: true
     )
 
-    #expect(relaunchedModel.toolProfileID == ToolProfile.trustedDesk.id)
+    #expect(relaunchedModel.toolProfileID == ToolProfile.visionOnly.id)
     #expect(relaunchedModel.isAutoSilenceEnabled)
     #expect(relaunchedModel.isVoiceConfirmationEnabled)
     #expect(!relaunchedModel.isSessionMemoryWriteDisabled)

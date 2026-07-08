@@ -664,14 +664,9 @@ struct StatusPanel: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Mode", selection: Binding(
-                get: { model.toolProfileID },
-                set: { model.applyToolProfile(id: $0) }
-            )) {
-                ForEach(model.toolProfiles) { profile in
-                    Text(profile.displayName).tag(profile.id)
-                }
-            }
+            Label("Vision only", systemImage: "eye")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle("Auto-run after silence", isOn: $model.isAutoSilenceEnabled)
             Toggle("Voice confirmation", isOn: $model.isVoiceConfirmationEnabled)
             Toggle("Confirm every action", isOn: $model.requiresConfirmationForAllTools)
@@ -693,34 +688,6 @@ struct StatusPanel: View {
                 Label("Reset setup", systemImage: "arrow.counterclockwise")
             }
             .buttonStyle(.bordered)
-            Toggle("External tools", isOn: $model.isMCPToolEnabled)
-            Label(model.mcpListenerStatusLine, systemImage: "network")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            if !model.mcpServerHealthLines.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(model.mcpServerHealthLines) { line in
-                        Toggle(isOn: Binding(
-                            get: { model.isMCPServerEnabled(line.name) },
-                            set: { model.setMCPServer(line.name, enabled: $0) }
-                        )) {
-                            Label(line.displayText, systemImage: mcpServerHealthIcon(line.state))
-                                .font(.caption2)
-                                .foregroundStyle(mcpServerHealthStyle(line.state))
-                                .lineLimit(2)
-                        }
-                    }
-                }
-            }
-            Toggle("Terminal commands", isOn: $model.isShellToolEnabled)
-            Toggle("Preview Terminal commands", isOn: $model.isShellProposalMode)
-                .disabled(!model.isShellToolEnabled)
-            Toggle("Mail message contents", isOn: $model.allowsMailBodySearch)
-            Text("Searches can include message text, not just sender and subject.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
             Toggle("Keep model local", isOn: $model.requiresLocalFoundationModels)
             Toggle("Use custom model add-on", isOn: $model.usesConfiguredAdapter)
 
@@ -942,49 +909,6 @@ struct StatusPanel: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("File search folders")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button {
-                        model.addFileSearchScope()
-                    } label: {
-                        Label("Add", systemImage: "folder.badge.plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                if model.fileSearchScopePaths.isEmpty {
-                    Text("No folders approved")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                } else {
-                    ForEach(model.fileSearchScopePaths, id: \.self) { path in
-                        HStack(spacing: 8) {
-                            Text(path)
-                                .font(.caption.monospaced())
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-
-                            Spacer()
-
-                            Button {
-                                model.removeFileSearchScope(path)
-                            } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Remove file search folder")
-                            .help("Remove file search folder")
-                        }
-                    }
-                }
-            }
-
             DisclosureGroup(isExpanded: $isToolAllowlistExpanded) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(model.availableAmbientToolSummaries, id: \.name) { summary in
@@ -1018,34 +942,6 @@ struct StatusPanel: View {
             }
         }
         .toggleStyle(.switch)
-    }
-
-    private func mcpServerHealthIcon(_ state: MCPServerHealthState) -> String {
-        switch state {
-        case .configured:
-            "circle"
-        case .disabled:
-            "pause.circle"
-        case .listening:
-            "antenna.radiowaves.left.and.right"
-        case .handled:
-            "checkmark.circle"
-        case .unsupported:
-            "exclamationmark.triangle"
-        case .error:
-            "xmark.octagon"
-        }
-    }
-
-    private func mcpServerHealthStyle(_ state: MCPServerHealthState) -> Color {
-        switch state {
-        case .handled:
-            .green
-        case .unsupported, .error:
-            .orange
-        default:
-            .secondary
-        }
     }
 
     private var toolConfirmationOverrides: some View {

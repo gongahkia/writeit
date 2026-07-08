@@ -14,7 +14,7 @@ Developer ID sign:
 CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" Scripts/build_app.sh
 ```
 
-The script writes `.dist/cerberus.app`, embeds `ShellExecService.xpc` at `Contents/XPCServices`, signs nested code first, then verifies the bundle.
+The script writes `.dist/cerberus.app`, signs the app bundle, then verifies it. The vision-only app bundle does not embed an XPC shell service.
 
 ## Demo Recording
 

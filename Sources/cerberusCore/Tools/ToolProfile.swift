@@ -20,50 +20,30 @@ public struct ToolProfileConfiguration: Equatable, Sendable {
 }
 
 public enum ToolProfile: String, CaseIterable, Identifiable, Sendable {
-    case ambient
-    case trustedDesk
-    case explicitOperator
+    case visionOnly
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .ambient:
-            "Ambient"
-        case .trustedDesk:
-            "Trusted desk"
-        case .explicitOperator:
-            "Explicit operator"
+        case .visionOnly:
+            "Vision only"
         }
     }
 
     public func configuration(ambientSummaries: [ToolSummary]) -> ToolProfileConfiguration {
         switch self {
-        case .ambient:
-            ToolProfileConfiguration(
-                disabledAmbientToolNames: Set(ambientSummaries.filter(\.mutatesState).map(\.name)),
-                mcpEnabled: false,
-                shellEnabled: false,
-                requiresConfirmationForAllTools: false
-            )
-        case .trustedDesk:
+        case .visionOnly:
             ToolProfileConfiguration(
                 disabledAmbientToolNames: [],
                 mcpEnabled: false,
                 shellEnabled: false,
                 requiresConfirmationForAllTools: false
-            )
-        case .explicitOperator:
-            ToolProfileConfiguration(
-                disabledAmbientToolNames: [],
-                mcpEnabled: true,
-                shellEnabled: true,
-                requiresConfirmationForAllTools: true
             )
         }
     }
 
     public static func profile(id: String) -> ToolProfile {
-        ToolProfile(rawValue: id) ?? .trustedDesk
+        ToolProfile(rawValue: id) ?? .visionOnly
     }
 }

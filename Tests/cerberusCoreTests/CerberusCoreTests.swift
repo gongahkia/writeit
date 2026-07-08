@@ -50,11 +50,9 @@ private struct WaitTimeout: Error {}
         "requiresLocalFoundationModels",
         "usesConfiguredAdapter",
         "hotKeyConfigurationID",
-        "shellProposalMode",
         "headNodThreshold",
         "headShakeThreshold",
-        "headGestureCooldownSeconds",
-        "allowsMailBodySearch"
+        "headGestureCooldownSeconds"
     ])
     #expect(Set(CerberusSettingsKeys.persistedKeys).count == CerberusSettingsKeys.persistedKeys.count)
 }
@@ -100,13 +98,7 @@ private struct WaitTimeout: Error {}
 @Test func appInfoPlistDeclaresRequiredUsageDescriptions() throws {
     let plist = try loadPlist("Sources/cerberusApp/Resources/Info.plist")
     let usageDescriptionKeys = [
-        "NSAppleEventsUsageDescription",
-        "NSCalendarsUsageDescription",
-        "NSCalendarsFullAccessUsageDescription",
-        "NSContactsUsageDescription",
         "NSMicrophoneUsageDescription",
-        "NSRemindersUsageDescription",
-        "NSRemindersFullAccessUsageDescription",
         "NSScreenCaptureUsageDescription",
         "NSSpeechRecognitionUsageDescription"
     ]
@@ -120,31 +112,17 @@ private struct WaitTimeout: Error {}
 @Test func releaseEntitlementsCoverShippedToolPermissions() throws {
     let appEntitlements = try loadPlist("Config/cerberus.entitlements")
     let requiredAppEntitlements = [
-        "com.apple.security.automation.apple-events",
-        "com.apple.security.device.audio-input",
-        "com.apple.security.network.client",
-        "com.apple.security.personal-information.calendars",
-        "com.apple.security.personal-information.reminders"
+        "com.apple.security.device.audio-input"
     ]
 
     for key in requiredAppEntitlements {
         #expect(appEntitlements[key] as? Bool == true)
     }
 
-    let shellEntitlements = try loadPlist("Config/ShellExecService.entitlements")
-    #expect(shellEntitlements["com.apple.security.app-sandbox"] as? Bool == true)
-    #expect(shellEntitlements["com.apple.security.inherit"] as? Bool == false)
-    #expect(shellEntitlements["com.apple.security.temporary-exception.files.absolute-path.read-only"] as? [String] == [
-        "/bin/",
-        "/usr/bin/",
-        "/opt/homebrew/bin/"
-    ])
-}
-
-@Test func shellXPCExecutorMatchesEmbeddedServiceIdentifier() throws {
-    let xpcInfo = try loadPlist("Config/ShellExecService-Info.plist")
-
-    #expect(xpcInfo["CFBundleIdentifier"] as? String == ShellXPCCommandExecutor().serviceName)
+    #expect(appEntitlements["com.apple.security.automation.apple-events"] == nil)
+    #expect(appEntitlements["com.apple.security.network.client"] == nil)
+    #expect(appEntitlements["com.apple.security.personal-information.calendars"] == nil)
+    #expect(appEntitlements["com.apple.security.personal-information.reminders"] == nil)
 }
 
 @Test func demoRecorderCheckModeAcceptsRenderedDemoPath() throws {
@@ -440,7 +418,7 @@ private func temporaryDirectory() throws -> URL {
 @Test func activeApplicationContextPolicyReturnsAllowedToolHintsOnly() {
     let xcodeHints = ActiveApplicationContextPolicy.hints(
         for: "Xcode",
-        allowedToolNames: ["files.search"]
+        allowedToolNames: ["screen.ocr"]
     )
     let browserHints = ActiveApplicationContextPolicy.hints(
         for: "Safari",
@@ -455,10 +433,10 @@ private func temporaryDirectory() throws -> URL {
         allowedToolNames: ["music.now_playing", "music.control"]
     )
 
-    #expect(xcodeHints == ["Xcode tool pack enabled: files.search. Use project and Finder context first; use shell.run only for explicit command requests."])
+    #expect(xcodeHints == ["Xcode tool pack enabled: screen.ocr. Use screen reads only; never operate Xcode."])
     #expect(browserHints.isEmpty)
-    #expect(browserUIHints == ["Safari tool pack enabled: screen.ui_elements. Use browser.tabs for tab context; browser.open_url changes browser state and requires confirmation."])
-    #expect(musicHints == ["Music tool pack enabled: music.now_playing, music.control. Use music.now_playing for status; music.control requires confirmation."])
+    #expect(browserUIHints == ["Safari tool pack enabled: screen.ui_elements. Use screen reads only; never navigate or click."])
+    #expect(musicHints.isEmpty)
 }
 
 @Test func appToolPacksCoverTargetApplications() {
@@ -468,8 +446,9 @@ private func temporaryDirectory() throws -> URL {
     #expect(appNames == ["Xcode", "Terminal", "Safari", "Chrome", "Calendar", "Mail", "Music", "Finder"])
     #expect(AppToolPacks.matching(applicationName: "Google Chrome")?.appName == "Chrome")
     #expect(AppToolPacks.matching(applicationName: "iTerm2")?.appName == "Terminal")
-    #expect(packs.flatMap(\.toolNames).contains("browser.tabs"))
-    #expect(packs.flatMap(\.toolNames).contains("shell.run"))
+    #expect(!packs.flatMap(\.toolNames).contains("browser.tabs"))
+    #expect(!packs.flatMap(\.toolNames).contains("shell.run"))
+    #expect(Set(packs.flatMap(\.toolNames)) == ["screen.ocr", "screen.snapshot", "screen.ui_elements"])
 }
 
 @Test func headGestureClassifierUsesCalibratedNeutralPose() {
@@ -1503,7 +1482,7 @@ private func runScript(
     #expect(fixtures.count >= 5)
     #expect(ids.count == fixtures.count)
     #expect(fixtures.contains { $0.expectedToolName == "screen.ocr" })
-    #expect(fixtures.contains { $0.expectedRequiresConfirmation })
+    #expect(!fixtures.contains { $0.expectedRequiresConfirmation })
     #expect(fixtures.contains { readOnlyToolNames.contains($0.expectedToolName) && !$0.expectedRequiresConfirmation })
 }
 

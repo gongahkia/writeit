@@ -243,7 +243,7 @@ final class CerberusAppModel: ObservableObject {
     @Published private var ambientToolAllowlist = ToolSessionAllowlist()
     @Published private var toolConfirmationOverrides: Set<String> = []
     @Published var selectedPanelSection: PanelSection = .session
-    @Published var toolProfileID = ToolProfile.trustedDesk.id
+    @Published var toolProfileID = ToolProfile.visionOnly.id
     @Published var isAutoSilenceEnabled = true
     @Published var isVoiceConfirmationEnabled = true
     @Published var isSessionMemoryWriteDisabled = false {
@@ -292,12 +292,6 @@ final class CerberusAppModel: ObservableObject {
             refreshPreferredSpeechOutputDevice()
         }
     }
-    @Published var allowsMailBodySearch = UserDefaults.standard.bool(forKey: CerberusSettingsKeys.allowsMailBodySearch) {
-        didSet {
-            UserDefaults.standard.set(allowsMailBodySearch, forKey: CerberusSettingsKeys.allowsMailBodySearch)
-            refreshAssistantToolPrompt()
-        }
-    }
     @Published var wakePhrase = UserDefaults.standard.string(forKey: CerberusSettingsKeys.wakePhrase) ?? "hey cerberus" {
         didSet {
             UserDefaults.standard.set(wakePhrase, forKey: CerberusSettingsKeys.wakePhrase)
@@ -312,26 +306,8 @@ final class CerberusAppModel: ObservableObject {
             }
         }
     }
-    @Published var isMCPToolEnabled = false {
-        didSet {
-            refreshAssistantToolPrompt()
-            if isMCPToolEnabled {
-                startMCPHTTPListeners()
-            } else {
-                stopMCPHTTPListeners()
-            }
-        }
-    }
-    @Published var isShellToolEnabled = false {
-        didSet {
-            refreshAssistantToolPrompt()
-        }
-    }
-    @Published var isShellProposalMode = UserDefaults.standard.object(forKey: CerberusSettingsKeys.shellProposalMode) as? Bool ?? true {
-        didSet {
-            UserDefaults.standard.set(isShellProposalMode, forKey: CerberusSettingsKeys.shellProposalMode)
-        }
-    }
+    @Published private(set) var isMCPToolEnabled = false
+    @Published private(set) var isShellToolEnabled = false
     @Published var headNodThreshold = min(0.8, max(0.15, UserDefaults.standard.object(forKey: CerberusSettingsKeys.headNodThreshold) as? Double ?? 0.35)) {
         didSet {
             let clamped = min(0.8, max(0.15, headNodThreshold))
@@ -414,8 +390,7 @@ final class CerberusAppModel: ObservableObject {
     private let silenceTimeoutNanoseconds: UInt64 = 1_500_000_000
     private let confirmationVoiceTimeoutNanoseconds: UInt64 = 8_000_000_000
     private static let ambientToolSummaries = DefaultToolCatalog.summaries
-    private static let mcpToolSummaries = makeMCPTools(clientRequestHandlers: .none).map(\.summary)
-    private static let shellToolSummary = ShellTool().summary
+    private static let mcpToolSummaries: [ToolSummary] = []
 
     private static func shellXPCBundleURL() -> URL {
         Bundle.main.bundleURL
@@ -455,32 +430,9 @@ final class CerberusAppModel: ObservableObject {
         let mcpClientRequestBroker = MCPClientRequestBroker()
         let mcpServerRegistry = MCPServerRegistry()
         let fileSearchScopeStore = injectedFileSearchScopeStore ?? FileSearchScopeStore()
-        let fileSearchTool = FileSearchTool(approvedScopePathsProvider: { fileSearchScopeStore.approvedScopePaths() })
-        let mailSearchTool = MailSearchTool(
-            allowBodySearch: {
-                UserDefaults.standard.bool(forKey: CerberusSettingsKeys.allowsMailBodySearch)
-            }
-        )
-        let shellTool = ShellTool(
-            allowExecution: true,
-            forceDryRun: {
-                UserDefaults.standard.object(forKey: CerberusSettingsKeys.shellProposalMode) as? Bool ?? true
-            },
-            executor: ShellXPCCommandExecutor(serviceBundleURL: Self.shellXPCBundleURL())
-        )
-        let mcpTools = Self.makeMCPTools(clientRequestHandlers: mcpClientRequestBroker.handlers)
-        let localTools = (try? LocalToolManifestLoader().loadTools(shellTool: shellTool)) ?? []
-        let tools = DefaultToolCatalog.makeTools(
-            fileSearchTool: fileSearchTool,
-            mailSearchTool: mailSearchTool,
-            includesUIElementTool: startsRuntimeServices
-        ) + mcpTools + localTools + [AnyAssistantTool(shellTool)]
+        let tools = DefaultToolCatalog.makeTools(includesUIElementTool: startsRuntimeServices)
         let baseReadOnlyNativeTools = injectedAssistant == nil && startsRuntimeServices
-            ? DefaultToolCatalog.readOnlyFoundationModelTools(
-                auditLog: injectedAuditLog,
-                fileSearchTool: fileSearchTool,
-                mailSearchTool: mailSearchTool
-            )
+            ? DefaultToolCatalog.readOnlyFoundationModelTools(auditLog: injectedAuditLog)
             : []
         self.mcpClientRequestBroker = mcpClientRequestBroker
         self.mcpServerRegistry = mcpServerRegistry
@@ -2033,20 +1985,14 @@ final class CerberusAppModel: ObservableObject {
     }
 
     private var enabledToolSummaries: [ToolSummary] {
-        ToolEnablementPolicy(
-            ambientAllowlist: ambientToolAllowlist,
-            sessionDisabledToolNames: sessionDisabledToolNames,
-            mcpEnabled: isMCPToolEnabled,
-            shellEnabled: isShellToolEnabled
-        ).enabledSummaries(
-            ambientSummaries: Self.ambientToolSummaries,
-            mcpSummaries: Self.mcpToolSummaries,
-            shellSummary: Self.shellToolSummary
-        )
+        ambientToolAllowlist
+            .filter(Self.ambientToolSummaries)
+            .filter { !sessionDisabledToolNames.contains($0.name) }
+            .sorted { $0.name < $1.name }
     }
 
     private var sessionDisabledToolNames: Set<String> {
-        isSessionMemoryWriteDisabled ? ["memory.write"] : []
+        []
     }
 
     private func syncToolRegistryAllowlist() {
@@ -2066,16 +2012,10 @@ final class CerberusAppModel: ObservableObject {
     private func refreshAssistantToolPrompt() {
         let summaries = enabledToolSummaries
         let nativeToolBase = baseReadOnlyNativeTools
-        let shouldLoadMCPNativeTools = isMCPToolEnabled
-        let nativeToolLoader = mcpNativeToolLoader
         Task {
-            var nativeTools = nativeToolBase
-            if shouldLoadMCPNativeTools {
-                nativeTools += (try? await nativeToolLoader.load()) ?? []
-            }
             await assistant.updateToolConfiguration(
                 toolSummaries: summaries,
-                readOnlyNativeTools: nativeTools
+                readOnlyNativeTools: nativeToolBase
             )
         }
     }

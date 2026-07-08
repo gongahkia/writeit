@@ -200,27 +200,14 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 @Test func defaultNativeToolCatalogIsReadOnly() {
     let readOnlyNativeToolNames = Set(DefaultToolCatalog.readOnlyFoundationModelTools().map(\.name))
     let expectedReadOnlyToolNames: Set<String> = [
-        "browser.tabs",
-        "calendar.read",
-        "contacts.search",
-        "files.search",
-        "finder.selection",
-        "mail.search",
-        "memory.read",
-        "music.now_playing",
-        "notes.search",
-        "reminders.read",
         "screen.barcodes",
         "screen.ocr",
         "screen.snapshot",
-        "screen.ui_elements",
-        "shortcuts.list",
-        "web.search"
+        "screen.ui_elements"
     ]
-    let expectedNativeToolNames = expectedReadOnlyToolNames.subtracting(["screen.ui_elements", "shortcuts.list"])
 
     #expect(DefaultToolCatalog.readOnlyToolNames == expectedReadOnlyToolNames)
-    #expect(readOnlyNativeToolNames == expectedNativeToolNames)
+    #expect(readOnlyNativeToolNames == expectedReadOnlyToolNames)
 }
 
 @Test func mutatingToolArgumentsAreGenerableButNotNativeByDefault() {
@@ -230,26 +217,11 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
     let mutatingToolNames = Set(DefaultToolCatalog.summaries.filter(\.mutatesState).map(\.name))
 
-    #expect(mutatingToolNames == [
-        "app.control",
-        "browser.open_url",
-        "calendar.create",
-        "calendar.delete",
-        "calendar.edit",
-        "finder.reveal",
-        "memory.delete",
-        "memory.write",
-        "music.control",
-        "reminders.complete",
-        "reminders.create",
-        "reminders.delete",
-        "reminders.edit",
-        "shortcuts.run"
-    ])
+    #expect(mutatingToolNames.isEmpty)
     #expect(!DefaultToolCatalog.readOnlyToolNames.contains("shell.run"))
 }
 
-@Test func toolEnablementKeepsShellDisabledUntilExplicitlyEnabled() {
+@Test func toolEnablementKeepsShellDisabledEvenIfRequested() {
     let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
     let mcp = [ToolSummary(name: "mcp.call", capability: "Call MCP tool.", mutatesState: true)]
     let shell = ShellTool().summary
@@ -262,7 +234,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
         .map(\.name)
 
     #expect(defaultNames == ["calendar.read"])
-    #expect(shellEnabledNames == ["calendar.read", "shell.run"])
+    #expect(shellEnabledNames == ["calendar.read"])
 }
 
 @Test func toolEnablementAppliesSessionDisabledToolNames() {
@@ -279,27 +251,19 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
 @Test func toolProfilesMapToExpectedToolExposure() {
     let ambientSummaries = [
-        ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false),
-        ToolSummary(name: "calendar.create", capability: "Create event.", mutatesState: true)
+        ToolSummary(name: "screen.ocr", capability: "Read screen text.", mutatesState: false),
+        ToolSummary(name: "screen.snapshot", capability: "Capture screen.", mutatesState: false)
     ]
 
-    let ambient = ToolProfile.ambient.configuration(ambientSummaries: ambientSummaries)
-    let trustedDesk = ToolProfile.trustedDesk.configuration(ambientSummaries: ambientSummaries)
-    let explicitOperator = ToolProfile.explicitOperator.configuration(ambientSummaries: ambientSummaries)
+    let visionOnly = ToolProfile.visionOnly.configuration(ambientSummaries: ambientSummaries)
 
-    #expect(ambient.disabledAmbientToolNames == ["calendar.create"])
-    #expect(!ambient.mcpEnabled)
-    #expect(!ambient.shellEnabled)
-    #expect(trustedDesk.disabledAmbientToolNames.isEmpty)
-    #expect(!trustedDesk.mcpEnabled)
-    #expect(!trustedDesk.shellEnabled)
-    #expect(explicitOperator.disabledAmbientToolNames.isEmpty)
-    #expect(explicitOperator.mcpEnabled)
-    #expect(explicitOperator.shellEnabled)
-    #expect(explicitOperator.requiresConfirmationForAllTools)
+    #expect(visionOnly.disabledAmbientToolNames.isEmpty)
+    #expect(!visionOnly.mcpEnabled)
+    #expect(!visionOnly.shellEnabled)
+    #expect(!visionOnly.requiresConfirmationForAllTools)
 }
 
-@Test func toolEnablementKeepsMCPDisabledUntilExplicitlyEnabled() {
+@Test func toolEnablementKeepsMCPDisabledEvenIfRequested() {
     let ambient = [ToolSummary(name: "calendar.read", capability: "Read calendar.", mutatesState: false)]
     let mcp = [MCPTool().summary]
     let shell = ShellTool().summary
@@ -312,7 +276,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
         .map(\.name)
 
     #expect(defaultNames == ["calendar.read"])
-    #expect(mcpEnabledNames == ["calendar.read", "mcp.call"])
+    #expect(mcpEnabledNames == ["calendar.read"])
 }
 
 @Test func shellRunRequiresConfirmationForAllowlistedCommands() async throws {
@@ -582,8 +546,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
 @Test func calendarEditToolRequiresConfirmationAndValidatesArguments() throws {
     let tool = CalendarEditTool()
-    let summaries = DefaultToolCatalog.summaries
-    let summary = try #require(summaries.first { $0.name == "calendar.edit" })
+    let summary = tool.summary
 
     #expect(summary.mutatesState)
     #expect(throws: ToolExecutionError.self) {
@@ -615,8 +578,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
 @Test func calendarDeleteToolRequiresConfirmationAndValidatesArguments() throws {
     let tool = CalendarDeleteTool()
-    let summaries = DefaultToolCatalog.summaries
-    let summary = try #require(summaries.first { $0.name == "calendar.delete" })
+    let summary = tool.summary
 
     #expect(summary.mutatesState)
     #expect(throws: ToolExecutionError.self) {
@@ -686,8 +648,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
 @Test func remindersEditToolRequiresConfirmationAndValidatesArguments() throws {
     let tool = RemindersEditTool()
-    let summaries = DefaultToolCatalog.summaries
-    let summary = try #require(summaries.first { $0.name == "reminders.edit" })
+    let summary = tool.summary
 
     #expect(summary.mutatesState)
     #expect(throws: ToolExecutionError.self) {
@@ -711,8 +672,7 @@ private actor RecordingBrowserOpenURLRunner: BrowserOpenURLRunning {
 
 @Test func remindersDeleteToolRequiresConfirmationAndValidatesArguments() throws {
     let tool = RemindersDeleteTool()
-    let summaries = DefaultToolCatalog.summaries
-    let summary = try #require(summaries.first { $0.name == "reminders.delete" })
+    let summary = tool.summary
 
     #expect(summary.mutatesState)
     #expect(throws: ToolExecutionError.self) {

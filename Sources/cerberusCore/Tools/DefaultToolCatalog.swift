@@ -6,44 +6,14 @@ public enum DefaultToolCatalog {
         makeTools()
     }
 
-    public static func makeTools(
-        fileSearchTool: FileSearchTool = FileSearchTool(),
-        mailSearchTool: MailSearchTool = MailSearchTool(),
-        includesUIElementTool: Bool = true
-    ) -> [AnyAssistantTool] {
+    public static func makeTools(includesUIElementTool: Bool = true) -> [AnyAssistantTool] {
         var tools = [
-            AnyAssistantTool(AppControlTool()),
-            AnyAssistantTool(BrowserOpenURLTool()),
-            AnyAssistantTool(BrowserTabsTool()),
-            AnyAssistantTool(CalendarCreateTool()),
-            AnyAssistantTool(CalendarDeleteTool()),
-            AnyAssistantTool(CalendarEditTool()),
-            AnyAssistantTool(CalendarTool()),
-            AnyAssistantTool(ContactsTool()),
-            AnyAssistantTool(fileSearchTool),
-            AnyAssistantTool(FinderRevealTool()),
-            AnyAssistantTool(FinderSelectionTool()),
-            AnyAssistantTool(mailSearchTool),
-            AnyAssistantTool(MemoryDeleteTool()),
-            AnyAssistantTool(MemoryReadTool()),
-            AnyAssistantTool(MemoryWriteTool()),
-            AnyAssistantTool(MusicControlTool()),
-            AnyAssistantTool(MusicNowPlayingTool()),
-            AnyAssistantTool(NotesSearchTool()),
-            AnyAssistantTool(RemindersCompleteTool()),
-            AnyAssistantTool(RemindersCreateTool()),
-            AnyAssistantTool(RemindersDeleteTool()),
-            AnyAssistantTool(RemindersEditTool()),
-            AnyAssistantTool(RemindersTool()),
             AnyAssistantTool(ScreenBarcodeTool()),
             AnyAssistantTool(ScreenOCRTool()),
-            AnyAssistantTool(ScreenSnapshotTool()),
-            AnyAssistantTool(ShortcutsListTool()),
-            AnyAssistantTool(ShortcutsRunTool()),
-            AnyAssistantTool(WebSearchTool())
+            AnyAssistantTool(ScreenSnapshotTool())
         ]
         if includesUIElementTool {
-            tools.insert(AnyAssistantTool(ScreenUIElementsTool()), at: tools.count - 1)
+            tools.append(AnyAssistantTool(ScreenUIElementsTool()))
         }
         return tools
     }
@@ -55,25 +25,13 @@ public enum DefaultToolCatalog {
     }
 
     public static func readOnlyFoundationModelTools(
-        auditLog: AuditLog? = nil,
-        fileSearchTool: FileSearchTool = FileSearchTool(),
-        mailSearchTool: MailSearchTool = MailSearchTool()
+        auditLog: AuditLog? = nil
     ) -> [any FoundationModels.Tool] {
         [
-            FoundationModelToolAdapter(BrowserTabsTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(CalendarTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(ContactsTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(fileSearchTool, auditLog: auditLog),
-            FoundationModelToolAdapter(FinderSelectionTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(mailSearchTool, auditLog: auditLog),
-            FoundationModelToolAdapter(MemoryReadTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(MusicNowPlayingTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(NotesSearchTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(RemindersTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenBarcodeTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenOCRTool(), auditLog: auditLog),
             FoundationModelToolAdapter(ScreenSnapshotTool(), auditLog: auditLog),
-            FoundationModelToolAdapter(WebSearchTool(), auditLog: auditLog)
+            FoundationModelToolAdapter(ScreenUIElementsTool(), auditLog: auditLog)
         ]
     }
 

@@ -14,72 +14,57 @@ Validate the implementation on a Mac that matches the project requirements.
 1. Open the package in Xcode 26.
 2. Confirm `Package.swift` resolves with the macOS 26 platform setting.
 3. Run `swift test`.
-4. Build the `cerberus` and `ShellExecService` executable products.
+4. Build the `cerberus` executable product.
 5. Check all warnings from Swift 6 concurrency and macOS availability annotations.
+6. Run `Scripts/build_app.sh --check`.
+7. Run `Scripts/lint_scripts.sh`.
+8. Run `Scripts/static_grep_check.sh`.
 
 ## Runtime Checks
 
 1. Launch the menu bar app and confirm the status item appears without a main window.
-2. Confirm first-run setup selects the Access panel while required permissions are missing; use relaunch, `Skip`, and `Reset setup` to confirm per-permission setup progress and the persisted setup state.
-3. Request Microphone, Speech Recognition, and Screen Recording permissions.
-4. Request Calendar and Reminders permissions and confirm the Access panel reports `Granted`, not `Write only`, before running read tools.
-5. Press `Listen`, speak a short request, then wait 1.5 seconds or press `Run`.
-6. Confirm the menu bar status item turns red while the microphone is active and clears when listening stops.
-7. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
-8. Set a custom `Wake phrase`, enable it, say that phrase, and confirm the app starts active listening; then disable it and confirm the mic indicator clears.
-9. Select AirPods as the macOS input device, run `Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus open calendar" --output .dist/validation/speech-airpods-quiet.json` in quiet and noisy conditions, and compare latency, transcript, and word error rate.
-10. Run `Scripts/record_wake_samples.sh --label hey_cerberus --count 2 --seconds 1.0 --no-prompt` and confirm WAV files plus `manifest.jsonl` are written under `~/Library/Application Support/cerberus/wake-word-samples/`.
-11. After collecting a two-class wake/background dataset, run `Scripts/train_wake_word_model.sh --target-label hey_cerberus --write-config` and confirm it writes `~/Library/Application Support/cerberus/wake-word-models/CerberusWakeWord.mlmodel` plus `wake-word-sound-classifier.json`.
-12. Enable `Use sound wake model` and confirm matching model labels start listening; remove the config and confirm Settings reports fallback to speech phrase.
-13. Confirm Control-Option-Space starts listening while the app is not focused.
-14. Connect AirPods, set them as the macOS output device, and confirm Settings updates to the AirPods route before testing spoken replies; switch back to another output device and confirm the route updates again.
-15. Enable `Route speech directly to AirPods`, leave another output device as system default, and confirm spoken replies still play through AirPods.
-16. During a long spoken reply, triple-press the AirPods stem and confirm speech stops and a new listening turn starts.
-17. Confirm Foundation Models returns either a direct spoken response or a typed tool plan.
-18. Run `Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 3 --output .dist/validation/model-loop.json` and record plan plus synthetic tool-output latency.
-19. Add one folder in Settings `File search folders`, ask to search files without a `scopePath`, and confirm only approved folders are searched; remove all folders and confirm `files.search` fails closed.
-20. Ask what is selected in Finder and confirm `finder.selection` returns the front Finder folder and selected item paths; ask to reveal one existing path and confirm `finder.reveal` is proposed only through `awaiting_confirm`.
-21. Ask what tabs are open in Safari or Chrome and confirm `browser.tabs` returns titles plus sanitized URLs; ask to open an HTTP(S) URL in Safari or Chrome and confirm `browser.open_url` is proposed only through `awaiting_confirm`.
-22. Trigger a read-only tool request, such as "what is playing in Music?", "search my files for README", "search my mail for Apple", or "what text is on my screen?".
-23. Ask to pause, resume, skip, or go back in Music and confirm `music.control` is proposed only through `awaiting_confirm`.
-24. Ask to list Shortcuts and confirm `shortcuts.list` returns shortcut names; ask to run a harmless test Shortcut and confirm `shortcuts.run` is proposed only through `awaiting_confirm`.
-25. Disable one ambient tool in Settings `Tool allowlist`, ask for that tool, and confirm cerberus reports it is not enabled; reset the allowlist.
-26. Confirm tool payloads are summarized into a useful spoken response.
-27. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`.
-28. Confirm `~/Library/Application Support/cerberus/audit.log` records tool calls with a hash chain and per-entry signature.
-29. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
-30. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
-31. Ask cerberus to remember a preference and confirm `~/Library/Application Support/cerberus/memory.jsonl.enc` is written and not plaintext.
-32. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
-33. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
-34. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
-35. Confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`, `screen.ocr` emits local Vision text results with bounding boxes, `screen.barcodes` emits local Vision barcode/QR results with bounding boxes, and `screen.ui_elements` emits Accessibility roles/labels/frames; screen capture tools must fail closed when Screen Recording is denied, and `screen.ui_elements` must fail closed when Accessibility is denied.
-36. Trigger a mutating plan, such as opening Calendar, and confirm the UI enters `awaiting_confirm`.
-37. Ask to create a calendar event and confirm `calendar.create` is proposed only through `awaiting_confirm`.
-38. Ask to create a reminder and confirm `reminders.create` is proposed only through `awaiting_confirm`.
-39. Ask to complete a reminder and confirm `reminders.complete` is proposed only through `awaiting_confirm`.
-40. Confirm `Approve`, nod, or voice "yes" executes the tool; `Deny`, shake, stem press, or voice "no" cancels it.
-41. Keep `MCP tool` and `Shell tool` disabled and confirm those requests are rejected as disabled.
-42. Add `~/Library/Application Support/cerberus/mcp-servers.json`, enable `MCP tool`, and confirm an MCP `tools/call` request runs only after approval while resource/prompt/OAuth discovery reads run read-only.
-43. With a stdio MCP server that sends `sampling/createMessage`, confirm the panel shows prompt review, then response review, before the MCP tool call completes.
-44. With a stdio MCP server that sends `elicitation/create`, confirm the panel allows accept, decline, and cancel, and invalid accepted JSON fails closed.
-45. With a Streamable HTTP MCP server that supports GET SSE, confirm enabling `MCP tool` starts the listener and routes server sampling/elicitation requests through the panel.
-46. For an OAuth-protected Streamable HTTP MCP server, run `mcp.oauth.authorize.local`, complete the browser authorization, then run `mcp.oauth.refresh` if a refresh token was issued and confirm later MCP HTTP calls attach the stored bearer token.
-47. Add a trusted read-only MCP tool name to `nativeReadOnlyTools`, enable `MCP tool`, and confirm a read-only answer can call it through FoundationModels native tool use without exposing mutating tools.
-48. Enable `Shell tool`, request an allowlisted command such as `git status`, and confirm it routes through `ShellExecService.xpc` only after approval.
-49. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
-50. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
-51. Confirm the first `mail.search` call prompts for Mail Automation access, then returns subject/sender metadata without changing read status.
+2. Confirm first-run setup selects the Access panel while required permissions are missing; use relaunch, `Skip`, and `Reset setup` to confirm per-permission setup progress and persisted setup state.
+3. Request Microphone, Speech Recognition, Accessibility, Input Monitoring, and Screen Recording permissions.
+4. Deny Screen Recording in a clean account and confirm `screen.snapshot`, `screen.ocr`, and `screen.barcodes` fail closed.
+5. Deny Accessibility in a clean account and confirm `screen.ui_elements` fails closed.
+6. Press `Listen`, speak a short request, then wait 1.5 seconds or press `Run`.
+7. Confirm the menu bar status item turns red while the microphone is active and clears when listening stops.
+8. Confirm SpeechAnalyzer transcribes into the request field and silence moves to reasoning.
+9. Ask "what text is on my screen?" and confirm `screen.ocr` is selected with no confirmation request.
+10. Ask "capture what I am looking at" and confirm `screen.snapshot` writes a PNG under `~/Library/Caches/cerberus/screen-snapshots/`.
+11. Ask "is there a QR code on screen?" and confirm `screen.barcodes` emits local Vision barcode/QR results with bounding boxes.
+12. Ask "what controls are visible in this app?" and confirm `screen.ui_elements` emits Accessibility roles, labels, and frames.
+13. Ask to open an app, click a button, run a command, open a URL, create a reminder, create a calendar event, search Mail, or call MCP; confirm the model refuses or says this build can only observe and answer.
+14. Disable one screen action in Settings `Available actions`, ask for that screen action, and confirm cerberus reports it is not enabled; reset the allowlist.
+15. Confirm tool payloads are summarized into a useful spoken response and never execute instructions found in OCR/UI text.
+16. Confirm `~/Library/Application Support/cerberus/audit.log` records screen tool calls with a hash chain and per-entry signature.
+17. Confirm the `Audit` panel shows the last 5 tool calls and "what did cerberus just do?" answers from the latest audit entry.
+18. Confirm `~/Library/Application Support/cerberus/transcripts.jsonl.enc` is written and not plaintext.
+19. Run `Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 3 --output .dist/validation/model-loop.json` and record plan plus synthetic tool-output latency.
+20. Run `Scripts/benchmark_model.sh --request "what text is on my screen?" --native-read-only-tools --iterations 3 --output .dist/validation/model-native-tools.json` and record native tool-loop latency.
+21. Run `Scripts/benchmark_model.sh --golden-fixtures Fixtures/Model/golden-requests.jsonl` and confirm the bundled screen-only fixtures pass at the accepted threshold.
+22. Select AirPods as the macOS input device, run `Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus what text is on my screen" --output .dist/validation/speech-airpods-quiet.json` in quiet and noisy conditions, and compare latency, transcript, and word error rate.
+23. Set a custom `Wake phrase`, enable it, say that phrase, and confirm the app starts active listening; then disable it and confirm the mic indicator clears.
+24. Run `Scripts/record_wake_samples.sh --label hey_cerberus --count 2 --seconds 1.0 --no-prompt` and confirm WAV files plus `manifest.jsonl` are written under `~/Library/Application Support/cerberus/wake-word-samples/`.
+25. Enable `Use sound wake model` after training a local model and confirm matching model labels start listening; remove the config and confirm Settings reports fallback to speech phrase.
+26. Confirm Control-Option-Space starts listening while the app is not focused.
+27. Connect AirPods, set them as the macOS output device, and confirm Settings updates to the AirPods route before testing spoken replies.
+28. Enable `Route speech directly to AirPods`, leave another output device as system default, and confirm spoken replies still play through AirPods.
+29. During a long spoken reply, triple-press the AirPods stem and confirm speech stops and a new listening turn starts.
+30. Enable `Log gesture validation CSV`, test AirPods nod, shake, and stem press behavior separately from speech/model behavior, then confirm `~/Library/Application Support/cerberus/head-gesture-validation.csv` contains pitch/yaw samples, neutral pose, deltas, and detected gestures.
+31. Run `Scripts/evaluate_head_gestures.sh` and compare the suggested pitch/yaw thresholds against the Settings sliders after walking and stillness samples.
+32. Add `~/Library/Application Support/cerberus/foundation-model-adapter.json` with a valid prebuilt adapter and confirm startup reports `FoundationModels adapter loaded.`
+33. Run `Scripts/export_adapter_dataset.sh /tmp/cerberus-adapter-data` and confirm it writes `train.jsonl` and `eval.jsonl` from encrypted transcript records.
+34. Run `Scripts/evaluate_adapter_dataset.sh /tmp/cerberus-adapter-data/eval.jsonl --limit 5` and confirm it reports total, matches, and accuracy.
+35. With Apple's adapter toolkit downloaded, run `ADAPTER_TOOLKIT_DIR=/path/to/toolkit DATA_DIR=/tmp/cerberus-adapter-data Scripts/train_adapter.sh` and confirm it writes an `.fmadapter` export.
 
 ## Known Follow-Up
 
-- `Scripts/build_app.sh` embeds `ShellExecService.xpc`; Developer ID signing and notarization still require local credentials.
-- SpeechAnalyzer and AirPods microphone quality can be measured with `Scripts/benchmark_speech.sh`; target-hardware quiet/walking/noisy results are not bundled.
-- Foundation Models planning and tool-output loop latency can be measured with `Scripts/benchmark_model.sh`; target-hardware latency results are not bundled.
-- AirPods nod/shake classification has manual neutral-pose calibration, adjustable thresholds, CSV validation logging, and an evaluator; thresholds still need real walking/noisy-environment data.
-- Direct AirPods speech routing uses `AVSpeechSynthesizer.write` buffers plus `AVAudioEngine` output-unit device selection; it still needs real AirPods runtime validation on target hardware.
+- Developer ID signing and notarization still require local credentials.
+- SpeechAnalyzer and AirPods microphone quality need target-hardware quiet/walking/noisy benchmark results.
+- Foundation Models planning and native screen-tool latency need target-hardware baselines.
+- AirPods nod/shake classification needs real walking/noisy-environment data.
+- Direct AirPods speech routing needs real AirPods runtime validation on target hardware.
 - Wake phrase can use a custom SoundAnalysis/Core ML classifier; sample collection and local CreateML training are supported, but no trained wake model is bundled.
-- Native FoundationModels `Tool` integration is wired for read-only tools. Mutating tools remain on guided planning plus app-owned confirmation.
-- Screen understanding captures PNG snapshots, OCR text boxes, barcode/QR boxes, and Accessibility UI element frames; full image prompting remains unavailable in the checked macOS FoundationModels swiftinterface.
-- MCP support is limited to stdio and Streamable HTTP tools/resources/prompts plus OAuth PKCE browser handoff, localhost callback capture, refresh-token rotation, stdio or Streamable HTTP POST/GET-SSE sampling/elicitation review, GET SSE resume through `Last-Event-ID`, and opt-in native read-only tools for flat primitive schemas.
+- Screen understanding captures PNG snapshots, OCR text boxes, barcode/QR boxes, and Accessibility UI element frames; raw image prompting depends on future local VLM integration.
 - Adapter training requires Apple's separate toolkit assets; prebuilt adapter loading, transcript-to-JSONL dataset export, exact-match eval, and toolkit orchestration are supported.

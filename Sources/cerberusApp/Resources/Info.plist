@@ -16,20 +16,8 @@
     <string>26.0</string>
     <key>LSUIElement</key>
     <true/>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>cerberus needs permission to automate apps such as Mail and Music only when you ask it to.</string>
-    <key>NSCalendarsUsageDescription</key>
-    <string>cerberus reads calendar events when you ask scheduling questions.</string>
-    <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>cerberus needs full calendar access to read events and create events only after confirmation.</string>
-    <key>NSContactsUsageDescription</key>
-    <string>cerberus searches contacts only when you ask for contact details.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>cerberus listens only after you trigger a voice interaction.</string>
-    <key>NSRemindersFullAccessUsageDescription</key>
-    <string>cerberus needs full reminders access to read reminders and create or complete reminders only after confirmation.</string>
-    <key>NSRemindersUsageDescription</key>
-    <string>cerberus reads reminders and creates reminders only after confirmation.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>cerberus captures visible screen images or text only when you ask what is on screen.</string>
     <key>NSSpeechRecognitionUsageDescription</key>

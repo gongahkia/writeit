@@ -23,16 +23,8 @@ public struct ToolEnablementPolicy: Sendable {
         mcpSummaries: [ToolSummary],
         shellSummary: ToolSummary
     ) -> [ToolSummary] {
-        var summaries = ambientAllowlist.filter(ambientSummaries)
+        let summaries = ambientAllowlist.filter(ambientSummaries)
             .filter { !sessionDisabledToolNames.contains($0.name) }
-        if mcpEnabled {
-            summaries += mcpSummaries.filter { !sessionDisabledToolNames.contains($0.name) }
-        }
-        if shellEnabled {
-            if !sessionDisabledToolNames.contains(shellSummary.name) {
-                summaries.append(shellSummary)
-            }
-        }
         return summaries.sorted { $0.name < $1.name }
     }
 }

@@ -1,27 +1,28 @@
 # Request Examples
 
-## Safe Read-Only Requests
+## Supported Screen Questions
 
 - "what is on my screen?"
-- "search my approved files for README"
-- "what is playing in Music?"
-- "what meetings do I have this afternoon?"
-- "search my mail for messages from Apple"
+- "what text is in the active window?"
+- "what controls are visible in this app?"
+- "is there a QR code on screen?"
+- "capture what I am looking at"
+- "summarize the visible error message"
 
-## Requests That Require Confirmation
+## Refused Operation Requests
 
-- "create a calendar event tomorrow at 9 called dentist"
-- "add a reminder to buy milk tonight"
-- "mark my buy milk reminder complete"
-- "pause Music"
+- "click the continue button"
 - "open Calendar"
-- "run git status in my home directory" after enabling the shell tool
+- "run git status"
+- "search my Mail"
+- "create a reminder"
+- "open this URL"
+- "call this MCP tool"
+- "change this setting"
 
 ## Refused Unsafe Requests
 
-- "delete my project folder"
-- "run rm -rf in Downloads"
-- "install this npm package globally"
-- "brew uninstall all packages"
-- "search outside my approved file folders"
-- "call this mutating MCP tool without asking me"
+- "read a password from the screen and save it"
+- "watch this person without them knowing"
+- "bypass Screen Recording permission"
+- "hide from screen sharing or proctoring software"

@@ -19,50 +19,50 @@ public enum AppToolPacks {
         AppToolPack(
             appName: "Xcode",
             aliases: ["xcode"],
-            toolNames: ["files.search", "finder.selection", "shell.run"],
-            guidance: "Use project and Finder context first; use shell.run only for explicit command requests."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never operate Xcode."
         ),
         AppToolPack(
             appName: "Terminal",
             aliases: ["terminal", "iterm"],
-            toolNames: ["files.search", "finder.selection", "shell.run"],
-            guidance: "Use project and Finder context first; preserve shell confirmation semantics."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never run commands."
         ),
         AppToolPack(
             appName: "Safari",
             aliases: ["safari"],
-            toolNames: ["browser.tabs", "browser.open_url", "screen.ocr", "screen.ui_elements", "web.search"],
-            guidance: "Use browser.tabs for tab context; browser.open_url changes browser state and requires confirmation."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never navigate or click."
         ),
         AppToolPack(
             appName: "Chrome",
             aliases: ["chrome", "google chrome"],
-            toolNames: ["browser.tabs", "browser.open_url", "screen.ocr", "screen.ui_elements", "web.search"],
-            guidance: "Use browser.tabs for tab context; browser.open_url changes browser state and requires confirmation."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never navigate or click."
         ),
         AppToolPack(
             appName: "Calendar",
             aliases: ["calendar"],
-            toolNames: ["calendar.read", "calendar.create", "calendar.edit", "calendar.delete"],
-            guidance: "Use calendar.read for schedule questions; write tools require confirmation."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never read or edit calendar data through EventKit."
         ),
         AppToolPack(
             appName: "Mail",
             aliases: ["mail"],
-            toolNames: ["mail.search"],
-            guidance: "Use mail.search for read-only lookup; body search remains opt-in."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never query Mail through Automation."
         ),
         AppToolPack(
             appName: "Music",
             aliases: ["music"],
-            toolNames: ["music.now_playing", "music.control"],
-            guidance: "Use music.now_playing for status; music.control requires confirmation."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never control playback."
         ),
         AppToolPack(
             appName: "Finder",
             aliases: ["finder"],
-            toolNames: ["finder.selection", "finder.reveal", "files.search"],
-            guidance: "Use finder.selection for current context; finder.reveal changes Finder UI state and requires confirmation."
+            toolNames: ["screen.ocr", "screen.ui_elements", "screen.snapshot"],
+            guidance: "Use screen reads only; never reveal or open files."
         )
     ]
 

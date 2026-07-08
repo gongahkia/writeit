@@ -2,31 +2,27 @@
 
 ## Trust Boundaries
 
-- User input, speech transcripts, tool payloads, MCP data, web results, Mail/Music Apple Event output, file names, OCR text, and shell output are untrusted.
-- `cerberusApp` is trusted to present state, collect confirmation, and route approved actions.
-- `cerberusCore` is trusted to enforce tool allowlists, confirmation, storage encryption, prompt-boundary escaping, and audit signing.
-- `ShellExecService.xpc` is a separate execution boundary for allowlisted shell commands.
+- User input, speech transcripts, OCR text, screen snapshot metadata, barcode payloads, UI labels, and prior conversation text are untrusted.
+- `cerberusApp` is trusted to present state and route observer-only screen requests.
+- `cerberusCore` is trusted to enforce the screen-only tool allowlist, storage encryption, prompt-boundary escaping, and audit signing.
 
 ## Execution Rules
 
-- Read-only built-in tools can run without confirmation when enabled.
-- Mutating built-in tools require confirmation through `ConfirmationGate`.
-- `shell.run` is default-off, requires explicit Settings opt-in, requires confirmation, and revalidates commands in the XPC service.
-- `mcp.call` is confirmation-gated. MCP resources, prompts, OAuth helpers, and trusted `nativeReadOnlyTools` are separate read paths.
-- Local manifest tools must be named `local.*`, load only from the app support manifest, execute only through `ShellTool` command allowlist policy, and remain confirmation-gated.
-- Disabled ambient tools are omitted from planning prompts and rejected by the execution allowlist.
+- The shipped app registers only `screen.snapshot`, `screen.ocr`, `screen.barcodes`, and `screen.ui_elements`.
+- Screen tools are read-only and must fail closed when Screen Recording or Accessibility access is denied.
+- No shipped app path exposes app control, shell execution, browser navigation, MCP calls, file search, Mail Automation, EventKit writes, Finder reveal, Music controls, Shortcuts execution, or network web search.
+- Disabled screen tools are omitted from planning prompts and rejected by the execution allowlist.
 
 ## Storage Rules
 
 - App-owned files live under `~/Library/Application Support/cerberus/` or `~/Library/Caches/cerberus/`.
-- Transcripts and memory are AES-GCM encrypted with Keychain-stored keys.
+- Transcripts are AES-GCM encrypted with Keychain-stored keys.
 - Audit logs are hash-chained and HMAC-signed with a Keychain-stored signing key.
 - Screen snapshots are cached under `~/Library/Caches/cerberus/screen-snapshots/` and pruned by age/count.
 
 ## Review Checklist
 
-- Confirm new tools declare `mutatesState` correctly.
+- Confirm default catalog changes remain screen-only.
 - Confirm new model-ingress payloads use prompt-boundary escaping.
 - Confirm new write paths use `CerberusDirectories`.
-- Confirm new network/file/app egress is user-enabled, scoped, or confirmation-gated.
-- Confirm release entitlements and `Info.plist` usage descriptions match shipped capabilities.
+- Confirm new permissions, entitlements, and `Info.plist` usage descriptions match observer-only shipped capabilities.

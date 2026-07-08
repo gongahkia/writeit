@@ -1,24 +1,32 @@
 # Architecture
 
-```mermaid
-flowchart TD
-    User["User trigger\nmenu, hotkey, AirPods, wake phrase"] --> App["cerberusApp\nSwiftUI menu bar + AppModel"]
-    App --> Core["cerberusCore"]
-    Core --> Speech["Speech\nTranscriber + Speaker"]
-    Core --> Model["Reasoning\nFoundation Models session"]
-    Model --> NativeTools["Read-only native tools\ncalendar, reminders, mail, files, web, OCR, memory"]
-    Model --> Plans["Guided tool plans"]
-    Plans --> Confirm["ConfirmationGate\nbuttons, voice, nod/shake"]
-    Confirm --> Registry["ToolRegistry"]
-    Registry --> MutatingTools["Mutating tools\ncalendar.create, reminders.create, reminders.complete, music.control, app.control"]
-    Registry --> MCP["MCP stdio / Streamable HTTP / OAuth"]
-    Registry --> Shell["ShellTool"]
-    Shell --> XPC["ShellExecService.xpc\nallowlisted command execution"]
-    Core --> Storage["Local storage\nApplication Support + Caches"]
-    Storage --> Encrypted["Encrypted transcripts + memory\nKeychain AES-GCM keys"]
-    Storage --> Audit["Audit log\nhash chain + HMAC"]
-    Storage --> Snapshots["Screen snapshots\nCaches/cerberus"]
-    Core --> Bench["CLI tools\nbenchmarks, adapter export/eval, wake samples"]
+```text
+User trigger
+  menu / hotkey / AirPods / wake phrase
+        |
+        v
+cerberusApp
+  SwiftUI menu bar, permissions, settings, speech lifecycle
+        |
+        v
+cerberusCore
+  speech, state machine, model wrapper, audit, encrypted transcripts
+        |
+        v
+Foundation Models
+  direct answer or typed screen-read plan
+        |
+        v
+ToolRegistry
+  screen.snapshot | screen.ocr | screen.barcodes | screen.ui_elements
+        |
+        v
+ScreenCaptureKit / Vision / Accessibility
+        |
+        v
+spoken answer + local transcript/audit
 ```
 
-`cerberusApp` owns UI state, permissions, user settings, and confirmation presentation. `cerberusCore` owns deterministic state machines, tool implementations, security gates, storage, MCP clients, speech/model wrappers, and CLI support. The packaged app embeds `ShellExecService.xpc`; release scripts build/sign the nested service before signing the parent app.
+`cerberusApp` owns UI state, permissions, user settings, and voice/speech presentation. `cerberusCore` owns deterministic state machines, screen-reading tools, prompt-boundary escaping, audit signing, encrypted transcript storage, and CLI support.
+
+The shipped app is observer-only: it captures screen context, extracts text/barcodes/UI geometry locally, and answers questions. It does not click, type, open apps, navigate browsers, run shell commands, call MCP tools, or mutate Calendar/Reminders/Finder/Music state.

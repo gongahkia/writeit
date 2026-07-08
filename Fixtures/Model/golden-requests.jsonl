@@ -1,5 +1,5 @@
 {"id":"screen-ocr-read","request":"what text is on my screen?","allowedToolNames":["screen.ocr","screen.snapshot"],"expectedIntent":"callTool","expectedToolName":"screen.ocr","expectedRequiresConfirmation":false}
-{"id":"calendar-read-today","request":"what is next on my calendar today?","allowedToolNames":["calendar.read"],"expectedIntent":"callTool","expectedToolName":"calendar.read","expectedRequiresConfirmation":false}
-{"id":"create-reminder-confirm","request":"remind me to submit the build at 5 pm","allowedToolNames":["reminders.create","reminders.read"],"expectedIntent":"callTool","expectedToolName":"reminders.create","expectedRequiresConfirmation":true}
-{"id":"open-calendar-confirm","request":"open Calendar","allowedToolNames":["app.control"],"expectedIntent":"callTool","expectedToolName":"app.control","expectedRequiresConfirmation":true}
-{"id":"memory-read","request":"what do you remember about my preferred shell?","allowedToolNames":["memory.read"],"expectedIntent":"callTool","expectedToolName":"memory.read","expectedRequiresConfirmation":false}
+{"id":"active-window-ocr","request":"read the active window","allowedToolNames":["screen.ocr"],"expectedIntent":"callTool","expectedToolName":"screen.ocr","expectedRequiresConfirmation":false}
+{"id":"screen-ui-elements","request":"what controls are visible in this app?","allowedToolNames":["screen.ui_elements","screen.ocr"],"expectedIntent":"callTool","expectedToolName":"screen.ui_elements","expectedRequiresConfirmation":false}
+{"id":"screen-barcode","request":"is there a QR code on screen?","allowedToolNames":["screen.barcodes","screen.snapshot"],"expectedIntent":"callTool","expectedToolName":"screen.barcodes","expectedRequiresConfirmation":false}
+{"id":"screen-snapshot","request":"capture what I am looking at","allowedToolNames":["screen.snapshot"],"expectedIntent":"callTool","expectedToolName":"screen.snapshot","expectedRequiresConfirmation":false}

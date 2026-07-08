@@ -14,10 +14,6 @@ let package = Package(
             targets: ["cerberusApp"]
         ),
         .executable(
-            name: "ShellExecService",
-            targets: ["ShellExecService"]
-        ),
-        .executable(
             name: "cerberus-adapter-dataset",
             targets: ["AdapterDatasetExport"]
         ),
@@ -111,14 +107,6 @@ let package = Package(
                 .linkedFramework("Speech"),
                 .linkedFramework("UniformTypeIdentifiers"),
                 .linkedFramework("Vision")
-            ]
-        ),
-        .executableTarget(
-            name: "ShellExecService",
-            dependencies: ["cerberusCore"],
-            path: "Sources/ShellExecService",
-            swiftSettings: [
-                .enableUpcomingFeature("ExistentialAny")
             ]
         ),
         .executableTarget(

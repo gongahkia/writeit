@@ -1,6 +1,6 @@
 # cerberus
 
-AirPods-driven, local-first personal assistant for macOS.
+AirPods-driven, local-first screen-reading assistant for macOS.
 
 The project is intentionally scoped as a native macOS utility:
 
@@ -13,30 +13,16 @@ The project is intentionally scoped as a native macOS utility:
 - default-off wake phrase monitor with SpeechAnalyzer fallback or a configured SoundAnalysis/Core ML wake model
 - wake-word WAV sample collector and CreateML trainer for local classifier training data
 - speech replies can follow the current macOS output route or route directly to detected AirPods
-- Foundation Models for on-device planning and native read-only typed tool calls
-- Foundation Models latency benchmark CLI for plan/tool-loop checks
-- active macOS application context is included in planning prompts
+- Foundation Models for on-device answering and native screen-reading tool calls
+- Foundation Models latency benchmark CLI for screen-question checks
+- active macOS application context is included only as observer context
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
-- per-session tool allowlist settings for the ambient tool surface
-- file search is limited to Settings-approved folders
-- tool implementations are audited, read-default, and confirmation-gated for risky actions
-- cancellable background task queue records terminal states into the audit log
-- local `local.*` tool manifests wrap allowlisted shell commands and remain confirmation-gated
-- calendar event creation is a separate mutating tool and requires confirmation
-- reminder creation is a separate mutating tool and requires confirmation
-- reminder completion is a separate mutating tool and requires confirmation
-- Apple Shortcuts listing is read-only, while running a Shortcut is confirmation-gated
-- encrypted local transcripts and memory records
-- local vector-ranked memory search without network embedding calls
-- read-only Finder selection/context plus confirmation-gated Finder reveal
-- app-specific tool packs for Xcode, Terminal, Safari, Chrome, Calendar, Mail, Music, and Finder
-- read-only Mail.app subject/sender search through macOS Automation
-- Music.app now-playing reads and confirmation-gated playback controls
-- local screen snapshots plus text OCR, barcode/QR detection, and Accessibility UI geometry for "what is on my screen?" requests
-- default-off MCP bridge for configured stdio or Streamable HTTP servers, including OAuth PKCE browser handoff
+- per-session allowlist settings for screen-reading tools
+- no app control, shell execution, browser navigation, MCP calls, EventKit writes, Mail Automation, Finder reveal, or Shortcuts execution in the shipped app surface
+- encrypted local transcripts
+- local screen snapshots plus text OCR, barcode/QR detection, and Accessibility UI geometry for screen questions
 - optional prebuilt FoundationModels adapter loading plus transcript JSONL export/eval and Apple toolkit orchestration
-- shell execution is default-off, confirmation-gated, and routed through an allowlisted XPC service when enabled
 
 ## Requirements
 
@@ -44,9 +30,9 @@ The project is intentionally scoped as a native macOS utility:
 - Xcode 26 or later
 - Apple Silicon Mac with Apple Intelligence enabled
 - AirPods with headphone motion support for nod/shake triggers
-- Microphone, Speech Recognition, Calendar, Reminders, Accessibility, Input Monitoring, and Screen Recording permissions as features are enabled
+- Microphone, Speech Recognition, Accessibility, Input Monitoring, and Screen Recording permissions as features are enabled
 
-This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app`, applies `Config/cerberus.entitlements`, and embeds `ShellExecService` in `Contents/XPCServices`.
+This repository uses Swift Package Manager for source organization. `Scripts/build_app.sh` assembles `.dist/cerberus.app` and applies `Config/cerberus.entitlements`.
 `Scripts/release_check.sh` verifies Developer ID signing, notarization, demo-video, and open-source release gates.
 
 ## Screenshots
@@ -56,21 +42,17 @@ This repository uses Swift Package Manager for source organization. `Scripts/bui
 
 ## Privacy
 
-Planning, speech transcription, OCR, transcripts, memory, audit logs, wake samples, adapter config, MCP config, and screen snapshots are local by default. Transcripts and memory records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
+Planning, speech transcription, OCR, transcripts, wake samples, adapter config, and screen snapshots are local by default. Transcript records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
 
-Tool egress happens only through the tool the user enables or requests: Apple Events for Mail/Music/app control, EventKit for Calendar/Reminders, approved folders for file search, configured MCP servers, allowlisted web domains, and the default-off shell XPC service. Mutating built-in tools and `mcp.call` require confirmation before execution.
+The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, and Accessibility element reads. It does not operate apps, run shell commands, navigate browsers, call MCP tools, search files, or contact network services.
 
 ## Permissions
 
-- Accessibility: opens the Access panel and supports app-control plus UI element geometry workflows.
+- Accessibility: opens the Access panel and supports visible UI element geometry workflows.
 - Input Monitoring: supports global trigger keys and media-key handling.
 - Microphone: records voice requests, wake phrase monitoring, and speech benchmarks.
 - Speech Recognition: runs SpeechAnalyzer/SpeechTranscriber transcription.
-- Calendar: reads events and creates events after confirmation.
-- Reminders: reads reminders and creates/completes reminders after confirmation.
 - Screen Recording: captures local screen snapshots, OCR text boxes, and barcode/QR results.
-- Automation: talks to Mail, Music, and app-control targets through Apple Events.
-- Network Client: contacts allowlisted web search endpoints and configured MCP HTTP/OAuth servers.
 
 ## Development Notes
 
@@ -85,7 +67,7 @@ See `Docs/model-benchmark.md` for Foundation Models planning/tool-loop latency c
 See `Docs/speech-benchmark.md` for live SpeechAnalyzer benchmark runs.
 See `Docs/request-examples.md` for read-only, confirmation-gated, and refused request examples.
 See `Docs/airpods.md` for AirPods motion troubleshooting.
-See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, MCP OAuth, and shell XPC recovery.
+See `Docs/troubleshooting.md` for Foundation Models, SpeechAnalyzer, permissions, and screen capture recovery.
 See `Docs/wake-word.md` for optional SoundAnalysis/Core ML wake model setup.
 See `Docs/distribution.md` for local app packaging, demo recording, and notarization.
 See `Docs/architecture.md` for the current app/core/tool/service layout.
