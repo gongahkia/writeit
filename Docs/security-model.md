@@ -11,7 +11,7 @@
 - The default app registers only `screen.snapshot`, `screen.ocr`, `screen.barcodes`, and `screen.ui_elements`.
 - If `local-vlm.json` enables a valid local provider, the app also registers `screen.describe` as a read-only passive VQA tool.
 - Screen tools are read-only and must fail closed when Screen Recording or Accessibility access is denied.
-- No shipped app path exposes app control, shell execution, browser navigation, MCP calls, file search, Mail Automation, EventKit writes, Finder reveal, Music controls, Shortcuts execution, or network web search.
+- No shipped app path exposes app control, shell execution, browser navigation, MCP calls, file search, Mail Automation, calendar/reminder writes, Finder reveal, Music controls, Shortcuts execution, or network web search.
 - Local VLM HTTP providers must use localhost endpoints unless `allowNonLocalEndpoint` is explicitly set in config.
 - Disabled screen tools are omitted from planning prompts and rejected by the execution allowlist.
 

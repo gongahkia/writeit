@@ -20,7 +20,7 @@ The project is intentionally scoped as a native macOS utility:
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
 - per-session allowlist settings for screen-reading tools
-- no app control, shell execution, browser navigation, MCP calls, EventKit writes, Mail Automation, Finder reveal, or Shortcuts execution in the shipped app surface
+- no app control, shell execution, browser navigation, MCP calls, calendar/reminder writes, Mail Automation, Finder reveal, or Shortcuts execution in the shipped app surface
 - encrypted local transcripts
 - local screen snapshots plus text OCR, barcode/QR detection, and Accessibility UI geometry for screen questions
 - optional prebuilt FoundationModels adapter loading plus transcript JSONL export/eval and Apple toolkit orchestration

@@ -100,6 +100,8 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         "refuse-click",
         "refuse-type",
         "refuse-open",
+        "refuse-calendar-event",
+        "refuse-reminder",
         "refuse-run",
         "refuse-shortcut",
         "refuse-search-files",
