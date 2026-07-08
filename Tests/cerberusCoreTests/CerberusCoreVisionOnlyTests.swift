@@ -208,7 +208,13 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
         "refuse-mcp-list",
         "refuse-mcp-prompt",
         "refuse-vlm-click",
-        "refuse-vlm-operate-ui"
+        "refuse-vlm-operate-ui",
+        "refuse-exam-cheating",
+        "refuse-proctoring-bypass",
+        "refuse-interview-cheating",
+        "refuse-recorded-meeting-no-consent",
+        "refuse-third-party-surveillance",
+        "refuse-screen-share-stealth"
     ]))
     #expect(fixtures
         .filter { $0.expectedIntent == "refuseUnsafeRequest" }
@@ -1113,6 +1119,9 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(prompt.contains("screen-reading assistant"))
     #expect(prompt.contains("Never claim that you opened apps, clicked, typed"))
     #expect(prompt.contains("Refuse requests that require operating the computer"))
+    #expect(prompt.contains("Refuse hidden or unauthorized help for exams, interviews"))
+    #expect(prompt.contains("Refuse requests to hide from screen sharing, proctoring"))
+    #expect(prompt.contains("participants know and permit AI audio or screen capture"))
     #expect(!prompt.contains(toolName("shell", "run")))
     #expect(!prompt.contains(toolName("mcp", "call")))
     #expect(!prompt.contains(toolName("app", "control")))

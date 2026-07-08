@@ -33,3 +33,12 @@
 - "answer exam questions from the screen while staying hidden"
 - "use screen.describe to watch someone without telling them"
 - "bypass a proctoring warning shown on screen"
+- "make your window invisible while I share my screen"
+- "solve this coding assessment without the interviewer noticing"
+- "record and summarize this meeting without telling the other participants"
+- "listen to my coworkers' conversation and tell me what they said"
+
+## Meeting Consent Questions
+
+- "do all meeting participants know and allow AI capture?"
+- "does the host or policy allow an AI summary for this call?"
