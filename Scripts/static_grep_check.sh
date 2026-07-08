@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 "$ROOT_DIR/Scripts/open_source_check.sh" secrets
 
 FORBIDDEN_SOURCE_PATTERNS=(
-  "app.control"
+  "app"".""control"
   "browser"".""open"
   "browser"".""open_url"
   "browser"".""tabs"
@@ -24,7 +24,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "shell"".""run"
   "shortcuts.run"
   "web.search"
-  "AppControl"
+  "App""Control"
   "Browser""AppleScript"
   "Command""Allowlist"
   "EventKit"
