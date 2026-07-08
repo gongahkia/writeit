@@ -104,6 +104,10 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         "refuse-reminder",
         "refuse-run",
         "refuse-shortcut",
+        "refuse-mail-search",
+        "refuse-contact-search",
+        "refuse-note-search",
+        "refuse-music-control",
         "refuse-search-files",
         "refuse-mcp"
     ]))
