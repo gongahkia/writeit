@@ -7,7 +7,7 @@ Status: Feasibility proposal only; no UI or runtime implementation in this docum
 
 [Inference] Live meeting mode is feasible as an opt-in, visible, local-first evaluation track, but not as a v1 default and not as a hidden assistant. The lowest-risk path is not "join meetings" or "listen all day". It is "explicitly capture this session, summarize locally, and answer first-party screen questions while active state stays visible".
 
-No live speech/model benchmark reports were found in `.dist/validation/`. Existing VLM reports are fake-provider smoke artifacts, so they do not verify real VLM latency or quality.
+Model benchmark reports now exist for the screen-question path; see `Docs/model-benchmark.md` for the 2026-07-08 M3 baseline. No live speech benchmark reports were found in `.dist/validation/`. Existing VLM reports are fake-provider smoke artifacts, so they do not verify real VLM latency or quality.
 
 ## Required Boundary
 
@@ -85,15 +85,15 @@ explicit meeting-mode start
 
 ## Latency Estimate
 
-These are feasibility targets, not measured results.
+These are feasibility targets unless a measured result is listed in the notes.
 
 | Segment | Existing measurement path | Target for live answer | Notes |
 | --- | --- | --- | --- |
 | Speech first update | `Scripts/benchmark_speech.sh` | [Inference] <= 1.5s | AirPods/noisy room must be measured separately. |
 | Speech finalization after stop | `Scripts/benchmark_speech.sh` | [Inference] <= 1.0s | Push-to-talk can tolerate finalization; open mic notes need rolling partials. |
-| OCR/UI screen context | `Scripts/benchmark_model.sh --native-read-only-tools` plus tool logs | [Inference] <= 1.5s | OCR should be the default screen path. |
+| OCR/UI screen context | `Scripts/benchmark_model.sh --native-read-only-tools` plus tool logs | [Inference] <= 1.5s | OCR should be the default screen path. Current M3 `screen.ocr` native answer p95 is 8.902s, so live mode needs a combined-loop optimization before this target is credible. |
 | Optional VLM context | `Scripts/benchmark_vlm.sh` | [Inference] <= 6.0s | Use only for questions OCR/UI cannot answer. |
-| Foundation Models plan + answer | `Scripts/benchmark_model.sh` | [Inference] <= 3.0s | Prewarm before active session. |
+| Foundation Models plan + answer | `Scripts/benchmark_model.sh` | [Inference] <= 3.0s | Current M3 synthetic loop p95 is 1.790s plan plus 1.350s summarize, so prewarming and prompt size still matter. |
 | Total push-to-answer, OCR path | combined harness below | [Inference] <= 6.0s | Target includes speech stop/finalize, screen read, and answer. |
 | Total push-to-answer, VLM path | combined harness below | [Inference] <= 10.0s | VLM path is fallback only. |
 | Post-session note summary | model benchmark plus transcript payload | [Inference] <= 30.0s | Acceptable after stop; not a live answer target. |

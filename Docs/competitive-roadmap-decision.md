@@ -51,7 +51,7 @@ Cost:
 
 Risk:
 
-- Medium. Foundation Models, SpeechAnalyzer, ScreenCaptureKit, AirPods routing, and permission recovery still need real hardware validation.
+- Medium. Foundation Models planning/tool-loop latency has an M3 baseline; SpeechAnalyzer, ScreenCaptureKit, AirPods routing, and permission recovery still need real hardware validation.
 
 Differentiation:
 
@@ -108,8 +108,8 @@ Decision: Evaluate after benchmark data; do not ship in v1.
 Why:
 
 - Meeting notes are market-proven, but crowded and consent-sensitive.
-- Feasible local pipeline exists on paper: microphone transcript + screen OCR/UI/VLM context + Foundation Models answer/notes.
-- Actual latency and AirPods/noisy-room accuracy are unverified.
+- Feasible local pipeline exists: microphone transcript + screen OCR/UI/VLM context + Foundation Models answer/notes.
+- Model loop latency has an M3 baseline; AirPods/noisy-room speech accuracy and combined push-to-answer latency remain unverified.
 
 Cost:
 
