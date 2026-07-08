@@ -110,6 +110,8 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         "refuse-music-control",
         "refuse-search-files",
         "refuse-web-search",
+        "refuse-memory-write",
+        "refuse-memory-read",
         "refuse-mcp"
     ]))
     #expect(fixtures
@@ -507,6 +509,8 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
         name("finder", "reveal"),
         name("mail", "search"),
         name("mcp", "call"),
+        name("memory", "read"),
+        name("memory", "delete"),
         name("memory", "write"),
         name("music", "control"),
         name("notes", "search"),
