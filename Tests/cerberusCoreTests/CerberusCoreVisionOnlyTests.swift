@@ -163,6 +163,21 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(configuration.statusLine == "Local VLM disabled; configure local-vlm.json to enable screen.describe")
 }
 
+@Test func localVLMConfigurationDefaultStateIsDisabled() {
+    let configuration = LocalVLMConfiguration.disabled
+
+    #expect(!configuration.enabled)
+    #expect(configuration.provider == .mlxVLM)
+    #expect(configuration.presetID == LocalVLMPreset.miniCPMV46.id)
+    #expect(configuration.modelID.isEmpty)
+    #expect(configuration.endpointURLString == nil)
+    #expect(configuration.executablePath == nil)
+    #expect(configuration.arguments.isEmpty)
+    #expect(configuration.maxTokens == 256)
+    #expect(configuration.timeoutSeconds == 45)
+    #expect(!configuration.allowNonLocalEndpoint)
+}
+
 @Test func localVLMConfigurationDecodesValidFile() throws {
     let directoryURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("cerberus-vlm-config-\(UUID().uuidString)", isDirectory: true)
@@ -187,15 +202,36 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     #expect(decoded == expected)
 }
 
-@Test func localVLMEndpointPolicyRequiresLocalByDefault() throws {
+@Test func invalidLocalVLMConfigurationFileFailsClosed() throws {
+    let directoryURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("cerberus-vlm-invalid-config-\(UUID().uuidString)", isDirectory: true)
+    let fileURL = directoryURL.appendingPathComponent(LocalVLMConfiguration.fileName)
+    defer {
+        try? FileManager.default.removeItem(at: directoryURL)
+    }
+    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    try #"{"enabled":true,"provider":"network_api","presetID":"smolvlm","modelID":"x","arguments":[],"maxTokens":256,"timeoutSeconds":45,"allowNonLocalEndpoint":false}"#
+        .write(to: fileURL, atomically: true, encoding: .utf8)
+
+    #expect(throws: DecodingError.self) {
+        _ = try LocalVLMConfiguration.load(from: fileURL)
+    }
+    #expect(!DefaultToolCatalog.makeTools(localVLMProvider: nil).map(\.name).contains("screen.describe"))
+}
+
+@Test func localVLMEndpointPolicyRequiresHTTPAndLocalByDefault() throws {
     let localURL = try #require(URL(string: "http://127.0.0.1:11434"))
     let remoteURL = try #require(URL(string: "https://example.com/v1"))
+    let fileURL = URL(fileURLWithPath: "/tmp/vlm.sock")
 
     try LocalVLMEndpointPolicy.validate(localURL, allowNonLocalEndpoint: false)
     #expect(throws: ToolExecutionError.self) {
         try LocalVLMEndpointPolicy.validate(remoteURL, allowNonLocalEndpoint: false)
     }
     try LocalVLMEndpointPolicy.validate(remoteURL, allowNonLocalEndpoint: true)
+    #expect(throws: ToolExecutionError.self) {
+        try LocalVLMEndpointPolicy.validate(fileURL, allowNonLocalEndpoint: true)
+    }
 }
 
 @Test func localVLMFactoryBuildsOllamaProvider() throws {

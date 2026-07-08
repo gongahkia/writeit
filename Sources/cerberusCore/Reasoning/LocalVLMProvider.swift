@@ -94,15 +94,25 @@ public enum LocalVLMProviderExecutor {
 
 public enum LocalVLMEndpointPolicy {
     public static func validate(_ url: URL, allowNonLocalEndpoint: Bool) throws {
-        guard allowNonLocalEndpoint || isLocal(url) else {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            throw ToolExecutionError.invalidArguments("Local VLM endpointURLString must use http or https.")
+        }
+        guard let host = url.host?.lowercased(), !host.isEmpty else {
+            throw ToolExecutionError.invalidArguments("Local VLM endpointURLString must include a host.")
+        }
+        guard allowNonLocalEndpoint || isLocalHost(host) else {
             throw ToolExecutionError.denied("Local VLM endpoint must be localhost unless allowNonLocalEndpoint is true.")
         }
     }
 
     public static func isLocal(_ url: URL) -> Bool {
         guard let host = url.host?.lowercased(), !host.isEmpty else {
-            return true
+            return false
         }
+        return isLocalHost(host)
+    }
+
+    private static func isLocalHost(_ host: String) -> Bool {
         return host == "localhost"
             || host == "127.0.0.1"
             || host == "::1"
