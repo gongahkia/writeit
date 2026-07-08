@@ -1,5 +1,5 @@
 name: Validation result
-description: Share macOS, release, speech, model, safety, or MCP validation results.
+description: Share macOS, release, speech, model, screen, or safety validation results.
 title: "[validation]: "
 labels: ["validation"]
 body:
@@ -15,7 +15,6 @@ body:
         - AirPods gestures
         - Foundation Models
         - tool safety
-        - MCP
         - screen/OCR
         - adapter training
     validations:

@@ -15,7 +15,7 @@
 
 ## Permission and Privacy Review
 
-- [ ] no new permissions, local data, Keychain, transcript, memory, audit, screen, calendar, reminders, mail, shell, network, or MCP OAuth impact
+- [ ] no new permissions, local data, Keychain, transcript, memory, audit, screen capture, VLM endpoint, network, or release-signing impact
 - [ ] permission/privacy impact described below
 
 ## Notes

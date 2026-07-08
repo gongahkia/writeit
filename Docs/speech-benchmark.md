@@ -3,13 +3,13 @@
 Use the benchmark CLI to measure live SpeechAnalyzer transcription with the current macOS input device:
 
 ```sh
-Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus open calendar"
+Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus what text is on my screen"
 ```
 
 Persist a JSON report:
 
 ```sh
-Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus open calendar" --output .dist/validation/speech-quiet.json
+Scripts/benchmark_speech.sh --seconds 8 --expected "hey cerberus what text is on my screen" --output .dist/validation/speech-quiet.json
 ```
 
 For AirPods tests, select AirPods as the macOS input device before running the command. Repeat the same phrase in quiet, walking, and noisy-room conditions, then compare:
