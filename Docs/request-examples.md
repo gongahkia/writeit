@@ -18,7 +18,7 @@
 - "search my Mail"
 - "create a reminder"
 - "open this URL"
-- "call this MCP tool"
+- "call this MCP integration"
 - "change this setting"
 
 ## Refused Unsafe Requests

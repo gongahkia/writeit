@@ -2,7 +2,7 @@
 
 ## Product Shape
 
-cerberus is a hands-free macOS screen-reading assistant, not a computer operator. The model can answer directly or choose typed screen-reading tools. The shipped app must not click, type, open apps, navigate browsers, run commands, call MCP servers, or mutate user data.
+cerberus is a hands-free macOS screen-reading assistant, not a computer operator. The model can answer directly or choose typed screen-reading tools. The shipped app must not click, type, open apps, navigate browsers, run commands, use MCP integrations, or mutate user data.
 
 ## Current Implementation
 

@@ -20,7 +20,7 @@ The project is intentionally scoped as a native macOS utility:
 - optional AirPods gesture validation CSV logging for threshold tuning
 - head gesture CSV evaluator for threshold tuning after real-device walks/tests
 - per-session allowlist settings for screen-reading tools
-- no app control, shell execution, browser navigation, MCP calls, calendar/reminder writes, Mail Automation, Finder reveal, or Shortcuts execution in the shipped app surface
+- no app control, shell execution, browser navigation, MCP integrations, calendar/reminder writes, Mail Automation, Finder reveal, or Shortcuts execution in the shipped app surface
 - encrypted local transcripts
 - local screen snapshots plus text OCR, barcode/QR detection, and Accessibility UI geometry for screen questions
 - optional prebuilt FoundationModels adapter loading plus transcript JSONL export/eval and Apple toolkit orchestration
@@ -45,7 +45,7 @@ This repository uses Swift Package Manager for source organization. `Scripts/bui
 
 Planning, speech transcription, OCR, transcripts, wake samples, adapter config, and screen snapshots are local by default. Transcript records are encrypted with Keychain-backed AES-GCM keys; audit entries are hash-chained and HMAC-signed.
 
-The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, Accessibility element reads, and an optional local VLM endpoint when configured. It does not operate apps, run shell commands, navigate browsers, call MCP tools, search files, or contact network services by default.
+The shipped app surface only observes the current screen through ScreenCaptureKit, Vision OCR/barcodes, Accessibility element reads, and an optional local VLM endpoint when configured. It does not operate apps, run shell commands, navigate browsers, use MCP integrations, search files, or contact network services by default.
 
 ## Permissions
 
