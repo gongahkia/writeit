@@ -83,6 +83,32 @@ private struct FailingHTTPTransport: LocalVLMHTTPTransport {
     ])
 }
 
+@Test func goldenRequestFixturesStayScreenOnly() throws {
+    let fixtures = try loadGoldenRequestFixtures()
+    let screenToolNames = Set(DefaultToolCatalog.summaries.map(\.name))
+
+    #expect(!fixtures.isEmpty)
+    #expect(fixtures.allSatisfy { Set($0.allowedToolNames).isSubset(of: screenToolNames) })
+    #expect(fixtures.allSatisfy { $0.expectedToolName.isEmpty || screenToolNames.contains($0.expectedToolName) })
+}
+
+@Test func goldenRequestFixturesIncludeComputerUseRefusals() throws {
+    let fixtures = try loadGoldenRequestFixtures()
+    let refusalIDs = Set(fixtures.filter { $0.expectedIntent == "refuseUnsafeRequest" }.map(\.id))
+
+    #expect(refusalIDs.isSuperset(of: [
+        "refuse-click",
+        "refuse-type",
+        "refuse-open",
+        "refuse-run",
+        "refuse-search-files",
+        "refuse-mcp"
+    ]))
+    #expect(fixtures
+        .filter { $0.expectedIntent == "refuseUnsafeRequest" }
+        .allSatisfy { $0.expectedToolName.isEmpty && !$0.expectedRequiresConfirmation })
+}
+
 @Test func localVLMPresetsCoverSupportedCandidates() {
     let ids = LocalVLMPreset.all.map(\.id)
 
@@ -516,4 +542,10 @@ private enum TestImageFactory {
     static func jsonObject(from data: Data) throws -> [String: Any] {
         try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
+}
+
+private func loadGoldenRequestFixtures() throws -> [GoldenRequestFixture] {
+    let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("Fixtures/Model/golden-requests.jsonl")
+    return try GoldenRequestFixtures.parseJSONL(Data(contentsOf: url))
 }

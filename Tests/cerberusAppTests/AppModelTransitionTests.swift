@@ -455,8 +455,15 @@ private final class FakePermissionCenter: PermissionChecking {
     )
     let toolNames = model.availableAmbientToolSummaries.map(\.name)
     let displayText = model.enabledToolDisplayText
+    let screenToolNames = Set([
+        "screen.barcodes",
+        "screen.ocr",
+        "screen.snapshot",
+        "screen.ui_elements"
+    ])
 
     #expect(!toolNames.isEmpty)
+    #expect(Set(toolNames).isSubset(of: screenToolNames))
     #expect(Set(toolNames).count == toolNames.count)
     #expect(toolNames.allSatisfy { model.isAmbientToolEnabled($0) })
     #expect(toolNames.allSatisfy { displayText.contains($0) })
