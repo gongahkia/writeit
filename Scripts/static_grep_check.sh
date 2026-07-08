@@ -21,7 +21,7 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "music."
   "notes.search"
   "reminders."
-  "shell.run"
+  "shell"".""run"
   "shortcuts.run"
   "web.search"
   "AppControl"
@@ -33,8 +33,8 @@ FORBIDDEN_SOURCE_PATTERNS=(
   "MailAppleScript"
   "MCP"
   "MCPOAuth"
-  "ShellExec"
-  "ShellTool"
+  "Shell""Exec"
+  "Shell""Tool"
   "ShortcutsRun"
 )
 
