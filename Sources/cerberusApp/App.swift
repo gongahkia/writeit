@@ -44,16 +44,10 @@ private struct MenuBarStatusIcon: View {
     @ObservedObject var model: CerberusAppModel
 
     var body: some View {
-        Label {
-            Text("cerberus")
-        } icon: {
-            MascotSpriteView(
-                state: model.state,
-                tint: model.menuBarStatusTint == .red ? .red : .primary
-            )
-                .frame(width: 14, height: 14)
-        }
-        .labelStyle(.iconOnly)
-        .accessibilityLabel("cerberus \(model.state.displayName)")
+        Image(systemName: model.menuBarSystemImage)
+            .symbolRenderingMode(.monochrome)
+            .imageScale(.small)
+            .foregroundStyle(model.menuBarStatusTint == .red ? .red : .primary)
+            .accessibilityLabel("cerberus \(model.state.displayName)")
     }
 }
