@@ -3,6 +3,8 @@ import SwiftUI
 import cerberusCore
 
 enum MascotSprite: String, CaseIterable {
+    static let menuBarImageSize = NSSize(width: 12, height: 12)
+
     case r1c1
     case r1c2
     case r1c3
@@ -52,5 +54,14 @@ enum MascotSprite: String, CaseIterable {
             preconditionFailure("Unreadable mascot resource: \(rawValue)")
         }
         return image
+    }
+
+    var menuBarImage: NSImage {
+        let result = NSImage(size: Self.menuBarImageSize)
+        result.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: Self.menuBarImageSize))
+        result.unlockFocus()
+        result.isTemplate = true
+        return result
     }
 }

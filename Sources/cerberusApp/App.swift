@@ -44,9 +44,8 @@ private struct MenuBarStatusIcon: View {
     @ObservedObject var model: CerberusAppModel
 
     var body: some View {
-        Image(systemName: model.menuBarSystemImage)
-            .symbolRenderingMode(.monochrome)
-            .imageScale(.small)
+        Image(nsImage: MascotSprite(state: model.state).menuBarImage)
+            .renderingMode(.template)
             .foregroundStyle(model.menuBarStatusTint == .red ? .red : .primary)
             .accessibilityLabel("cerberus \(model.state.displayName)")
     }

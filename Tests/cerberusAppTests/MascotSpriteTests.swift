@@ -22,3 +22,11 @@ func mascotSpriteResourceIsTransparent(sprite: MascotSprite) throws {
     let representation = try #require(NSBitmapImageRep(data: data))
     #expect(representation.hasAlpha == true)
 }
+
+@Test(arguments: MascotSprite.allCases)
+func mascotSpriteMenuBarImageIsTemplate(sprite: MascotSprite) {
+    let image = sprite.menuBarImage
+
+    #expect(image.size == MascotSprite.menuBarImageSize)
+    #expect(image.isTemplate)
+}
