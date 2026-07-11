@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import cerberusCore
 
@@ -778,8 +779,17 @@ struct StatusPanel: View {
                 Label("Available actions", systemImage: "checklist")
                     .font(.caption)
             }
+
+            Divider()
+
+            Button("Quit cerberus", systemImage: "power", action: quit)
+                .buttonStyle(.bordered)
         }
         .toggleStyle(.switch)
+    }
+
+    private func quit() {
+        NSApplication.shared.terminate(nil)
     }
 
     private var toolConfirmationOverrides: some View {
