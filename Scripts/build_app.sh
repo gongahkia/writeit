@@ -15,14 +15,29 @@ usage() {
 
 check_layout() {
   local missing=0
+  local info_plist="$ROOT_DIR/Sources/cerberusApp/Resources/Info.plist"
   local files=(
-    "$ROOT_DIR/Sources/cerberusApp/Resources/Info.plist"
+    "$info_plist"
     "$ROOT_DIR/Config/cerberus.entitlements"
   )
 
   for file in "${files[@]}"; do
     if [[ ! -f "$file" ]]; then
       print "missing: $file" >&2
+      missing=1
+    fi
+  done
+
+  local usage_key
+  local usage_keys=(
+    NSMicrophoneUsageDescription
+    NSMotionUsageDescription
+    NSScreenCaptureUsageDescription
+    NSSpeechRecognitionUsageDescription
+  )
+  for usage_key in "${usage_keys[@]}"; do
+    if [[ -z "$(plutil -extract "$usage_key" raw -o - "$info_plist" 2>/dev/null || true)" ]]; then
+      print "missing privacy usage description: $usage_key" >&2
       missing=1
     fi
   done

@@ -18,6 +18,8 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>cerberus listens only after you trigger a voice interaction.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>cerberus uses headphone motion only for optional nod and shake controls.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>cerberus captures visible screen images or text only when you ask what is on screen.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
