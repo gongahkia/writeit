@@ -42,6 +42,16 @@ check_layout() {
     fi
   done
 
+  if [[ "$(plutil -extract CFBundleExecutable raw -o - "$info_plist" 2>/dev/null || true)" != "$APP_NAME" ]]; then
+    print "invalid CFBundleExecutable: expected $APP_NAME" >&2
+    missing=1
+  fi
+
+  if [[ "$(plutil -extract CFBundlePackageType raw -o - "$info_plist" 2>/dev/null || true)" != "APPL" ]]; then
+    print "invalid CFBundlePackageType: expected APPL" >&2
+    missing=1
+  fi
+
   if (( missing )); then
     return 1
   fi
