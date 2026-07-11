@@ -175,6 +175,24 @@ private struct DelayedLocalVLMProvider: LocalVLMProviding {
     ])
 }
 
+@Test func adapterDatasetExporterExcludesNonVisionTools() throws {
+    let exporter = AdapterTrainingDatasetExporter()
+    let records = [
+        TranscriptRecord(request: "read text", response: "Visible text.", toolName: "screen.ocr"),
+        TranscriptRecord(request: "describe screen", response: "A visible window.", toolName: "screen.describe"),
+        TranscriptRecord(request: "answer", response: "A direct answer."),
+        TranscriptRecord(request: "change setting", response: "Updated.", toolName: "legacy.setting")
+    ]
+
+    let samples = exporter.samples(from: records)
+    let statistics = exporter.statistics(from: records)
+
+    #expect(samples.count == 3)
+    #expect(statistics.totalSamples == 3)
+    #expect(statistics.tools["legacy.setting"] == nil)
+    #expect(try exporter.split(samples: samples).train.count == 2)
+}
+
 @Test func goldenRequestFixturesStayScreenOnly() throws {
     let fixtures = try loadGoldenRequestFixtures()
     let screenToolNames = Set(DefaultToolCatalog.makeTools(localVLMProvider: FakeLocalVLMProvider()).map(\.name))

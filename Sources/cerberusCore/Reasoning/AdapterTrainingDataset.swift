@@ -188,11 +188,18 @@ public struct AdapterTrainingDatasetExporter: Sendable {
             }
             return lhs.timestamp < rhs.timestamp
         }
-        let filtered = sortedRecords.filter { Self.sample(from: $0, redactor: nil) != nil }
+        let filtered = sortedRecords.filter {
+            Self.isScopeCompatible($0) && Self.sample(from: $0, redactor: nil) != nil
+        }
         guard let limit else {
             return filtered
         }
         return Array(filtered.suffix(max(0, limit)))
+    }
+
+    private static func isScopeCompatible(_ record: TranscriptRecord) -> Bool {
+        let toolName = record.toolName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return toolName.isEmpty || DefaultToolCatalog.allReadOnlyToolNames.contains(toolName)
     }
 
     private static func sample(from record: TranscriptRecord, redactor: AdapterTrainingRedactor?) -> AdapterTrainingSample? {

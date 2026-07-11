@@ -54,4 +54,8 @@ public enum DefaultToolCatalog {
     public static var readOnlyToolNames: Set<String> {
         Set(summaries.filter { !$0.mutatesState }.map(\.name))
     }
+
+    public static var allReadOnlyToolNames: Set<String> {
+        readOnlyToolNames.union(["screen.describe"])
+    }
 }
