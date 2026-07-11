@@ -1,5 +1,9 @@
 # cerberus
 
+<div align="center">
+    <img src="./asset/logo/cerebrus-logo.png">
+</div>
+
 AirPods-driven, local-first screen-reading assistant for macOS.
 
 The project is intentionally scoped as a native macOS utility:
