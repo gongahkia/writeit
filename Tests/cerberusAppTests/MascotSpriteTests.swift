@@ -28,5 +28,7 @@ func mascotSpriteMenuBarImageIsTemplate(sprite: MascotSprite) {
     let image = sprite.menuBarImage
 
     #expect(image.size == MascotSprite.menuBarImageSize)
+    #expect(MascotSprite.menuBarDrawingRect.maxY == image.size.height)
+    #expect(MascotSprite.menuBarDrawingRect.minY == 2)
     #expect(image.isTemplate)
 }
