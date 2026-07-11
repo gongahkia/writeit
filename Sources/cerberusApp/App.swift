@@ -51,8 +51,9 @@ private struct MenuBarStatusIcon: View {
                 state: model.state,
                 tint: model.menuBarStatusTint == .red ? .red : .primary
             )
-                .frame(width: 18, height: 18)
+                .frame(width: 14, height: 14)
         }
+        .labelStyle(.iconOnly)
         .accessibilityLabel("cerberus \(model.state.displayName)")
     }
 }
