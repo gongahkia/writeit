@@ -6,9 +6,18 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="cerberus"
 APP_BUNDLE="$ROOT_DIR/.dist/$APP_NAME.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+typeset -a DEVELOPMENT_IDENTITIES
+DEVELOPMENT_IDENTITIES=("${(@f)$(security find-identity -v -p codesigning 2>/dev/null | awk -F '"' '/"Apple Development: / { print $2 }')}")
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
-"$ROOT_DIR/Scripts/build_app.sh"
+if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
+  "$ROOT_DIR/Scripts/build_app.sh"
+elif (( ${#DEVELOPMENT_IDENTITIES} == 1 )); then
+  print "Using local Apple Development identity."
+  CODESIGN_IDENTITY="$DEVELOPMENT_IDENTITIES[1]" "$ROOT_DIR/Scripts/build_app.sh"
+else
+  "$ROOT_DIR/Scripts/build_app.sh"
+fi
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
