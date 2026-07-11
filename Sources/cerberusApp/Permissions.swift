@@ -1,4 +1,5 @@
 @preconcurrency import ApplicationServices
+import AppKit
 import AVFoundation
 import CoreGraphics
 import Foundation
@@ -40,6 +41,15 @@ enum SystemPermission: String, CaseIterable, Identifiable {
             "Enable Input Monitoring for cerberus in System Settings > Privacy & Security."
         case .screenRecording:
             "Enable Screen Recording for cerberus in System Settings > Privacy & Security."
+        }
+    }
+
+    var systemSettingsURL: URL? {
+        switch self {
+        case .inputMonitoring:
+            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        case .microphone, .speechRecognition, .accessibility, .screenRecording:
+            nil
         }
     }
 }
@@ -158,7 +168,11 @@ final class PermissionCenter: PermissionChecking {
     }
 
     private func requestInputMonitoring() -> PermissionState {
-        CGRequestListenEventAccess() ? .granted : currentState(for: .inputMonitoring)
+        let granted = CGRequestListenEventAccess()
+        if !granted, let settingsURL = SystemPermission.inputMonitoring.systemSettingsURL {
+            NSWorkspace.shared.open(settingsURL)
+        }
+        return granted ? .granted : currentState(for: .inputMonitoring)
     }
 
     private func requestScreenRecording() -> PermissionState {
