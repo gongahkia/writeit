@@ -3,7 +3,7 @@ import SwiftUI
 import cerberusCore
 
 enum MascotSprite: String, CaseIterable {
-    static let menuBarImageSize = NSSize(width: 14, height: 14)
+    static let menuBarImageSize = NSSize(width: 21, height: 21)
 
     case r1c1
     case r1c2
