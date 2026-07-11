@@ -24,7 +24,11 @@ struct StatusPanel: View {
             case .permissions:
                 permissions
             case .settings:
-                settings
+                ScrollView(.vertical) {
+                    settings
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 520)
             }
         }
         .onAppear {
