@@ -68,6 +68,12 @@ Validate the implementation on a Mac that matches the project requirements.
 - `Scripts/evaluate_model_golden_requests.sh`: 31/31 fixtures passed, `golden.accuracy: 1.0000`.
 - Optional `screen.describe` was not tested because `~/Library/Application Support/cerberus/local-vlm.json` was absent.
 
+2026-07-11 Foundation Models regression recheck on the same MacBook Air Mac15,12, Apple M3, macOS 26.5.1 25F80, Xcode 26.6:
+
+- `Scripts/benchmark_model.sh --request "what text is on my screen?" --iterations 3 --output .dist/validation/model-loop-2026-07-11.json`: plan p95 2.410s, synthetic summarize p95 0.896s.
+- `Scripts/evaluate_model_golden_requests.sh`: 31/31 fixtures passed, `golden.accuracy: 1.0000`.
+- This recheck did not exercise native screen tools, permissions, AirPods, wake-word detection, or `screen.describe`.
+
 See `Docs/model-benchmark.md` for the measured baseline and accepted v1 gates.
 
 ## Known Follow-Up

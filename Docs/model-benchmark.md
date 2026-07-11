@@ -68,6 +68,10 @@ The script runs `Fixtures/Model/golden-requests.jsonl` through `cerberus-model-b
 
 2026-07-08 result on the M3 baseline machine: 31/31 fixtures passed, `golden.accuracy: 1.0000`.
 
+## 2026-07-11 Regression Recheck
+
+On the same M3 baseline machine, a fresh prewarmed synthetic run reported plan p95 2.410s and summarize p95 0.896s across three iterations. `Scripts/evaluate_model_golden_requests.sh` again passed all 31 fixtures (`golden.accuracy: 1.0000`). This recheck did not invoke native screen tools.
+
 Official API surface used:
 
 - `LanguageModelSession`
