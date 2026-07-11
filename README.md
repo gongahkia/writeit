@@ -1,7 +1,7 @@
 # cerberus
 
 <div align="center">
-    <img src="./asset/logo/cerebrus-logo.png">
+    <img src="./asset/logo/cerebrus-logo.png" width="35%">
 </div>
 
 AirPods-driven, local-first screen-reading assistant for macOS.
