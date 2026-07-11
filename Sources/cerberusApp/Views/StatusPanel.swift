@@ -47,9 +47,11 @@ struct StatusPanel: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: model.menuBarSystemImage)
-                .font(.title2)
-                .foregroundStyle(model.menuBarStatusTint == .red ? Color.red : Color.primary)
+            MascotSpriteView(
+                state: model.state,
+                tint: model.menuBarStatusTint == .red ? .red : .primary
+            )
+                .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("cerberus")
@@ -69,6 +71,11 @@ struct StatusPanel: View {
         if model.shouldShowOnboarding, let next = model.nextPermissionSnapshot {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
+                    MascotSpriteView(
+                        state: model.state,
+                        tint: model.menuBarStatusTint == .red ? .red : .primary
+                    )
+                        .frame(width: 26, height: 26)
                     statusDot(for: next.state)
 
                     VStack(alignment: .leading, spacing: 2) {

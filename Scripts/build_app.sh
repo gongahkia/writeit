@@ -58,12 +58,19 @@ fi
 cd "$ROOT_DIR"
 swift build -c release
 BIN_DIR="$(swift build -c release --show-bin-path)"
+RESOURCE_BUNDLE_NAME="cerberus_cerberusApp.bundle"
+RESOURCE_BUNDLE="$BIN_DIR/$RESOURCE_BUNDLE_NAME"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
 
 cp "$BIN_DIR/cerberus" "$APP_MACOS/cerberus"
 cp "$ROOT_DIR/Sources/cerberusApp/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+cp -R "$RESOURCE_BUNDLE" "$APP_CONTENTS/"
+
+codesign "${SIGN_OPTIONS[@]}" \
+  --sign "$IDENTITY" \
+  "$APP_CONTENTS/$RESOURCE_BUNDLE_NAME"
 
 codesign "${SIGN_OPTIONS[@]}" \
   --entitlements "$ROOT_DIR/Config/cerberus.entitlements" \

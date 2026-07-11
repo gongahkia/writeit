@@ -56,6 +56,9 @@ let package = Package(
             dependencies: ["cerberusCore"],
             path: "Sources/cerberusApp",
             exclude: ["Resources/Info.plist"],
+            resources: [
+                .process("Resources/Mascot")
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("ExistentialAny")
             ],

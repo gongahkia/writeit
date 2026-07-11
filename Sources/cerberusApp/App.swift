@@ -47,9 +47,11 @@ private struct MenuBarStatusIcon: View {
         Label {
             Text("cerberus")
         } icon: {
-            Image(systemName: model.menuBarSystemImage)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(model.menuBarStatusTint == .red ? Color.red : Color.primary)
+            MascotSpriteView(
+                state: model.state,
+                tint: model.menuBarStatusTint == .red ? .red : .primary
+            )
+                .frame(width: 18, height: 18)
         }
         .accessibilityLabel("cerberus \(model.state.displayName)")
     }
