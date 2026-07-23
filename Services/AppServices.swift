@@ -31,6 +31,30 @@ struct RecognitionResult: Equatable, Sendable {
   let text: String
   let confidence: Float
   let backendID: String
+  let languageResolution: RecognitionLanguageResolution
+
+  init(
+    text: String,
+    confidence: Float,
+    backendID: String,
+    languageResolution: RecognitionLanguageResolution = .identity(.english)
+  ) {
+    self.text = text
+    self.confidence = confidence
+    self.backendID = backendID
+    self.languageResolution = languageResolution
+  }
+}
+
+struct RecognitionLanguageResolution: Equatable, Sendable {
+  let requested: RecognitionLanguage
+  let resolved: RecognitionLanguage
+
+  var usedFallback: Bool { requested != resolved }
+
+  static func identity(_ language: RecognitionLanguage) -> Self {
+    Self(requested: language, resolved: language)
+  }
 }
 
 struct RecognitionBackendCapabilities: Sendable, Equatable {
@@ -43,6 +67,12 @@ struct RecognitionBackendCapabilities: Sendable, Equatable {
 
   func supports(_ language: RecognitionLanguage) -> Bool {
     supportedLanguages.contains(language)
+  }
+
+  func resolve(_ requested: RecognitionLanguage) -> RecognitionLanguageResolution? {
+    if supports(requested) { return .identity(requested) }
+    guard supports(.english) else { return nil }
+    return RecognitionLanguageResolution(requested: requested, resolved: .english)
   }
 }
 
@@ -91,12 +121,59 @@ struct TextEnhancementRequest: Sendable {
 }
 
 @MainActor
+struct DeliveryRequest {
+  let text: String
+  let target: TargetReference?
+  let strategy: OutputStrategy
+  let clipboardHandling: ClipboardHandling
+}
+
+enum DeliveryFailure: Equatable {
+  case targetUnavailable
+  case targetNotEditable
+  case targetAppNotRunning
+  case activationFailed
+  case accessibilityInsertionFailed
+  case pasteEventUnavailable
+  case clipboardWriteFailed
+
+  var message: String {
+    switch self {
+    case .targetUnavailable: "Captured field is unavailable"
+    case .targetNotEditable: "Captured field no longer accepts text"
+    case .targetAppNotRunning: "Captured app is no longer running"
+    case .activationFailed: "Couldn’t activate the captured app"
+    case .accessibilityInsertionFailed: "Accessibility could not replace text in the captured field"
+    case .pasteEventUnavailable: "WriteIt could not send the paste shortcut"
+    case .clipboardWriteFailed: "WriteIt could not copy the result to the clipboard"
+    }
+  }
+}
+
+enum DeliveryOutcome: Equatable {
+  case pasted(ClipboardHandling)
+  case accessibilityInserted
+  case clipboard
+  case clipboardFallback(DeliveryFailure)
+  case failed(DeliveryFailure)
+
+  var message: String {
+    switch self {
+    case .pasted: "Pasted into captured field"
+    case .accessibilityInserted: "Inserted into captured field"
+    case .clipboard: "Copied to clipboard"
+    case .clipboardFallback(let failure): "Copied: \(failure.message)"
+    case .failed(let failure): failure.message
+    }
+  }
+}
+
+@MainActor
 protocol AccessibilityDelivering: AnyObject {
   var isTrusted: Bool { get }
   func requestTrust()
   func captureTarget() -> TargetReference?
-  func deliver(_ text: String, to target: TargetReference?, strategy: OutputStrategy)
-    -> DeliveryOutcome
+  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome
   func undo()
 }
 
@@ -121,7 +198,7 @@ protocol TextEnhancing: AnyObject {
 
 @MainActor
 protocol CaptureOverlayPresenting: AnyObject {
-  func present(session: CaptureSession, model: AppModel)
+  func present(session: CaptureSession, coordinator: CaptureCoordinator, preferences: Preferences)
   func dismiss()
 }
 

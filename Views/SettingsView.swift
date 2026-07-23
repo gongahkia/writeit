@@ -2,14 +2,26 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var capture: CaptureCoordinator
   @ObservedObject private var preferences: Preferences
+  @ObservedObject private var history: HistoryStore
+  @ObservedObject private var models: ModelStore
+  let recognitionCapabilities: RecognitionBackendCapabilities
   @State private var apiKey = ""
   @State private var keySaved = false
 
-  init(model: AppModel) {
-    self.model = model
-    _preferences = ObservedObject(wrappedValue: model.preferences)
+  init(
+    capture: CaptureCoordinator,
+    preferences: Preferences,
+    history: HistoryStore,
+    models: ModelStore,
+    recognitionCapabilities: RecognitionBackendCapabilities
+  ) {
+    self.capture = capture
+    _preferences = ObservedObject(wrappedValue: preferences)
+    _history = ObservedObject(wrappedValue: history)
+    _models = ObservedObject(wrappedValue: models)
+    self.recognitionCapabilities = recognitionCapabilities
   }
 
   var body: some View {
@@ -39,21 +51,56 @@ struct SettingsView: View {
           Picker("Delivery", selection: $preferences.outputStrategy) {
             ForEach(OutputStrategy.allCases) { Text($0.title).tag($0) }
           }
+          Picker("Recognition language", selection: $preferences.recognitionLanguage) {
+            ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
+          }
+        }
+        Section("Ink input") {
+          Slider(value: $preferences.strokeWidth, in: 1...12, step: 0.5) {
+            Text("Stroke width")
+          } minimumValueLabel: {
+            Text("Fine")
+          } maximumValueLabel: {
+            Text("Bold")
+          }
+          Slider(value: $preferences.pressureSensitivity, in: 0...1, step: 0.05) {
+            Text("Pressure response")
+          } minimumValueLabel: {
+            Text("Fixed")
+          } maximumValueLabel: {
+            Text("Strong")
+          }
+          Slider(value: $preferences.strokeSmoothing, in: 0...1, step: 0.05) {
+            Text("Stroke smoothing")
+          } minimumValueLabel: {
+            Text("Raw")
+          } maximumValueLabel: {
+            Text("Smooth")
+          }
         }
         Section("Permissions") {
           LabeledContent(
-            "Accessibility", value: model.accessibilityGranted ? "Enabled" : "Required")
-          if !model.accessibilityGranted {
-            Button("Request Accessibility", action: model.requestAccessibility)
+            "Accessibility", value: capture.accessibilityGranted ? "Enabled" : "Required")
+          if !capture.accessibilityGranted {
+            Button("Request Accessibility", action: capture.requestAccessibility)
           }
         }
       }
       .padding(20).tabItem { Label("Capture", systemImage: "pencil.and.scribble") }
 
-      ModelCatalogView(model: model)
-        .tabItem { Label("Models", systemImage: "cpu") }
+      ModelCatalogView(
+        models: models,
+        preferences: preferences,
+        recognitionCapabilities: recognitionCapabilities
+      )
+      .tabItem { Label("Models", systemImage: "cpu") }
 
       Form {
+        if let error = capture.error {
+          Section("Recent error") {
+            CaptureErrorBanner(error: error, dismiss: capture.clearError)
+          }
+        }
         Section("OpenAI-compatible cleanup") {
           Toggle("Enable AI cleanup", isOn: $preferences.aiEnabled)
           TextField("Chat completions URL", text: $preferences.aiBaseURL)
@@ -61,11 +108,11 @@ struct SettingsView: View {
           SecureField("API key", text: $apiKey)
           HStack {
             Button("Save API key") {
-              model.saveAPIKey(apiKey)
+              capture.saveAPIKey(apiKey)
               apiKey = ""
-              keySaved = model.hasAPIKey()
+              keySaved = capture.hasAPIKey()
             }
-            if keySaved || model.hasAPIKey() {
+            if keySaved || capture.hasAPIKey() {
               Text("Saved in Keychain").foregroundStyle(.secondary)
             }
           }
@@ -81,16 +128,16 @@ struct SettingsView: View {
           Text("History is encrypted locally. It is never uploaded for training.").font(.caption)
             .foregroundStyle(.secondary)
           Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
-          Button("Delete all history", role: .destructive, action: model.history.clear)
+          Button("Delete all history", role: .destructive, action: history.clear)
         }
         Section("App") {
           Toggle("Launch at login", isOn: $preferences.launchAtLogin)
-            .onChange(of: preferences.launchAtLogin) { _, _ in model.updateLaunchAtLogin() }
+            .onChange(of: preferences.launchAtLogin) { _, _ in capture.updateLaunchAtLogin() }
         }
       }
       .padding(20).tabItem { Label("Privacy", systemImage: "lock.shield") }
     }
-    .onChange(of: preferences.shortcut) { _, _ in model.restartShortcutMonitor() }
+    .onChange(of: preferences.shortcut) { _, _ in capture.restartShortcutMonitor() }
   }
 }
 

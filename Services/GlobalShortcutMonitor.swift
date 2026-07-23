@@ -31,16 +31,21 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
       },
       userInfo: context
     )
-    guard let eventTap else { return }
+    guard let eventTap else {
+      AppLog.shortcut.error("event_tap_creation_failed")
+      return
+    }
     runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
     if let runLoopSource { CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
     CGEvent.tapEnable(tap: eventTap, enable: true)
+    AppLog.shortcut.info("event_tap_started")
   }
 
   func stop() {
     if let runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
     eventTap = nil
     runLoopSource = nil
+    AppLog.shortcut.info("event_tap_stopped")
   }
 
   private func handle(type: CGEventType, event: CGEvent) {

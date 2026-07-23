@@ -2,6 +2,13 @@ import Combine
 import CryptoKit
 import Foundation
 
+struct HistoryArchive: Codable, Equatable {
+  static let currentVersion = 1
+
+  let version: Int
+  let entries: [HistoryEntry]
+}
+
 @MainActor
 final class HistoryStore: ObservableObject {
   @Published private(set) var entries: [HistoryEntry]
@@ -17,7 +24,9 @@ final class HistoryStore: ObservableObject {
       at: resolvedFileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
     self.fileURL = resolvedFileURL
     self.key = key ?? Self.loadKey()
-    entries = Self.load(from: resolvedFileURL, key: self.key)
+    let loaded = Self.load(from: resolvedFileURL, key: self.key)
+    entries = loaded.entries
+    if loaded.requiresMigration { persist() }
   }
 
   func append(text: String, strokes: [InkStroke], mode: HistoryMode, source: String) {
@@ -47,10 +56,16 @@ final class HistoryStore: ObservableObject {
   }
 
   private func persist() {
-    guard let encoded = try? JSONEncoder().encode(entries),
-      let sealed = try? AES.GCM.seal(encoded, using: key).combined
-    else { return }
-    try? sealed.write(to: fileURL, options: .atomic)
+    do {
+      let archive = HistoryArchive(version: HistoryArchive.currentVersion, entries: entries)
+      let encoded = try JSONEncoder().encode(archive)
+      guard let sealed = try AES.GCM.seal(encoded, using: key).combined else { return }
+      try sealed.write(to: fileURL, options: .atomic)
+      AppLog.history.debug("history_persisted")
+    } catch {
+      AppLog.history.error(
+        "history_persist_failed type=\(AppLog.errorType(error), privacy: .public)")
+    }
   }
 
   private static func loadKey() -> SymmetricKey {
@@ -61,11 +76,24 @@ final class HistoryStore: ObservableObject {
     return key
   }
 
-  private static func load(from url: URL, key: SymmetricKey) -> [HistoryEntry] {
-    guard let data = try? Data(contentsOf: url), let box = try? AES.GCM.SealedBox(combined: data),
-      let clear = try? AES.GCM.open(box, using: key),
-      let entries = try? JSONDecoder().decode([HistoryEntry].self, from: clear)
-    else { return [] }
-    return entries
+  private static func load(from url: URL, key: SymmetricKey) -> (
+    entries: [HistoryEntry], requiresMigration: Bool
+  ) {
+    guard FileManager.default.fileExists(atPath: url.path) else { return ([], false) }
+    do {
+      let data = try Data(contentsOf: url)
+      let box = try AES.GCM.SealedBox(combined: data)
+      let clear = try AES.GCM.open(box, using: key)
+      if let archive = try? JSONDecoder().decode(HistoryArchive.self, from: clear),
+        archive.version == HistoryArchive.currentVersion
+      {
+        return (archive.entries, false)
+      }
+      let legacyEntries = try JSONDecoder().decode([HistoryEntry].self, from: clear)
+      return (legacyEntries, true)
+    } catch {
+      AppLog.history.error("history_load_failed type=\(AppLog.errorType(error), privacy: .public)")
+      return ([], false)
+    }
   }
 }

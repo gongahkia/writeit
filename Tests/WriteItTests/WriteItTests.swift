@@ -32,10 +32,58 @@ struct RecognitionContractTests {
       identifier: "fixture",
       displayName: "Fixture",
       supportedLanguages: [.english, .french],
-      isLocal: true
+      isLocal: true,
+      supportsStreaming: false,
+      availability: .available
     )
     #expect(capabilities.supports(.french))
     #expect(capabilities.supports(.german) == false)
+    #expect(capabilities.availability == .available)
+  }
+
+  @Test("unsupported languages resolve to the local fallback when possible")
+  func resolvesLanguageFallback() {
+    let capabilities = RecognitionBackendCapabilities(
+      identifier: "fixture",
+      displayName: "Fixture",
+      supportedLanguages: [.english],
+      isLocal: true,
+      supportsStreaming: false,
+      availability: .available
+    )
+    let resolution = capabilities.resolve(.italian)
+    #expect(resolution?.resolved == .english)
+    #expect(resolution?.usedFallback == true)
+  }
+
+  @Test("Latin language metadata covers the supported v1 choices")
+  func latinLanguageMetadata() {
+    #expect(
+      RecognitionLanguage.allCases.map(\.displayName) == [
+        "English", "French", "German", "Spanish", "Italian", "Portuguese",
+      ])
+  }
+
+  @Test("Apple Vision exposes runtime capability state")
+  func visionExposesCapabilityState() {
+    let service = RecognitionService()
+    #expect(service.capabilities.identifier == "apple-vision")
+    #expect(service.capabilities.isLocal)
+  }
+
+  @Test("recognition failures map to a shared user-facing error")
+  func failuresMapToPresentation() {
+    let error = AppErrorPresentation.recognition(RecognitionError.noText)
+    #expect(error.kind == .recognition)
+    #expect(error.title == "Couldn’t read handwriting")
+    #expect(error.message == "No handwriting was recognized.")
+  }
+
+  @Test("delivery outcomes retain typed fallback and clipboard semantics")
+  func deliveryOutcomesRetainTypedSemantics() {
+    let outcome = DeliveryOutcome.clipboardFallback(.targetNotEditable)
+    #expect(outcome.message == "Copied: Captured field no longer accepts text")
+    #expect(DeliveryOutcome.pasted(.leaveRecognizedText) != .pasted(.restorePrevious))
   }
 }
 
@@ -66,6 +114,43 @@ struct CaptureModelTests {
     session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
     #expect(session.renderedImageData() != nil)
   }
+
+  @Test("ink styles smooth points and use pressure for width")
+  func inkStylesApplyPressureAndSmoothing() {
+    let style = InkStyle(baseWidth: 4, pressureSensitivity: 1, smoothing: 0.5)
+    let previous = InkPoint(x: 0, y: 0, pressure: 0.5, timestamp: 0)
+    let next = InkPoint(x: 20, y: 10, pressure: 1, timestamp: 1)
+    let smoothed = style.smoothed(next, after: previous)
+    #expect(smoothed.x > previous.x)
+    #expect(smoothed.x < next.x)
+    #expect(style.lineWidth(for: 1) > style.lineWidth(for: 0))
+  }
+
+  @Test("empty and tap-only captures are rejected before OCR") @MainActor
+  func captureInputValidation() {
+    let session = CaptureSession()
+    session.begin(target: nil)
+    #expect(session.inputValidationMessage() == "Write something before recognizing.")
+    session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    #expect(session.inputValidationMessage() == "Draw a stroke before recognizing.")
+    #expect(session.renderedImageData() == nil)
+  }
+
+  @Test("ink points preserve source and decode older records as mouse input")
+  func inkPointSourceCompatibility() throws {
+    let stylusPoint = InkPoint(
+      x: 20,
+      y: 30,
+      pressure: 1,
+      timestamp: 0,
+      inputSource: .stylus
+    )
+    let decoded = try JSONDecoder().decode(InkPoint.self, from: JSONEncoder().encode(stylusPoint))
+    #expect(decoded.inputSource == .stylus)
+    let legacyData = Data(#"{"x":20,"y":30,"pressure":0.5,"timestamp":0}"#.utf8)
+    let legacy = try JSONDecoder().decode(InkPoint.self, from: legacyData)
+    #expect(legacy.inputSource == .mouse)
+  }
 }
 
 struct PreferencesTests {
@@ -75,7 +160,9 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     #expect(preferences.historyAutoDelete)
     #expect(preferences.historyRetentionDays == 7)
+    #expect(preferences.historyMode == .textOnly)
     #expect(preferences.penUpDelay == 1.2)
+    #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
   }
 
@@ -96,6 +183,14 @@ struct PreferencesTests {
     preferences.outputStrategy = .accessibility
     #expect(Preferences(defaults: defaults).outputStrategy == .accessibility)
   }
+
+  @Test("persists the selected recognition language")
+  func persistsRecognitionLanguage() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.recognitionLanguage = .italian
+    #expect(Preferences(defaults: defaults).recognitionLanguage == .italian)
+  }
 }
 
 struct HistoryStoreTests {
@@ -115,13 +210,36 @@ struct HistoryStoreTests {
     history.removeEntries(olderThan: Date(timeIntervalSinceNow: -86_400))
     #expect(history.entries.map(\.text) == ["current"])
   }
+
+  @Test("migrates encrypted legacy history into a versioned archive") @MainActor
+  func migratesLegacyHistory() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let legacyEntries = [HistoryEntry(text: "legacy", strokes: nil, source: "Vision")]
+    let clear = try JSONEncoder().encode(legacyEntries)
+    let sealed = try #require(AES.GCM.seal(clear, using: key).combined)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try sealed.write(to: fileURL, options: .atomic)
+
+    let history = HistoryStore(fileURL: fileURL, key: key)
+    #expect(history.entries == legacyEntries)
+
+    let migrated = try Data(contentsOf: fileURL)
+    let box = try AES.GCM.SealedBox(combined: migrated)
+    let archiveData = try AES.GCM.open(box, using: key)
+    let archive = try JSONDecoder().decode(HistoryArchive.self, from: archiveData)
+    #expect(archive.version == HistoryArchive.currentVersion)
+    #expect(archive.entries == legacyEntries)
+  }
 }
 
-struct AppModelLifecycleTests {
+struct CaptureCoordinatorLifecycleTests {
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
   func startsAndStopsShortcutMonitoringWithAccessibility() {
     let dependencies = TestDependencies(trusted: false)
-    let model = dependencies.makeModel()
+    let model = dependencies.makeCaptureCoordinator()
     model.start()
     #expect(dependencies.shortcutMonitor.starts == 0)
     dependencies.delivery.trusted = true
@@ -133,6 +251,47 @@ struct AppModelLifecycleTests {
     #expect(model.accessibilityGranted == false)
     #expect(dependencies.shortcutMonitor.stops >= 2)
     model.stop()
+  }
+
+  @Test("failed recognition preserves ink for an explicit retry") @MainActor
+  func retriesFailedRecognition() async {
+    let dependencies = TestDependencies(trusted: true)
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    for _ in 0..<4 { await Task.yield() }
+    guard case .failed = capture.session.phase else {
+      Issue.record("recognition should enter the failed state")
+      return
+    }
+    let strokeCount = capture.session.strokes.count
+    capture.retryRecognition()
+    for _ in 0..<4 { await Task.yield() }
+    guard case .failed = capture.session.phase else {
+      Issue.record("retry should surface a recoverable recognition failure")
+      return
+    }
+    #expect(capture.session.strokes.count == strokeCount)
+  }
+
+  @Test("cancelling recognition prevents late delivery and history writes") @MainActor
+  func cancellingRecognitionPreventsLateEffects() async {
+    let dependencies = TestDependencies(trusted: true, recognition: DelayedRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    await Task.yield()
+    capture.cancelCapture()
+    try? await Task.sleep(for: .milliseconds(30))
+    #expect(capture.session.phase == .idle)
+    #expect(dependencies.delivery.deliveryRequests == 0)
+    #expect(dependencies.history.entries.isEmpty)
   }
 }
 
@@ -148,23 +307,27 @@ private final class TestDependencies {
   let defaults = makeDefaults()
   let shortcutMonitor = TestShortcutMonitor()
   let delivery: TestDelivery
-  let recognition = TestRecognition()
+  let recognition: any TextRecognizing
   let enhancer = TestEnhancer()
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
   let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
     UUID().uuidString, isDirectory: true)
+  let history: HistoryStore
 
-  init(trusted: Bool) { delivery = TestDelivery(trusted: trusted) }
+  init(trusted: Bool, recognition: any TextRecognizing = TestRecognition()) {
+    delivery = TestDelivery(trusted: trusted)
+    self.recognition = recognition
+    history = HistoryStore(
+      fileURL: directory.appendingPathComponent("history.sealed"),
+      key: SymmetricKey(size: .bits256)
+    )
+  }
 
-  func makeModel() -> AppModel {
-    AppModel(
+  func makeCaptureCoordinator() -> CaptureCoordinator {
+    CaptureCoordinator(
       preferences: Preferences(defaults: defaults),
-      history: HistoryStore(
-        fileURL: directory.appendingPathComponent("history.sealed"),
-        key: SymmetricKey(size: .bits256)),
-      models: ModelStore(
-        modelsDirectory: directory.appendingPathComponent("models", isDirectory: true)),
+      history: history,
       session: CaptureSession(),
       shortcutMonitor: shortcutMonitor,
       delivery: delivery,
@@ -187,17 +350,15 @@ private final class TestShortcutMonitor: GlobalShortcutMonitoring {
 @MainActor
 private final class TestDelivery: AccessibilityDelivering {
   var trusted: Bool
+  private(set) var deliveryRequests = 0
   var isTrusted: Bool { trusted }
 
   init(trusted: Bool) { self.trusted = trusted }
   func requestTrust() {}
   func captureTarget() -> TargetReference? { nil }
-  func deliver(
-    _ text: String,
-    to target: TargetReference?,
-    strategy: OutputStrategy
-  ) -> DeliveryOutcome {
-    .clipboard
+  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
+    deliveryRequests += 1
+    return .clipboard
   }
   func undo() {}
 }
@@ -207,11 +368,29 @@ private actor TestRecognition: TextRecognizing {
     identifier: "test",
     displayName: "Test",
     supportedLanguages: [.english],
-    isLocal: true
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
   )
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     throw RecognitionError.noText
+  }
+}
+
+private actor DelayedRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "delayed-test",
+    displayName: "Delayed Test",
+    supportedLanguages: [.english],
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    try await Task.sleep(for: .seconds(1))
+    return RecognitionResult(text: "late", confidence: 1, backendID: "delayed-test")
   }
 }
 
@@ -224,7 +403,11 @@ private final class TestEnhancer: TextEnhancing {
 
 @MainActor
 private final class TestOverlay: CaptureOverlayPresenting {
-  func present(session: CaptureSession, model: AppModel) {}
+  func present(
+    session: CaptureSession,
+    coordinator: CaptureCoordinator,
+    preferences: Preferences
+  ) {}
   func dismiss() {}
 }
 

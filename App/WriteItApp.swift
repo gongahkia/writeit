@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
-    runtime.model.refreshAccessibility()
+    runtime.capture.refreshAccessibility()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
@@ -25,18 +25,31 @@ struct WriteItApp: App {
 
   var body: some Scene {
     WindowGroup("WriteIt", id: "main") {
-      ContentView(model: appDelegate.runtime.model)
-        .frame(minWidth: 820, minHeight: 560)
+      ContentView(
+        capture: appDelegate.runtime.capture,
+        preferences: appDelegate.runtime.preferences,
+        history: appDelegate.runtime.history
+      )
+      .frame(minWidth: 820, minHeight: 560)
     }
     .defaultSize(width: 1000, height: 680)
 
     Settings {
-      SettingsView(model: appDelegate.runtime.model)
-        .frame(width: 860, height: 620)
+      SettingsView(
+        capture: appDelegate.runtime.capture,
+        preferences: appDelegate.runtime.preferences,
+        history: appDelegate.runtime.history,
+        models: appDelegate.runtime.models,
+        recognitionCapabilities: appDelegate.runtime.recognition.capabilities
+      )
+      .frame(width: 860, height: 620)
     }
 
     MenuBarExtra("WriteIt", systemImage: "pencil.and.scribble") {
-      MenuBarContent(model: appDelegate.runtime.model)
+      MenuBarContent(
+        capture: appDelegate.runtime.capture,
+        preferences: appDelegate.runtime.preferences
+      )
     }
     .menuBarExtraStyle(.menu)
   }

@@ -6,11 +6,16 @@ final class CaptureOverlayController: CaptureOverlayPresenting {
   static let shared = CaptureOverlayController()
   private var panel: NSPanel?
 
-  func present(session: CaptureSession, model: AppModel) {
+  func present(session: CaptureSession, coordinator: CaptureCoordinator, preferences: Preferences) {
     let panel = panel ?? makePanel()
     let screen = NSScreen.main?.frame ?? NSScreen.screens.first?.frame ?? .zero
     panel.setFrame(screen, display: true)
-    panel.contentView = NSHostingView(rootView: CaptureOverlayView(session: session, model: model))
+    panel.contentView = NSHostingView(
+      rootView: CaptureOverlayView(
+        session: session,
+        coordinator: coordinator,
+        preferences: preferences
+      ))
     panel.orderFrontRegardless()
   }
 

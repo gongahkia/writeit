@@ -26,6 +26,7 @@ final class AIEnhancer: TextEnhancing {
     urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
     urlRequest.httpBody = try JSONEncoder().encode(body)
     do {
+      AppLog.cleanup.info("cleanup_request_started")
       let (data, response) = try await URLSession.shared.data(for: urlRequest)
       guard (response as? HTTPURLResponse)?.statusCode == 200,
         let result = try? JSONDecoder().decode(ChatResponse.self, from: data),
@@ -35,6 +36,8 @@ final class AIEnhancer: TextEnhancing {
       return TextSanitizer.normalize(cleaned)
     } catch {
       if error is CancellationError { throw error }
+      AppLog.cleanup.error(
+        "cleanup_request_failed type=\(AppLog.errorType(error), privacy: .public)")
       throw RecognitionError.failed("AI cleanup is unavailable.")
     }
   }
@@ -43,7 +46,12 @@ final class AIEnhancer: TextEnhancing {
     if value.isEmpty {
       KeychainStore.delete("ai-api-key")
     } else {
-      try? KeychainStore.set(Data(value.utf8), for: "ai-api-key")
+      do {
+        try KeychainStore.set(Data(value.utf8), for: "ai-api-key")
+      } catch {
+        AppLog.cleanup.error(
+          "cleanup_key_save_failed type=\(AppLog.errorType(error), privacy: .public)")
+      }
     }
   }
 

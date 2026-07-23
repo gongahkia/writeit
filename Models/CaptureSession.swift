@@ -30,9 +30,10 @@ final class CaptureSession: ObservableObject {
     strokes.append(InkStroke(points: [point]))
   }
 
-  func append(point: InkPoint) {
+  func append(point: InkPoint, style: InkStyle = .default) {
     guard phase == .drawing, !strokes.isEmpty else { return }
-    strokes[strokes.count - 1].points.append(point)
+    guard let previous = strokes.last?.points.last else { return }
+    strokes[strokes.count - 1].points.append(style.smoothed(point, after: previous))
   }
 
   func finishStroke() {
@@ -44,11 +45,20 @@ final class CaptureSession: ObservableObject {
     strokes = []
   }
 
-  func renderedImageData() -> Data? {
-    renderedImage()?.tiffRepresentation
+  func inputValidationMessage() -> String? {
+    guard !strokes.isEmpty else { return "Write something before recognizing." }
+    guard strokes.contains(where: { $0.points.count > 1 }) else {
+      return "Draw a stroke before recognizing."
+    }
+    return nil
   }
 
-  private func renderedImage() -> NSImage? {
+  func renderedImageData(style: InkStyle = .default) -> Data? {
+    guard inputValidationMessage() == nil else { return nil }
+    return renderedImage(style: style)?.tiffRepresentation
+  }
+
+  private func renderedImage(style: InkStyle) -> NSImage? {
     guard !strokes.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
     let output = CGSize(width: 1536, height: max(512, 1536 * canvasSize.height / canvasSize.width))
     let xScale = output.width / canvasSize.width
@@ -59,15 +69,18 @@ final class CaptureSession: ObservableObject {
     NSBezierPath(rect: NSRect(origin: .zero, size: output)).fill()
     NSColor.black.setStroke()
     for stroke in strokes where stroke.points.count > 1 {
-      let path = NSBezierPath()
-      path.lineCapStyle = .round
-      path.lineJoinStyle = .round
-      path.lineWidth = 7
-      for (index, point) in stroke.points.enumerated() {
-        let location = NSPoint(x: point.x * xScale, y: output.height - point.y * yScale)
-        if index == 0 { path.move(to: location) } else { path.line(to: location) }
+      for (previous, point) in zip(stroke.points, stroke.points.dropFirst()) {
+        let path = NSBezierPath()
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        path.lineWidth = style.lineWidth(
+          for: (previous.pressure + point.pressure) / 2,
+          scale: min(xScale, yScale)
+        )
+        path.move(to: NSPoint(x: previous.x * xScale, y: output.height - previous.y * yScale))
+        path.line(to: NSPoint(x: point.x * xScale, y: output.height - point.y * yScale))
+        path.stroke()
       }
-      path.stroke()
     }
     image.unlockFocus()
     return image

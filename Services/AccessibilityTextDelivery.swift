@@ -8,24 +8,6 @@ struct TargetReference {
   let bundleIdentifier: String?
 }
 
-enum DeliveryOutcome: Equatable {
-  case pasted
-  case accessibilityInserted
-  case clipboard
-  case targetUnavailable
-  case failed(String)
-
-  var message: String {
-    switch self {
-    case .pasted: "Pasted into captured field"
-    case .accessibilityInserted: "Inserted into captured field"
-    case .clipboard: "Copied to clipboard"
-    case .targetUnavailable: "Copied: captured field is unavailable"
-    case .failed(let message): message
-    }
-  }
-}
-
 @MainActor
 final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
@@ -58,38 +40,40 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     )
   }
 
-  func deliver(
-    _ text: String,
-    to target: TargetReference?,
-    strategy: OutputStrategy
-  ) -> DeliveryOutcome {
-    copy(text)
-    guard strategy != .clipboard else { return .clipboard }
-    guard let target, isTargetAvailable(target) else { return .targetUnavailable }
+  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
+    AppLog.delivery.info(
+      "delivery_requested strategy=\(request.strategy.rawValue, privacy: .public) target_available=\(request.target != nil, privacy: .public)"
+    )
+    guard copy(request.text) else { return .failed(.clipboardWriteFailed) }
+    guard request.strategy != .clipboard else { return .clipboard }
+    guard let target = request.target else { return .clipboardFallback(.targetUnavailable) }
+    if let failure = targetFailure(target) { return .clipboardFallback(failure) }
     lastTarget = target
-    activate(target)
-    switch strategy {
+    guard activate(target) else { return .clipboardFallback(.activationFailed) }
+    switch request.strategy {
     case .paste:
-      postKey(code: 9, flags: .maskCommand)
-      return .pasted
+      return postKey(code: 9, flags: .maskCommand)
+        ? .pasted(request.clipboardHandling)
+        : .failed(.pasteEventUnavailable)
     case .accessibility:
       let result = AXUIElementSetAttributeValue(
         target.element,
         kAXSelectedTextAttribute as CFString,
-        text as CFTypeRef
+        request.text as CFTypeRef
       )
       return result == .success
         ? .accessibilityInserted
-        : .failed("Accessibility could not replace text in the captured field")
+        : .failed(.accessibilityInsertionFailed)
     case .clipboard:
       return .clipboard
     }
   }
 
   func undo() {
-    guard let lastTarget, isTargetAvailable(lastTarget) else { return }
-    activate(lastTarget)
-    postKey(code: 6, flags: .maskCommand)
+    guard let lastTarget, targetFailure(lastTarget) == nil else { return }
+    _ = activate(lastTarget)
+    _ = postKey(code: 6, flags: .maskCommand)
+    AppLog.delivery.info("delivery_undo_requested")
   }
 
   private func isEditable(_ element: AXUIElement) -> Bool {
@@ -101,27 +85,32 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     ) == .success && isSettable.boolValue
   }
 
-  private func isTargetAvailable(_ target: TargetReference) -> Bool {
-    guard NSRunningApplication(processIdentifier: target.pid) != nil else { return false }
-    return isEditable(target.element)
+  private func targetFailure(_ target: TargetReference) -> DeliveryFailure? {
+    guard NSRunningApplication(processIdentifier: target.pid) != nil else {
+      return .targetAppNotRunning
+    }
+    guard isEditable(target.element) else { return .targetNotEditable }
+    return nil
   }
 
-  private func copy(_ text: String) {
+  private func copy(_ text: String) -> Bool {
     NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(text, forType: .string)
+    return NSPasteboard.general.setString(text, forType: .string)
   }
 
-  private func activate(_ target: TargetReference) {
-    NSRunningApplication(processIdentifier: target.pid)?.activate(options: [])
+  private func activate(_ target: TargetReference) -> Bool {
+    NSRunningApplication(processIdentifier: target.pid)?.activate(options: []) ?? false
   }
 
-  private func postKey(code: CGKeyCode, flags: CGEventFlags) {
+  private func postKey(code: CGKeyCode, flags: CGEventFlags) -> Bool {
     let source = CGEventSource(stateID: .hidSystemState)
     let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true)
     let up = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false)
-    down?.flags = flags
-    up?.flags = flags
-    down?.post(tap: .cghidEventTap)
-    up?.post(tap: .cghidEventTap)
+    guard let down, let up else { return false }
+    down.flags = flags
+    up.flags = flags
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+    return true
   }
 }

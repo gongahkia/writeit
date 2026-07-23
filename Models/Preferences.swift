@@ -10,6 +10,9 @@ final class Preferences: ObservableObject {
   @Published var outputStrategy: OutputStrategy {
     didSet { save(outputStrategy, key: .outputStrategy) }
   }
+  @Published var recognitionLanguage: RecognitionLanguage {
+    didSet { save(recognitionLanguage, key: .recognitionLanguage) }
+  }
   @Published var historyMode: HistoryMode { didSet { save(historyMode, key: .historyMode) } }
   @Published var historyAutoDelete: Bool {
     didSet { defaults.set(historyAutoDelete, forKey: Key.historyAutoDelete.rawValue) }
@@ -33,6 +36,22 @@ final class Preferences: ObservableObject {
   @Published var penUpDelay: Double {
     didSet { defaults.set(Self.validPenUpDelay(penUpDelay), forKey: Key.penUpDelay.rawValue) }
   }
+  @Published var strokeWidth: Double {
+    didSet { defaults.set(Self.validStrokeWidth(strokeWidth), forKey: Key.strokeWidth.rawValue) }
+  }
+  @Published var pressureSensitivity: Double {
+    didSet {
+      defaults.set(
+        Self.validUnitInterval(pressureSensitivity),
+        forKey: Key.pressureSensitivity.rawValue
+      )
+    }
+  }
+  @Published var strokeSmoothing: Double {
+    didSet {
+      defaults.set(Self.validUnitInterval(strokeSmoothing), forKey: Key.strokeSmoothing.rawValue)
+    }
+  }
 
   private let defaults: UserDefaults
 
@@ -44,7 +63,8 @@ final class Preferences: ObservableObject {
     captureMode = Self.load(.captureMode, from: defaults, fallback: .toggle)
     resultMode = Self.load(.resultMode, from: defaults, fallback: .autoInsert)
     outputStrategy = Self.load(.outputStrategy, from: defaults, fallback: .paste)
-    historyMode = Self.load(.historyMode, from: defaults, fallback: .full)
+    recognitionLanguage = Self.load(.recognitionLanguage, from: defaults, fallback: .english)
+    historyMode = Self.load(.historyMode, from: defaults, fallback: .textOnly)
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
       defaults.integer(forKey: Key.historyRetentionDays.rawValue))
@@ -53,6 +73,18 @@ final class Preferences: ObservableObject {
     aiModel = defaults.string(forKey: Key.aiModel.rawValue) ?? Self.defaultAIModel
     launchAtLogin = defaults.bool(forKey: Key.launchAtLogin.rawValue)
     penUpDelay = Self.validPenUpDelay(defaults.double(forKey: Key.penUpDelay.rawValue))
+    strokeWidth = Self.validStrokeWidth(defaults.double(forKey: Key.strokeWidth.rawValue))
+    pressureSensitivity = Self.validUnitInterval(
+      defaults.double(forKey: Key.pressureSensitivity.rawValue))
+    strokeSmoothing = Self.validUnitInterval(defaults.double(forKey: Key.strokeSmoothing.rawValue))
+  }
+
+  var inkStyle: InkStyle {
+    InkStyle(
+      baseWidth: strokeWidth,
+      pressureSensitivity: pressureSensitivity,
+      smoothing: strokeSmoothing
+    )
   }
 
   private enum Key: String {
@@ -61,6 +93,7 @@ final class Preferences: ObservableObject {
     case captureMode
     case resultMode
     case outputStrategy
+    case recognitionLanguage
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
@@ -69,6 +102,9 @@ final class Preferences: ObservableObject {
     case aiModel
     case launchAtLogin
     case penUpDelay
+    case strokeWidth
+    case pressureSensitivity
+    case strokeSmoothing
   }
 
   private static let defaultAIBaseURL = "https://api.openai.com/v1/chat/completions"
@@ -84,6 +120,9 @@ final class Preferences: ObservableObject {
       Key.aiModel.rawValue: defaultAIModel,
       Key.launchAtLogin.rawValue: false,
       Key.penUpDelay.rawValue: 1.2,
+      Key.strokeWidth.rawValue: InkStyle.default.baseWidth,
+      Key.pressureSensitivity.rawValue: InkStyle.default.pressureSensitivity,
+      Key.strokeSmoothing.rawValue: InkStyle.default.smoothing,
     ])
   }
 
@@ -96,6 +135,15 @@ final class Preferences: ObservableObject {
       defaults.set(
         validPenUpDelay(defaults.double(forKey: Key.penUpDelay.rawValue)),
         forKey: Key.penUpDelay.rawValue)
+      defaults.set(
+        validStrokeWidth(defaults.double(forKey: Key.strokeWidth.rawValue)),
+        forKey: Key.strokeWidth.rawValue)
+      defaults.set(
+        validUnitInterval(defaults.double(forKey: Key.pressureSensitivity.rawValue)),
+        forKey: Key.pressureSensitivity.rawValue)
+      defaults.set(
+        validUnitInterval(defaults.double(forKey: Key.strokeSmoothing.rawValue)),
+        forKey: Key.strokeSmoothing.rawValue)
     }
     defaults.set(currentSchemaVersion, forKey: Key.schemaVersion.rawValue)
   }
@@ -113,4 +161,6 @@ final class Preferences: ObservableObject {
 
   private static func validRetentionDays(_ value: Int) -> Int { min(max(value, 1), 365) }
   private static func validPenUpDelay(_ value: Double) -> Double { min(max(value, 0.5), 3) }
+  private static func validStrokeWidth(_ value: Double) -> Double { min(max(value, 1), 12) }
+  private static func validUnitInterval(_ value: Double) -> Double { min(max(value, 0), 1) }
 }

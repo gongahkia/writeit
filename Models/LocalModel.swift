@@ -14,12 +14,18 @@ struct LocalModel: Identifiable, Hashable {
     case builtIn
     case available
     case installed
+    case experimental
+    case configurationRequired
+    case unavailable
 
     var title: String {
       switch self {
       case .builtIn: "Built in"
       case .available: "Not installed"
       case .installed: "Installed"
+      case .experimental: "Experimental"
+      case .configurationRequired: "Configuration required"
+      case .unavailable: "Unavailable"
       }
     }
 
@@ -27,6 +33,9 @@ struct LocalModel: Identifiable, Hashable {
       switch self {
       case .builtIn, .installed: "checkmark.circle"
       case .available: "arrow.down.circle"
+      case .experimental: "flask"
+      case .configurationRequired: "key"
+      case .unavailable: "exclamationmark.triangle"
       }
     }
   }

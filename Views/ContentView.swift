@@ -9,7 +9,9 @@ private enum MainSection: String, CaseIterable, Identifiable {
 }
 
 struct ContentView: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
+  @ObservedObject var history: HistoryStore
   @State private var section: MainSection? = .capture
 
   var body: some View {
@@ -23,15 +25,18 @@ struct ContentView: View {
       .navigationTitle("WriteIt")
     } detail: {
       switch section ?? .capture {
-      case .capture: CaptureDashboard(model: model)
-      case .history: CaptureHistoryView(history: model.history, preferences: model.preferences, onCleanup: model.cleanupHistory)
+      case .capture: CaptureDashboard(capture: capture, preferences: preferences)
+      case .history:
+        CaptureHistoryView(
+          history: history, preferences: preferences, onCleanup: capture.cleanupHistory)
       }
     }
   }
 }
 
 private struct CaptureDashboard: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
 
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
@@ -41,22 +46,31 @@ private struct CaptureDashboard: View {
           .foregroundStyle(.secondary)
       }
       HStack(spacing: 16) {
-        Button(action: model.beginCapture) {
+        Button(action: capture.beginCapture) {
           Label("Start writing", systemImage: "pencil.tip")
         }
         .buttonStyle(.borderedProminent)
-        Text(model.preferences.shortcut.displayName).font(.title3.monospaced()).foregroundStyle(.secondary)
+        Text(preferences.shortcut.displayName).font(.title3.monospaced()).foregroundStyle(
+          .secondary)
       }
       .controlSize(.large)
 
       GroupBox("Status") {
-        HStack(spacing: 10) {
-          Image(systemName: model.accessibilityGranted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-            .foregroundStyle(model.accessibilityGranted ? .green : .orange)
-          Text(model.statusMessage)
-          Spacer()
-          if !model.accessibilityGranted {
-            Button("Enable Accessibility", action: model.requestAccessibility)
+        VStack(alignment: .leading, spacing: 10) {
+          HStack(spacing: 10) {
+            Image(
+              systemName: capture.accessibilityGranted
+                ? "checkmark.shield.fill" : "exclamationmark.shield.fill"
+            )
+            .foregroundStyle(capture.accessibilityGranted ? .green : .orange)
+            Text(capture.statusMessage)
+            Spacer()
+            if !capture.accessibilityGranted {
+              Button("Enable Accessibility", action: capture.requestAccessibility)
+            }
+          }
+          if let error = capture.error {
+            CaptureErrorBanner(error: error, dismiss: capture.clearError)
           }
         }
         .padding(4)
@@ -79,17 +93,18 @@ private struct CaptureDashboard: View {
 }
 
 struct MenuBarContent: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
   @Environment(\.openWindow) private var openWindow
 
   var body: some View {
-    Button("Start writing") { model.beginCapture() }
+    Button("Start writing") { capture.beginCapture() }
     Button("Open WriteIt") {
       NSApp.activate(ignoringOtherApps: true)
       openWindow(id: "main")
     }
     Divider()
-    Text(model.statusMessage).lineLimit(1)
+    Text(capture.statusMessage).lineLimit(1)
     Divider()
     SettingsLink { Text("Settings…") }
     Button("Quit WriteIt") { NSApp.terminate(nil) }

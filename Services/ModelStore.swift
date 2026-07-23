@@ -41,15 +41,25 @@ final class ModelStore: ObservableObject {
       try FileManager.default.copyItem(at: source, to: target)
       enhancedModelURL = target
       lastError = nil
+      AppLog.models.info("local_model_installed")
     } catch {
       lastError = "Could not install the selected model."
+      AppLog.models.error(
+        "local_model_install_failed type=\(AppLog.errorType(error), privacy: .public)")
     }
   }
 
   func removeEnhancedModel() {
     guard let enhancedModelURL else { return }
-    try? FileManager.default.removeItem(at: enhancedModelURL)
-    self.enhancedModelURL = nil
+    do {
+      try FileManager.default.removeItem(at: enhancedModelURL)
+      self.enhancedModelURL = nil
+      AppLog.models.info("local_model_removed")
+    } catch {
+      lastError = "Could not delete the selected model."
+      AppLog.models.error(
+        "local_model_delete_failed type=\(AppLog.errorType(error), privacy: .public)")
+    }
   }
 
   func revealEnhancedModel() {

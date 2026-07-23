@@ -46,6 +46,11 @@ enum OutputStrategy: String, CaseIterable, Codable, Identifiable {
   }
 }
 
+enum ClipboardHandling: String, Codable, Equatable {
+  case leaveRecognizedText
+  case restorePrevious
+}
+
 enum HistoryMode: String, CaseIterable, Codable, Identifiable {
   case full
   case textOnly
@@ -67,6 +72,7 @@ enum CapturePhase: Equatable {
   case recognizing
   case reviewing
   case delivered(String)
+  case failed(String)
 
   var isActive: Bool { self != .idle }
 }
@@ -103,11 +109,72 @@ enum KeyName {
   }
 }
 
+enum InkInputSource: String, Codable, Hashable {
+  case mouse
+  case stylus
+}
+
 struct InkPoint: Codable, Hashable {
   var x: CGFloat
   var y: CGFloat
   var pressure: CGFloat
   var timestamp: TimeInterval
+  var inputSource: InkInputSource
+
+  init(
+    x: CGFloat,
+    y: CGFloat,
+    pressure: CGFloat,
+    timestamp: TimeInterval,
+    inputSource: InkInputSource = .mouse
+  ) {
+    self.x = x
+    self.y = y
+    self.pressure = pressure
+    self.timestamp = timestamp
+    self.inputSource = inputSource
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case x
+    case y
+    case pressure
+    case timestamp
+    case inputSource
+  }
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    x = try container.decode(CGFloat.self, forKey: .x)
+    y = try container.decode(CGFloat.self, forKey: .y)
+    pressure = try container.decode(CGFloat.self, forKey: .pressure)
+    timestamp = try container.decode(TimeInterval.self, forKey: .timestamp)
+    inputSource = try container.decodeIfPresent(InkInputSource.self, forKey: .inputSource) ?? .mouse
+  }
+}
+
+struct InkStyle: Equatable, Sendable {
+  static let `default` = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0.25)
+
+  var baseWidth: Double
+  var pressureSensitivity: Double
+  var smoothing: Double
+
+  func lineWidth(for pressure: CGFloat, scale: CGFloat = 1) -> CGFloat {
+    let normalizedPressure = min(max(pressure, 0), 1)
+    let adjustment = 1 + (normalizedPressure - 0.5) * 2 * CGFloat(pressureSensitivity)
+    return max(1, CGFloat(baseWidth) * scale * adjustment)
+  }
+
+  func smoothed(_ point: InkPoint, after previous: InkPoint) -> InkPoint {
+    let weight = min(max(smoothing, 0), 1) * 0.75
+    return InkPoint(
+      x: previous.x + (point.x - previous.x) * (1 - weight),
+      y: previous.y + (point.y - previous.y) * (1 - weight),
+      pressure: previous.pressure + (point.pressure - previous.pressure) * (1 - weight),
+      timestamp: point.timestamp
+    )
+  }
 }
 
 struct InkStroke: Identifiable, Codable, Hashable {

@@ -2,27 +2,39 @@ import Foundation
 
 @MainActor
 final class AppRuntime {
-  let model: AppModel
+  let preferences: Preferences
+  let history: HistoryStore
+  let models: ModelStore
+  let session: CaptureSession
+  let recognition: RecognitionService
+  let capture: CaptureCoordinator
 
   init(defaults: UserDefaults = .standard) {
-    let preferences = Preferences(defaults: defaults)
-    let history = HistoryStore()
-    let models = ModelStore()
-    let session = CaptureSession()
-    model = AppModel(
+    preferences = Preferences(defaults: defaults)
+    history = HistoryStore()
+    models = ModelStore()
+    session = CaptureSession()
+    recognition = RecognitionService()
+    capture = CaptureCoordinator(
       preferences: preferences,
       history: history,
-      models: models,
       session: session,
       shortcutMonitor: GlobalShortcutMonitor(),
       delivery: AccessibilityTextDelivery(),
-      recognition: RecognitionService(),
+      recognition: recognition,
       enhancer: AIEnhancer(),
       overlay: CaptureOverlayController.shared,
       loginItem: LoginItemService()
     )
   }
 
-  func start() { model.start() }
-  func stop() { model.stop() }
+  func start() {
+    AppLog.app.info("runtime_started")
+    capture.start()
+  }
+
+  func stop() {
+    AppLog.app.info("runtime_stopped")
+    capture.stop()
+  }
 }

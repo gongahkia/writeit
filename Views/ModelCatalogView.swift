@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct ModelCatalogView: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var models: ModelStore
+  @ObservedObject var preferences: Preferences
+  let recognitionCapabilities: RecognitionBackendCapabilities
   @State private var tab: ModelCatalogTab = .local
   @State private var showSettings = false
 
@@ -11,7 +13,7 @@ struct ModelCatalogView: View {
         HStack {
           VStack(alignment: .leading, spacing: 4) {
             Text("Model Catalog").font(.title.bold())
-            Text("Choose the on-device recognizer used for handwriting.").foregroundStyle(
+            Text("Choose a recognizer and language for handwriting.").foregroundStyle(
               .secondary)
           }
           Spacer()
@@ -27,7 +29,12 @@ struct ModelCatalogView: View {
       .padding(24)
     }
     .sheet(isPresented: $showSettings) {
-      ModelSettingsSheet(model: model, isPresented: $showSettings)
+      ModelSettingsSheet(
+        models: models,
+        preferences: preferences,
+        recognitionCapabilities: recognitionCapabilities,
+        isPresented: $showSettings
+      )
     }
   }
 
@@ -37,39 +44,76 @@ struct ModelCatalogView: View {
       VStack(spacing: 14) {
         ModelCard(
           title: "Apple Vision",
-          metadata: ["Native Apple", "English", "On-device", "macOS 15+"],
-          description:
-            "Built-in local handwriting recognition. No model download or network access.",
-          status: .builtIn,
+          metadata: [
+            "Native Apple", languageMetadata, "On-device", "macOS 15+",
+          ],
+          description: visionDescription,
+          status: visionStatus,
           actionTitle: nil,
           action: {}
         )
         ModelCard(
-          title: "TrOCR Small Handwritten",
-          metadata: ["English", "Core ML", "Local file"],
-          description: model.models.enhancedModelURL == nil
-            ? "Install a compiled .mlmodelc package to manage an enhanced local handwriting model."
-            : "A compiled Core ML package is stored locally and ready for enhanced-model integration.",
-          status: model.models.enhancedModelURL == nil ? .available : .installed,
-          actionTitle: model.models.enhancedModelURL == nil ? "Install…" : nil,
-          action: model.models.installEnhancedModel,
-          menu: model.models.enhancedModelURL == nil ? nil : AnyView(ModelMenu(model: model))
+          title: "TrOCR Handwritten",
+          metadata: ["English", "Core ML", "Benchmark-gated"],
+          description:
+            "Experimental. It is not installable until its tokenizer, decoder, and Apple Silicon benchmark qualify.",
+          status: .experimental,
+          actionTitle: nil,
+          action: {}
         )
-        if let error = model.models.lastError { Text(error).font(.caption).foregroundStyle(.red) }
       }
     case .cloud:
-      ContentUnavailableView(
-        "No cloud recognition", systemImage: "cloud.slash",
-        description: Text(
-          "WriteIt keeps handwriting recognition on-device. AI cleanup is configured separately.")
-      )
-      .frame(maxWidth: .infinity, minHeight: 260)
+      VStack(spacing: 14) {
+        ModelCard(
+          title: "Google Cloud Vision",
+          metadata: ["Cloud", "Handwriting", "Image only"],
+          description:
+            "Not configured. Cloud OCR will require an explicit app-profile consent and sends only the rendered ink image.",
+          status: .configurationRequired,
+          actionTitle: nil,
+          action: {}
+        )
+        ModelCard(
+          title: "Azure AI Vision Read",
+          metadata: ["Cloud", "Handwriting", "Image only"],
+          description:
+            "Not configured. Cloud OCR will require an explicit app-profile consent and sends only the rendered ink image.",
+          status: .configurationRequired,
+          actionTitle: nil,
+          action: {}
+        )
+      }
     case .custom:
-      ContentUnavailableView(
-        "Custom providers", systemImage: "slider.horizontal.3",
-        description: Text("Custom OCR providers are not enabled in this local-first release.")
+      ModelCard(
+        title: "Custom OCR Provider",
+        metadata: ["HTTP", "Image only", "Per profile"],
+        description:
+          "Not configured. Custom providers will be validated with a test request before they can be selected.",
+        status: .configurationRequired,
+        actionTitle: nil,
+        action: {}
       )
-      .frame(maxWidth: .infinity, minHeight: 260)
+    }
+  }
+
+  private var languageMetadata: String {
+    let count = recognitionCapabilities.supportedLanguages.count
+    return count == 0 ? "No languages" : "\(count) languages"
+  }
+
+  private var visionStatus: LocalModel.Status {
+    switch recognitionCapabilities.availability {
+    case .available: .builtIn
+    case .unavailable: .unavailable
+    }
+  }
+
+  private var visionDescription: String {
+    switch recognitionCapabilities.availability {
+    case .available:
+      return "Built-in local handwriting recognition. No model download or network access."
+    case .unavailable(let message):
+      return message
     }
   }
 }
@@ -139,23 +183,10 @@ private struct ModelCard: View {
   }
 }
 
-private struct ModelMenu: View {
-  @ObservedObject var model: AppModel
-
-  var body: some View {
-    Menu {
-      Button("Show in Finder", action: model.models.revealEnhancedModel)
-      Divider()
-      Button("Delete Model", role: .destructive, action: model.models.removeEnhancedModel)
-    } label: {
-      Image(systemName: "ellipsis.circle")
-    }
-    .menuStyle(.borderlessButton)
-  }
-}
-
 private struct ModelSettingsSheet: View {
-  @ObservedObject var model: AppModel
+  @ObservedObject var models: ModelStore
+  @ObservedObject var preferences: Preferences
+  let recognitionCapabilities: RecognitionBackendCapabilities
   @Binding var isPresented: Bool
 
   var body: some View {
@@ -174,25 +205,18 @@ private struct ModelSettingsSheet: View {
       GroupBox("Recognition") {
         VStack(alignment: .leading, spacing: 12) {
           LabeledContent("Primary recognizer", value: "Apple Vision")
-          LabeledContent("Language", value: "English")
+          LabeledContent("Language", value: preferences.recognitionLanguage.displayName)
+          LabeledContent(
+            "Available languages", value: "\(recognitionCapabilities.supportedLanguages.count)")
           LabeledContent("Network access", value: "Never required")
         }
         .padding(6)
       }
-      GroupBox("Enhanced local model") {
+      GroupBox("Experimental local models") {
         VStack(alignment: .leading, spacing: 12) {
           Text(
-            model.models.enhancedModelURL == nil
-              ? "No compiled Core ML model installed." : "Compiled Core ML model installed locally."
+            "No experimental model is currently available. WriteIt will only offer a local model after decoder and benchmark qualification."
           )
-          HStack {
-            if model.models.enhancedModelURL == nil {
-              Button("Install model…", action: model.models.installEnhancedModel)
-            } else {
-              Button("Show in Finder", action: model.models.revealEnhancedModel)
-              Button("Delete", role: .destructive, action: model.models.removeEnhancedModel)
-            }
-          }
         }
         .padding(6)
       }

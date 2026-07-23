@@ -3,14 +3,15 @@ import SwiftUI
 
 struct CaptureOverlayView: View {
   @ObservedObject var session: CaptureSession
-  @ObservedObject var model: AppModel
+  @ObservedObject var coordinator: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
 
   var body: some View {
     GeometryReader { proxy in
       ZStack {
         Color.black.opacity(0.78).ignoresSafeArea()
           .contentShape(Rectangle())
-          .onTapGesture { model.cancelCapture() }
+          .onTapGesture { coordinator.cancelCapture() }
         VStack(spacing: 0) {
           Spacer()
           captureCard
@@ -27,7 +28,7 @@ struct CaptureOverlayView: View {
       Divider().overlay(Color.white.opacity(0.14))
       switch session.phase {
       case .drawing:
-        InkCanvas(session: session)
+        InkCanvas(session: session, style: preferences.inkStyle)
           .frame(height: 250)
           .background(Color.white.opacity(0.035))
       case .recognizing:
@@ -38,6 +39,9 @@ struct CaptureOverlayView: View {
           .frame(height: 250)
       case .delivered(let message):
         delivered(message)
+          .frame(height: 250)
+      case .failed(let message):
+        failed(message)
           .frame(height: 250)
       case .idle:
         EmptyView()
@@ -58,14 +62,15 @@ struct CaptureOverlayView: View {
     HStack(spacing: 12) {
       VStack(alignment: .leading, spacing: 3) {
         Text(title).font(.headline.weight(.semibold)).foregroundStyle(.white)
-        Text(subtitle).font(.caption).foregroundStyle(.white.opacity(0.56))
+        Text(coordinator.error?.message ?? subtitle).font(.caption).foregroundStyle(
+          .white.opacity(0.56))
       }
       Spacer()
       if session.phase == .drawing {
         Button(action: session.clear) { Image(systemName: "trash") }
           .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Clear ink")
       }
-      Button(action: model.cancelCapture) { Image(systemName: "xmark") }
+      Button(action: coordinator.cancelCapture) { Image(systemName: "xmark") }
         .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Cancel")
     }
     .padding(.horizontal, 22).padding(.vertical, 16)
@@ -76,11 +81,13 @@ struct CaptureOverlayView: View {
       Text("Esc to cancel").font(.caption).foregroundStyle(.white.opacity(0.48))
       Spacer()
       if case .reviewing = session.phase {
-        Button("Insert", action: model.insertReviewedText).buttonStyle(.borderedProminent)
+        Button("Insert", action: coordinator.insertReviewedText).buttonStyle(.borderedProminent)
       } else if case .delivered = session.phase {
-        Button("Undo", action: model.undoInsertion).buttonStyle(.bordered)
+        Button("Undo", action: coordinator.undoInsertion).buttonStyle(.bordered)
+      } else if case .failed = session.phase {
+        Button("Retry", action: coordinator.retryRecognition).buttonStyle(.borderedProminent)
       } else {
-        Text("Press \(model.preferences.shortcut.displayName) to submit")
+        Text("Press \(preferences.shortcut.displayName) to submit")
           .font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.8))
       }
     }
@@ -112,12 +119,25 @@ struct CaptureOverlayView: View {
     .padding(30)
   }
 
+  private func failed(_ message: String) -> some View {
+    VStack(spacing: 14) {
+      Image(systemName: "exclamationmark.triangle.fill")
+        .font(.system(size: 34))
+        .foregroundStyle(.orange)
+      Text("Couldn’t read handwriting").font(.title3.weight(.semibold)).foregroundStyle(.white)
+      Text(message).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.64))
+      Button("Retry", action: coordinator.retryRecognition).buttonStyle(.borderedProminent)
+    }
+    .padding(30)
+  }
+
   private var title: String {
     switch session.phase {
     case .drawing: "Write naturally"
     case .recognizing: "Reading handwriting"
     case .reviewing: "Review result"
     case .delivered: "Done"
+    case .failed: "Recognition failed"
     case .idle: "WriteIt"
     }
   }
