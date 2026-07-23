@@ -1,143 +1,141 @@
 import AppKit
 import SwiftUI
 
-struct SettingsView: View {
+struct CaptureSettingsView: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject private var preferences: Preferences
-  @ObservedObject private var history: HistoryStore
-  @ObservedObject private var models: ModelStore
-  let recognitionCapabilities: RecognitionBackendCapabilities
-  @State private var apiKey = ""
-  @State private var keySaved = false
 
-  init(
-    capture: CaptureCoordinator,
-    preferences: Preferences,
-    history: HistoryStore,
-    models: ModelStore,
-    recognitionCapabilities: RecognitionBackendCapabilities
-  ) {
+  init(capture: CaptureCoordinator, preferences: Preferences) {
     self.capture = capture
     _preferences = ObservedObject(wrappedValue: preferences)
-    _history = ObservedObject(wrappedValue: history)
-    _models = ObservedObject(wrappedValue: models)
-    self.recognitionCapabilities = recognitionCapabilities
   }
 
   var body: some View {
-    TabView {
-      Form {
-        Section("Shortcut") {
-          HStack {
-            Text("Capture shortcut")
-            Spacer()
-            ShortcutRecorder(shortcut: $preferences.shortcut)
-          }
-          Picker("Capture mode", selection: $preferences.captureMode) {
-            ForEach(CaptureMode.allCases) { Text($0.title).tag($0) }
-          }
-          if preferences.captureMode == .penUpDelay {
-            Slider(value: $preferences.penUpDelay, in: 0.5...3, step: 0.1) {
-              Text("Pen-up delay")
-            } minimumValueLabel: {
-              Text("0.5s")
-            } maximumValueLabel: {
-              Text("3s")
-            }
-          }
-          Picker("After recognition", selection: $preferences.resultMode) {
-            ForEach(ResultMode.allCases) { Text($0.title).tag($0) }
-          }
-          Picker("Delivery", selection: $preferences.outputStrategy) {
-            ForEach(OutputStrategy.allCases) { Text($0.title).tag($0) }
-          }
-          Picker("Recognition language", selection: $preferences.recognitionLanguage) {
-            ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
+    Form {
+      Section("Shortcut") {
+        HStack {
+          Text("Capture shortcut")
+          Spacer()
+          ShortcutRecorder(shortcut: $preferences.shortcut)
+        }
+        Picker("Capture mode", selection: $preferences.captureMode) {
+          ForEach(CaptureMode.allCases) { Text($0.title).tag($0) }
+        }
+        if preferences.captureMode == .penUpDelay {
+          Slider(value: $preferences.penUpDelay, in: 0.5...3, step: 0.1) {
+            Text("Pen-up delay")
+          } minimumValueLabel: {
+            Text("0.5s")
+          } maximumValueLabel: {
+            Text("3s")
           }
         }
-        Section("Ink input") {
-          Slider(value: $preferences.strokeWidth, in: 1...12, step: 0.5) {
-            Text("Stroke width")
-          } minimumValueLabel: {
-            Text("Fine")
-          } maximumValueLabel: {
-            Text("Bold")
-          }
-          Slider(value: $preferences.pressureSensitivity, in: 0...1, step: 0.05) {
-            Text("Pressure response")
-          } minimumValueLabel: {
-            Text("Fixed")
-          } maximumValueLabel: {
-            Text("Strong")
-          }
-          Slider(value: $preferences.strokeSmoothing, in: 0...1, step: 0.05) {
-            Text("Stroke smoothing")
-          } minimumValueLabel: {
-            Text("Raw")
-          } maximumValueLabel: {
-            Text("Smooth")
-          }
+        Picker("After recognition", selection: $preferences.resultMode) {
+          ForEach(ResultMode.allCases) { Text($0.title).tag($0) }
         }
-        Section("Permissions") {
-          LabeledContent(
-            "Accessibility", value: capture.accessibilityGranted ? "Enabled" : "Required")
-          if !capture.accessibilityGranted {
-            Button("Request Accessibility", action: capture.requestAccessibility)
-          }
+        Picker("Delivery", selection: $preferences.outputStrategy) {
+          ForEach(OutputStrategy.allCases) { Text($0.title).tag($0) }
+        }
+        Picker("Recognition language", selection: $preferences.recognitionLanguage) {
+          ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
         }
       }
-      .padding(20).tabItem { Label("Capture", systemImage: "pencil.and.scribble") }
-
-      ModelCatalogView(
-        models: models,
-        preferences: preferences,
-        recognitionCapabilities: recognitionCapabilities
-      )
-      .tabItem { Label("Models", systemImage: "cpu") }
-
-      Form {
-        if let error = capture.error {
-          Section("Recent error") {
-            CaptureErrorBanner(error: error, dismiss: capture.clearError)
-          }
+      Section("Ink input") {
+        Slider(value: $preferences.strokeWidth, in: 1...12, step: 0.5) {
+          Text("Stroke width")
+        } minimumValueLabel: {
+          Text("Fine")
+        } maximumValueLabel: {
+          Text("Bold")
         }
-        Section("OpenAI-compatible cleanup") {
-          Toggle("Enable AI cleanup", isOn: $preferences.aiEnabled)
-          TextField("Chat completions URL", text: $preferences.aiBaseURL)
-          TextField("Model", text: $preferences.aiModel)
-          SecureField("API key", text: $apiKey)
-          HStack {
-            Button("Save API key") {
-              capture.saveAPIKey(apiKey)
-              apiKey = ""
-              keySaved = capture.hasAPIKey()
-            }
-            if keySaved || capture.hasAPIKey() {
-              Text("Saved in Keychain").foregroundStyle(.secondary)
-            }
-          }
+        Slider(value: $preferences.pressureSensitivity, in: 0...1, step: 0.05) {
+          Text("Pressure response")
+        } minimumValueLabel: {
+          Text("Fixed")
+        } maximumValueLabel: {
+          Text("Strong")
+        }
+        Slider(value: $preferences.strokeSmoothing, in: 0...1, step: 0.05) {
+          Text("Stroke smoothing")
+        } minimumValueLabel: {
+          Text("Raw")
+        } maximumValueLabel: {
+          Text("Smooth")
         }
       }
-      .padding(20).tabItem { Label("Cleanup", systemImage: "sparkles") }
-
-      Form {
-        Section("History") {
-          Picker("Retain captures", selection: $preferences.historyMode) {
-            ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }
-          }
-          Text("History is encrypted locally. It is never uploaded for training.").font(.caption)
-            .foregroundStyle(.secondary)
-          Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
-          Button("Delete all history", role: .destructive, action: history.clear)
-        }
-        Section("App") {
-          Toggle("Launch at login", isOn: $preferences.launchAtLogin)
-            .onChange(of: preferences.launchAtLogin) { _, _ in capture.updateLaunchAtLogin() }
+      Section("Permissions") {
+        LabeledContent(
+          "Accessibility", value: capture.accessibilityGranted ? "Enabled" : "Required")
+        if !capture.accessibilityGranted {
+          Button("Request Accessibility", action: capture.requestAccessibility)
         }
       }
-      .padding(20).tabItem { Label("Privacy", systemImage: "lock.shield") }
     }
+    .padding(20)
+    .navigationTitle("Capture")
     .onChange(of: preferences.shortcut) { _, _ in capture.restartShortcutMonitor() }
+  }
+}
+
+struct CleanupSettingsView: View {
+  @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
+  @State private var apiKey = ""
+  @State private var keySaved = false
+
+  var body: some View {
+    Form {
+      if let error = capture.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: capture.clearError)
+        }
+      }
+      Section("OpenAI-compatible cleanup") {
+        Toggle("Enable AI cleanup", isOn: $preferences.aiEnabled)
+        TextField("Chat completions URL", text: $preferences.aiBaseURL)
+        TextField("Model", text: $preferences.aiModel)
+        SecureField("API key", text: $apiKey)
+        HStack {
+          Button("Save API key") {
+            capture.saveAPIKey(apiKey)
+            apiKey = ""
+            keySaved = capture.hasAPIKey()
+          }
+          if keySaved || capture.hasAPIKey() {
+            Text("Saved in Keychain").foregroundStyle(.secondary)
+          }
+        }
+      }
+    }
+    .padding(20)
+    .navigationTitle("Cleanup")
+  }
+}
+
+struct PrivacySettingsView: View {
+  @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
+  @ObservedObject var history: HistoryStore
+
+  var body: some View {
+    Form {
+      Section("History") {
+        Picker("Retain captures", selection: $preferences.historyMode) {
+          ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }
+        }
+        Text("History is encrypted locally. It is never uploaded for training.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
+        Button("Delete all history", role: .destructive, action: history.clear)
+      }
+      Section("App") {
+        Toggle("Launch at login", isOn: $preferences.launchAtLogin)
+          .onChange(of: preferences.launchAtLogin) { _, _ in capture.updateLaunchAtLogin() }
+      }
+    }
+    .padding(20)
+    .navigationTitle("Privacy")
   }
 }
 
