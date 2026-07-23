@@ -1,24 +1,32 @@
 import AppKit
 import ApplicationServices
 
+@MainActor
 struct TargetReference {
+  let element: AXUIElement
   let pid: pid_t
+  let bundleIdentifier: String?
 }
 
 enum DeliveryOutcome: Equatable {
-  case inserted
+  case pasted
+  case accessibilityInserted
   case clipboard
-  case unavailable
+  case targetUnavailable
+  case failed(String)
 
   var message: String {
     switch self {
-    case .inserted: "Inserted"
+    case .pasted: "Pasted into captured field"
+    case .accessibilityInserted: "Inserted into captured field"
     case .clipboard: "Copied to clipboard"
-    case .unavailable: "Copied: no editable target"
+    case .targetUnavailable: "Copied: captured field is unavailable"
+    case .failed(let message): message
     }
   }
 }
 
+@MainActor
 final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
 
@@ -26,7 +34,7 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
 
   func requestTrust() {
     AXIsProcessTrustedWithOptions(
-      [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
+      ["AXTrustedCheckOptionPrompt" as CFString: true] as CFDictionary)
   }
 
   func captureTarget() -> TargetReference? {
@@ -36,29 +44,71 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     guard
       AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value)
         == .success,
-      let element = value
+      let value
     else { return nil }
-    let focused = unsafeBitCast(element, to: AXUIElement.self)
+    let element = unsafeDowncast(value, to: AXUIElement.self)
     var pid: pid_t = 0
-    guard AXUIElementGetPid(focused, &pid) == .success, pid != 0 else { return nil }
-    return TargetReference(pid: pid)
+    guard AXUIElementGetPid(element, &pid) == .success, pid != 0,
+      isEditable(element)
+    else { return nil }
+    return TargetReference(
+      element: element,
+      pid: pid,
+      bundleIdentifier: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
+    )
   }
 
-  func deliver(_ text: String, to target: TargetReference?, mode: ResultMode) -> DeliveryOutcome {
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(text, forType: .string)
-    guard mode != .clipboard else { return .clipboard }
-    guard let target else { return .unavailable }
+  func deliver(
+    _ text: String,
+    to target: TargetReference?,
+    strategy: OutputStrategy
+  ) -> DeliveryOutcome {
+    copy(text)
+    guard strategy != .clipboard else { return .clipboard }
+    guard let target, isTargetAvailable(target) else { return .targetUnavailable }
     lastTarget = target
     activate(target)
-    postKey(code: 9, flags: .maskCommand)
-    return .inserted
+    switch strategy {
+    case .paste:
+      postKey(code: 9, flags: .maskCommand)
+      return .pasted
+    case .accessibility:
+      let result = AXUIElementSetAttributeValue(
+        target.element,
+        kAXSelectedTextAttribute as CFString,
+        text as CFTypeRef
+      )
+      return result == .success
+        ? .accessibilityInserted
+        : .failed("Accessibility could not replace text in the captured field")
+    case .clipboard:
+      return .clipboard
+    }
   }
 
   func undo() {
-    guard let lastTarget else { return }
+    guard let lastTarget, isTargetAvailable(lastTarget) else { return }
     activate(lastTarget)
     postKey(code: 6, flags: .maskCommand)
+  }
+
+  private func isEditable(_ element: AXUIElement) -> Bool {
+    var isSettable = DarwinBoolean(false)
+    return AXUIElementIsAttributeSettable(
+      element,
+      kAXSelectedTextAttribute as CFString,
+      &isSettable
+    ) == .success && isSettable.boolValue
+  }
+
+  private func isTargetAvailable(_ target: TargetReference) -> Bool {
+    guard NSRunningApplication(processIdentifier: target.pid) != nil else { return false }
+    return isEditable(target.element)
+  }
+
+  private func copy(_ text: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(text, forType: .string)
   }
 
   private func activate(_ target: TargetReference) {

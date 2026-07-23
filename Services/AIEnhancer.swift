@@ -1,39 +1,41 @@
 import Foundation
 
+@MainActor
 final class AIEnhancer: TextEnhancing {
-  func clean(_ text: String, preferences: Preferences) async -> String {
-    guard preferences.aiEnabled,
+  func clean(_ request: TextEnhancementRequest) async throws -> String {
+    guard request.enabled,
       let keyData = KeychainStore.data(for: "ai-api-key"),
       let key = String(data: keyData, encoding: .utf8), !key.isEmpty,
-      let url = URL(string: preferences.aiBaseURL)
-    else { return text }
+      let url = URL(string: request.baseURL)
+    else { return request.text }
     let body = ChatRequest(
-      model: preferences.aiModel,
+      model: request.model,
       messages: [
         .init(
           role: "system",
           content:
             "Correct only obvious handwriting OCR errors. Preserve wording, intent, and formatting. Return only corrected text."
         ),
-        .init(role: "user", content: text),
+        .init(role: "user", content: request.text),
       ],
       temperature: 0
     )
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-    request.httpBody = try? JSONEncoder().encode(body)
+    var urlRequest = URLRequest(url: url)
+    urlRequest.httpMethod = "POST"
+    urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+    urlRequest.httpBody = try JSONEncoder().encode(body)
     do {
-      let (data, response) = try await URLSession.shared.data(for: request)
+      let (data, response) = try await URLSession.shared.data(for: urlRequest)
       guard (response as? HTTPURLResponse)?.statusCode == 200,
         let result = try? JSONDecoder().decode(ChatResponse.self, from: data),
         let cleaned = result.choices.first?.message.content,
         !cleaned.isEmpty
-      else { return text }
+      else { throw RecognitionError.failed("AI cleanup did not return usable text.") }
       return TextSanitizer.normalize(cleaned)
     } catch {
-      return text
+      if error is CancellationError { throw error }
+      throw RecognitionError.failed("AI cleanup is unavailable.")
     }
   }
 

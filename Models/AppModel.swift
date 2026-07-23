@@ -18,6 +18,8 @@ final class AppModel: ObservableObject {
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
   private var penUpTask: Task<Void, Never>?
+  private var captureTask: Task<Void, Never>?
+  private var dismissalTask: Task<Void, Never>?
   private var accessibilityTimer: Timer?
 
   init(
@@ -58,6 +60,8 @@ final class AppModel: ObservableObject {
 
   func stop() {
     penUpTask?.cancel()
+    captureTask?.cancel()
+    dismissalTask?.cancel()
     accessibilityTimer?.invalidate()
     accessibilityTimer = nil
     shortcutMonitor.stop()
@@ -106,36 +110,66 @@ final class AppModel: ObservableObject {
 
   func cancelCapture() {
     penUpTask?.cancel()
+    captureTask?.cancel()
+    dismissalTask?.cancel()
     session.cancel()
     overlay.dismiss()
     statusMessage = "Cancelled"
   }
 
   func submitCapture() {
-    guard session.phase == .drawing, let image = session.renderedImage() else {
+    guard session.phase == .drawing, let imageData = session.renderedImageData() else {
       if session.phase == .drawing { statusMessage = "Write something first" }
       return
     }
     penUpTask?.cancel()
+    captureTask?.cancel()
     session.phase = .recognizing
     let strokes = session.strokes
     let target = session.target
-    Task { [weak self] in
+    let recognitionRequest = RecognitionRequest(imageData: imageData, language: .english)
+    let enhancementRequest = TextEnhancementRequest(
+      text: "",
+      enabled: preferences.aiEnabled,
+      baseURL: preferences.aiBaseURL,
+      model: preferences.aiModel
+    )
+    captureTask = Task { [weak self, recognition, enhancer] in
       guard let self else { return }
-      guard let candidate = await recognition.recognize(image: image), !candidate.text.isEmpty
-      else {
-        self.session.phase = .drawing
-        self.statusMessage = "No handwriting recognized"
+      defer { self.captureTask = nil }
+      do {
+        let candidate = try await recognition.recognize(recognitionRequest)
+        try Task.checkCancellation()
+        guard !candidate.text.isEmpty else { throw RecognitionError.noText }
+        let result: String
+        do {
+          result = try await enhancer.clean(
+            TextEnhancementRequest(
+              text: candidate.text,
+              enabled: enhancementRequest.enabled,
+              baseURL: enhancementRequest.baseURL,
+              model: enhancementRequest.model
+            ))
+        } catch is CancellationError {
+          return
+        } catch {
+          result = candidate.text
+        }
+        try Task.checkCancellation()
+        guard self.session.phase == .recognizing else { return }
+        self.session.recognizedText = result
+        if self.preferences.resultMode == .review {
+          self.session.phase = .reviewing
+          self.statusMessage = "Review before inserting"
+        } else {
+          self.finish(text: result, source: candidate.backendID, target: target, strokes: strokes)
+        }
+      } catch is CancellationError {
         return
-      }
-      let result = await enhancer.clean(candidate.text, preferences: preferences)
-      guard self.session.phase == .recognizing else { return }
-      self.session.recognizedText = result
-      if self.preferences.resultMode == .review {
-        self.session.phase = .reviewing
-        self.statusMessage = "Review before inserting"
-      } else {
-        self.finish(text: result, source: candidate.source, target: target, strokes: strokes)
+      } catch {
+        guard self.session.phase == .recognizing else { return }
+        self.session.phase = .drawing
+        self.statusMessage = (error as? LocalizedError)?.errorDescription ?? "Recognition failed"
       }
     }
   }
@@ -191,16 +225,20 @@ final class AppModel: ObservableObject {
 
   private func finish(text: String, source: String, target: TargetReference?, strokes: [InkStroke])
   {
-    let outcome = delivery.deliver(text, to: target, mode: preferences.resultMode)
+    let strategy: OutputStrategy =
+      preferences.resultMode == .clipboard ? .clipboard : preferences.outputStrategy
+    let outcome = delivery.deliver(text, to: target, strategy: strategy)
     history.append(text: text, strokes: strokes, mode: preferences.historyMode, source: source)
     session.phase = .delivered(outcome.message)
     statusMessage = outcome.message
     if preferences.resultMode != .review {
-      Task { [weak self] in
+      dismissalTask?.cancel()
+      dismissalTask = Task { [weak self] in
         try? await Task.sleep(for: .seconds(1.6))
-        guard let self, self.session.phase.isActive else { return }
+        guard Task.isCancelled == false, let self, self.session.phase.isActive else { return }
         self.session.cancel()
         self.overlay.dismiss()
+        self.dismissalTask = nil
       }
     }
   }

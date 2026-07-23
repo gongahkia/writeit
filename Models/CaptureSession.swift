@@ -44,7 +44,11 @@ final class CaptureSession: ObservableObject {
     strokes = []
   }
 
-  func renderedImage() -> NSImage? {
+  func renderedImageData() -> Data? {
+    renderedImage()?.tiffRepresentation
+  }
+
+  private func renderedImage() -> NSImage? {
     guard !strokes.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
     let output = CGSize(width: 1536, height: max(512, 1536 * canvasSize.height / canvasSize.width))
     let xScale = output.width / canvasSize.width

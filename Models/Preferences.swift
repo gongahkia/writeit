@@ -7,6 +7,9 @@ final class Preferences: ObservableObject {
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
   @Published var resultMode: ResultMode { didSet { save(resultMode, key: .resultMode) } }
+  @Published var outputStrategy: OutputStrategy {
+    didSet { save(outputStrategy, key: .outputStrategy) }
+  }
   @Published var historyMode: HistoryMode { didSet { save(historyMode, key: .historyMode) } }
   @Published var historyAutoDelete: Bool {
     didSet { defaults.set(historyAutoDelete, forKey: Key.historyAutoDelete.rawValue) }
@@ -40,6 +43,7 @@ final class Preferences: ObservableObject {
     shortcut = Self.load(.shortcut, from: defaults, fallback: .default)
     captureMode = Self.load(.captureMode, from: defaults, fallback: .toggle)
     resultMode = Self.load(.resultMode, from: defaults, fallback: .autoInsert)
+    outputStrategy = Self.load(.outputStrategy, from: defaults, fallback: .paste)
     historyMode = Self.load(.historyMode, from: defaults, fallback: .full)
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
@@ -56,6 +60,7 @@ final class Preferences: ObservableObject {
     case shortcut
     case captureMode
     case resultMode
+    case outputStrategy
     case historyMode
     case historyAutoDelete
     case historyRetentionDays

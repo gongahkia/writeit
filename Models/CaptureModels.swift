@@ -31,6 +31,21 @@ enum ResultMode: String, CaseIterable, Codable, Identifiable {
   }
 }
 
+enum OutputStrategy: String, CaseIterable, Codable, Identifiable {
+  case paste
+  case accessibility
+  case clipboard
+
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .paste: "Paste into captured field"
+    case .accessibility: "Replace via Accessibility"
+    case .clipboard: "Clipboard only"
+    }
+  }
+}
+
 enum HistoryMode: String, CaseIterable, Codable, Identifiable {
   case full
   case textOnly
@@ -71,7 +86,7 @@ struct Shortcut: Codable, Hashable {
       flags.contains(.maskControl) ? "⌃" : "",
       flags.contains(.maskAlternate) ? "⌥" : "",
       flags.contains(.maskShift) ? "⇧" : "",
-      flags.contains(.maskCommand) ? "⌘" : ""
+      flags.contains(.maskCommand) ? "⌘" : "",
     ].joined()
     return prefix + KeyName.name(for: keyCode)
   }
@@ -82,7 +97,7 @@ enum KeyName {
     let names: [UInt16: String] = [
       0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
       11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 31: "O", 32: "U",
-      34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M", 49: "Space", 36: "↩"
+      34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M", 49: "Space", 36: "↩",
     ]
     return names[keyCode] ?? "Key \(keyCode)"
   }

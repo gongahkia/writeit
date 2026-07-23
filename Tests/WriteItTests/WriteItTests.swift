@@ -12,6 +12,33 @@ struct TextSanitizerTests {
   }
 }
 
+struct RecognitionContractTests {
+  @Test("recognition requests preserve an immutable language selection")
+  func requestsPreserveLanguage() {
+    let request = RecognitionRequest(imageData: Data([1, 2, 3]), language: .french)
+    #expect(request.imageData == Data([1, 2, 3]))
+    #expect(request.language == .french)
+    #expect(request.language.displayName == "French")
+  }
+
+  @Test("recognition errors provide a user-facing explanation")
+  func errorsProvideExplanation() {
+    #expect(RecognitionError.noText.errorDescription == "No handwriting was recognized.")
+  }
+
+  @Test("backend capabilities identify supported local recognition")
+  func capabilitiesIdentifySupport() {
+    let capabilities = RecognitionBackendCapabilities(
+      identifier: "fixture",
+      displayName: "Fixture",
+      supportedLanguages: [.english, .french],
+      isLocal: true
+    )
+    #expect(capabilities.supports(.french))
+    #expect(capabilities.supports(.german) == false)
+  }
+}
+
 struct CaptureModelTests {
   @Test("shortcuts round-trip through storage")
   func shortcutsRoundTrip() throws {
@@ -37,7 +64,7 @@ struct CaptureModelTests {
     session.canvasSize = CGSize(width: 300, height: 120)
     session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
     session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
-    #expect(session.renderedImage() != nil)
+    #expect(session.renderedImageData() != nil)
   }
 }
 
@@ -60,6 +87,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     #expect(preferences.historyRetentionDays == 1)
     #expect(preferences.penUpDelay == 3)
+  }
+
+  @Test("persists the selected delivery strategy")
+  func persistsDeliveryStrategy() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.outputStrategy = .accessibility
+    #expect(Preferences(defaults: defaults).outputStrategy == .accessibility)
   }
 }
 
@@ -157,18 +192,32 @@ private final class TestDelivery: AccessibilityDelivering {
   init(trusted: Bool) { self.trusted = trusted }
   func requestTrust() {}
   func captureTarget() -> TargetReference? { nil }
-  func deliver(_ text: String, to target: TargetReference?, mode: ResultMode) -> DeliveryOutcome {
+  func deliver(
+    _ text: String,
+    to target: TargetReference?,
+    strategy: OutputStrategy
+  ) -> DeliveryOutcome {
     .clipboard
   }
   func undo() {}
 }
 
-private final class TestRecognition: TextRecognizing {
-  func recognize(image: NSImage) async -> OCRCandidate? { nil }
+private actor TestRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "test",
+    displayName: "Test",
+    supportedLanguages: [.english],
+    isLocal: true
+  )
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    throw RecognitionError.noText
+  }
 }
 
+@MainActor
 private final class TestEnhancer: TextEnhancing {
-  func clean(_ text: String, preferences: Preferences) async -> String { text }
+  func clean(_ request: TextEnhancementRequest) async throws -> String { request.text }
   func saveAPIKey(_ value: String) {}
   func hasAPIKey() -> Bool { false }
 }

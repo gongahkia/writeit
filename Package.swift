@@ -9,10 +9,13 @@ let package = Package(
     .executableTarget(
       name: "WriteIt",
       path: ".",
-      exclude: ["Tests", "script", ".codex", ".github", "dist", "release", "Packaging", ".gitignore", "Package.swift", "README.md", "BUILD.md"],
+      exclude: [
+        "Tests", "script", ".codex", ".github", "dist", "release", "Packaging", ".gitignore",
+        "Package.swift", "README.md", "BUILD.md",
+      ],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),
-    .testTarget(name: "WriteItTests", dependencies: ["WriteIt"], path: "Tests/WriteItTests")
+    .testTarget(name: "WriteItTests", dependencies: ["WriteIt"], path: "Tests/WriteItTests"),
   ],
-  swiftLanguageModes: [.v5]
+  swiftLanguageModes: [.v6]
 )
