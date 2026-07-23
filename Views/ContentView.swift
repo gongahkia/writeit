@@ -3,32 +3,56 @@ import SwiftUI
 private enum MainSection: String, CaseIterable, Identifiable {
   case capture
   case history
+  case models
+  case cleanup
+  case privacy
+
   var id: String { rawValue }
   var title: String { rawValue.capitalized }
-  var icon: String { self == .capture ? "pencil.and.scribble" : "clock.arrow.circlepath" }
+  var icon: String {
+    switch self {
+    case .capture: "pencil.and.scribble"
+    case .history: "clock.arrow.circlepath"
+    case .models: "cpu"
+    case .cleanup: "sparkles"
+    case .privacy: "lock.shield"
+    }
+  }
 }
 
 struct ContentView: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
-  @State private var section: MainSection? = .capture
+  @ObservedObject var models: ModelStore
+  let recognitionCapabilities: RecognitionBackendCapabilities
+  @State private var section: MainSection = .capture
 
   var body: some View {
     NavigationSplitView {
       List(selection: $section) {
         ForEach(MainSection.allCases) { item in
-          Label(item.title, systemImage: item.icon).tag(Optional(item))
+          Label(item.title, systemImage: item.icon).tag(item)
         }
       }
       .listStyle(.sidebar)
       .navigationTitle("WriteIt")
     } detail: {
-      switch section ?? .capture {
+      switch section {
       case .capture: CaptureDashboard(capture: capture, preferences: preferences)
       case .history:
         CaptureHistoryView(
           history: history, preferences: preferences, onCleanup: capture.cleanupHistory)
+      case .models:
+        ModelCatalogView(
+          models: models,
+          preferences: preferences,
+          recognitionCapabilities: recognitionCapabilities
+        )
+      case .cleanup:
+        CleanupSettingsView(capture: capture, preferences: preferences)
+      case .privacy:
+        PrivacySettingsView(capture: capture, preferences: preferences, history: history)
       }
     }
   }
@@ -106,7 +130,6 @@ struct MenuBarContent: View {
     Divider()
     Text(capture.statusMessage).lineLimit(1)
     Divider()
-    SettingsLink { Text("Settings…") }
     Button("Quit WriteIt") { NSApp.terminate(nil) }
   }
 }

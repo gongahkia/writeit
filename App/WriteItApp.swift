@@ -28,22 +28,13 @@ struct WriteItApp: App {
       ContentView(
         capture: appDelegate.runtime.capture,
         preferences: appDelegate.runtime.preferences,
-        history: appDelegate.runtime.history
-      )
-      .frame(minWidth: 820, minHeight: 560)
-    }
-    .defaultSize(width: 1000, height: 680)
-
-    Settings {
-      SettingsView(
-        capture: appDelegate.runtime.capture,
-        preferences: appDelegate.runtime.preferences,
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
         recognitionCapabilities: appDelegate.runtime.recognition.capabilities
       )
-      .frame(width: 860, height: 620)
+      .frame(minWidth: 820, minHeight: 560)
     }
+    .defaultSize(width: 1000, height: 680)
 
     MenuBarExtra("WriteIt", systemImage: "pencil.and.scribble") {
       MenuBarContent(
