@@ -45,9 +45,12 @@ struct CaptureOverlayView: View {
       Divider().overlay(Color.white.opacity(0.14))
       footer
     }
-    .background(Color.black.opacity(0.97))
-    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-    .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.08)))
+    .background(WriteItTheme.overlayFill)
+    .clipShape(RoundedRectangle(cornerRadius: WriteItTheme.panelCornerRadius, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: WriteItTheme.panelCornerRadius, style: .continuous).stroke(
+        Color.white.opacity(0.08))
+    )
     .shadow(color: .black.opacity(0.6), radius: 24, y: 12)
   }
 
@@ -103,7 +106,8 @@ struct CaptureOverlayView: View {
     VStack(spacing: 14) {
       Image(systemName: "checkmark.circle.fill").font(.system(size: 38)).foregroundStyle(.green)
       Text(message).font(.title3.weight(.semibold)).foregroundStyle(.white)
-      Text(session.recognizedText).lineLimit(3).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.64))
+      Text(session.recognizedText).lineLimit(3).multilineTextAlignment(.center).foregroundStyle(
+        .white.opacity(0.64))
     }
     .padding(30)
   }

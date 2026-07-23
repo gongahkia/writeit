@@ -9,18 +9,24 @@ final class HistoryStore: ObservableObject {
   private let fileURL: URL
   private let key: SymmetricKey
 
-  init() {
+  init(fileURL: URL? = nil, key: SymmetricKey? = nil) {
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("WriteIt", isDirectory: true)
-    try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-    fileURL = base.appendingPathComponent("history.sealed")
-    key = Self.loadKey()
-    entries = Self.load(from: fileURL, key: key)
+    let resolvedFileURL = fileURL ?? base.appendingPathComponent("history.sealed")
+    try? FileManager.default.createDirectory(
+      at: resolvedFileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    self.fileURL = resolvedFileURL
+    self.key = key ?? Self.loadKey()
+    entries = Self.load(from: resolvedFileURL, key: self.key)
   }
 
   func append(text: String, strokes: [InkStroke], mode: HistoryMode, source: String) {
     guard mode != .off else { return }
-    entries.insert(HistoryEntry(text: text, strokes: mode == .full ? strokes : nil, source: source), at: 0)
+    append(HistoryEntry(text: text, strokes: mode == .full ? strokes : nil, source: source))
+  }
+
+  func append(_ entry: HistoryEntry) {
+    entries.insert(entry, at: 0)
     persist()
   }
 
@@ -41,7 +47,9 @@ final class HistoryStore: ObservableObject {
   }
 
   private func persist() {
-    guard let encoded = try? JSONEncoder().encode(entries), let sealed = try? AES.GCM.seal(encoded, using: key).combined else { return }
+    guard let encoded = try? JSONEncoder().encode(entries),
+      let sealed = try? AES.GCM.seal(encoded, using: key).combined
+    else { return }
     try? sealed.write(to: fileURL, options: .atomic)
   }
 
@@ -54,7 +62,10 @@ final class HistoryStore: ObservableObject {
   }
 
   private static func load(from url: URL, key: SymmetricKey) -> [HistoryEntry] {
-    guard let data = try? Data(contentsOf: url), let box = try? AES.GCM.SealedBox(combined: data), let clear = try? AES.GCM.open(box, using: key), let entries = try? JSONDecoder().decode([HistoryEntry].self, from: clear) else { return [] }
+    guard let data = try? Data(contentsOf: url), let box = try? AES.GCM.SealedBox(combined: data),
+      let clear = try? AES.GCM.open(box, using: key),
+      let entries = try? JSONDecoder().decode([HistoryEntry].self, from: clear)
+    else { return [] }
     return entries
   }
 }

@@ -9,7 +9,7 @@ let package = Package(
     .executableTarget(
       name: "WriteIt",
       path: ".",
-      exclude: ["Tests", "script", ".codex", "dist", ".gitignore", "Package.swift"],
+      exclude: ["Tests", "script", ".codex", ".github", "dist", "release", "Packaging", ".gitignore", "Package.swift", "README.md", "BUILD.md"],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),
     .testTarget(name: "WriteItTests", dependencies: ["WriteIt"], path: "Tests/WriteItTests")

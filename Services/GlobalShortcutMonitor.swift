@@ -6,7 +6,7 @@ enum ShortcutEvent {
   case up
 }
 
-final class GlobalShortcutMonitor {
+final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var shortcut = Shortcut.default
@@ -45,8 +45,11 @@ final class GlobalShortcutMonitor {
 
   private func handle(type: CGEventType, event: CGEvent) {
     guard type == .keyDown || type == .keyUp else { return }
-    guard UInt16(event.getIntegerValueField(.keyboardEventKeycode)) == shortcut.keyCode else { return }
-    let relevant = CGEventFlags.maskCommand.union(.maskShift).union(.maskAlternate).union(.maskControl)
+    guard UInt16(event.getIntegerValueField(.keyboardEventKeycode)) == shortcut.keyCode else {
+      return
+    }
+    let relevant = CGEventFlags.maskCommand.union(.maskShift).union(.maskAlternate).union(
+      .maskControl)
     guard event.flags.intersection(relevant).rawValue == shortcut.modifiers else { return }
     if type == .keyDown, event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return }
     handler?(type == .keyDown ? .down : .up)

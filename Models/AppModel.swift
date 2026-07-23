@@ -1,41 +1,75 @@
 import AppKit
 import Combine
-import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
-  static let shared = AppModel()
-
   @Published private(set) var statusMessage = "Ready"
-  @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
+  @Published private(set) var accessibilityGranted: Bool
 
-  let preferences = Preferences()
-  let history = HistoryStore()
-  let models = ModelStore()
-  let session = CaptureSession()
+  let preferences: Preferences
+  let history: HistoryStore
+  let models: ModelStore
+  let session: CaptureSession
 
-  private let shortcutMonitor = GlobalShortcutMonitor()
-  private let delivery = AccessibilityTextDelivery()
-  private let recognition = RecognitionService()
-  private let enhancer = AIEnhancer()
+  private let shortcutMonitor: any GlobalShortcutMonitoring
+  private let delivery: any AccessibilityDelivering
+  private let recognition: any TextRecognizing
+  private let enhancer: any TextEnhancing
+  private let overlay: any CaptureOverlayPresenting
+  private let loginItem: any LoginItemManaging
   private var penUpTask: Task<Void, Never>?
   private var accessibilityTimer: Timer?
 
-  private init() {
+  init(
+    preferences: Preferences,
+    history: HistoryStore,
+    models: ModelStore,
+    session: CaptureSession,
+    shortcutMonitor: any GlobalShortcutMonitoring,
+    delivery: any AccessibilityDelivering,
+    recognition: any TextRecognizing,
+    enhancer: any TextEnhancing,
+    overlay: any CaptureOverlayPresenting,
+    loginItem: any LoginItemManaging
+  ) {
+    self.preferences = preferences
+    self.history = history
+    self.models = models
+    self.session = session
+    self.shortcutMonitor = shortcutMonitor
+    self.delivery = delivery
+    self.recognition = recognition
+    self.enhancer = enhancer
+    self.overlay = overlay
+    self.loginItem = loginItem
+    accessibilityGranted = delivery.isTrusted
     session.onStrokeFinished = { [weak self] in self?.schedulePenUpSubmit() }
   }
 
   func start() {
     refreshAccessibility(force: true)
-    restartShortcutMonitor()
     updateLaunchAtLogin()
     cleanupHistory()
+    accessibilityTimer?.invalidate()
     accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
       Task { @MainActor in self?.refreshAccessibility() }
     }
   }
 
+  func stop() {
+    penUpTask?.cancel()
+    accessibilityTimer?.invalidate()
+    accessibilityTimer = nil
+    shortcutMonitor.stop()
+    session.cancel()
+    overlay.dismiss()
+  }
+
   func restartShortcutMonitor() {
+    guard delivery.isTrusted else {
+      shortcutMonitor.stop()
+      return
+    }
     shortcutMonitor.start(shortcut: preferences.shortcut) { [weak self] event in
       Task { @MainActor in self?.handleShortcut(event) }
     }
@@ -43,8 +77,7 @@ final class AppModel: ObservableObject {
 
   func requestAccessibility() {
     delivery.requestTrust()
-    accessibilityGranted = delivery.isTrusted
-    statusMessage = accessibilityGranted ? "Accessibility enabled" : "Enable Accessibility in System Settings"
+    refreshAccessibility(force: true)
   }
 
   func refreshAccessibility(force: Bool = false) {
@@ -56,21 +89,25 @@ final class AppModel: ObservableObject {
       restartShortcutMonitor()
     } else {
       statusMessage = "Enable Accessibility in System Settings"
+      shortcutMonitor.stop()
     }
   }
 
   func beginCapture() {
-    accessibilityGranted = delivery.isTrusted
-    if !accessibilityGranted { delivery.requestTrust() }
+    refreshAccessibility()
+    if accessibilityGranted == false { delivery.requestTrust() }
     session.begin(target: delivery.captureTarget())
-    CaptureOverlayController.shared.present(session: session, model: self)
-    statusMessage = session.target == nil ? "No text field captured; result will be copied" : "Write, then press \(preferences.shortcut.displayName) to submit"
+    overlay.present(session: session, model: self)
+    statusMessage =
+      session.target == nil
+      ? "No text field captured; result will be copied"
+      : "Write, then press \(preferences.shortcut.displayName) to submit"
   }
 
   func cancelCapture() {
     penUpTask?.cancel()
     session.cancel()
-    CaptureOverlayController.shared.dismiss()
+    overlay.dismiss()
     statusMessage = "Cancelled"
   }
 
@@ -85,7 +122,8 @@ final class AppModel: ObservableObject {
     let target = session.target
     Task { [weak self] in
       guard let self else { return }
-      guard let candidate = await recognition.recognize(image: image), !candidate.text.isEmpty else {
+      guard let candidate = await recognition.recognize(image: image), !candidate.text.isEmpty
+      else {
         self.session.phase = .drawing
         self.statusMessage = "No handwriting recognized"
         return
@@ -104,7 +142,9 @@ final class AppModel: ObservableObject {
 
   func insertReviewedText() {
     guard !session.recognizedText.isEmpty else { return }
-    finish(text: session.recognizedText, source: "Reviewed", target: session.target, strokes: session.strokes)
+    finish(
+      text: session.recognizedText, source: "Reviewed", target: session.target,
+      strokes: session.strokes)
   }
 
   func undoInsertion() {
@@ -115,26 +155,22 @@ final class AppModel: ObservableObject {
 
   func saveAPIKey(_ key: String) { enhancer.saveAPIKey(key) }
   func hasAPIKey() -> Bool { enhancer.hasAPIKey() }
-
-  func updateLaunchAtLogin() {
-    if preferences.launchAtLogin { try? SMAppService.mainApp.register() }
-    else { try? SMAppService.mainApp.unregister() }
-  }
+  func updateLaunchAtLogin() { loginItem.update(enabled: preferences.launchAtLogin) }
 
   func cleanupHistory() {
     guard preferences.historyAutoDelete else { return }
-    let cutoff = Calendar.current.date(byAdding: .day, value: -preferences.historyRetentionDays, to: Date()) ?? .distantPast
+    let cutoff =
+      Calendar.current.date(byAdding: .day, value: -preferences.historyRetentionDays, to: Date())
+      ?? .distantPast
     history.removeEntries(olderThan: cutoff)
   }
 
   private func handleShortcut(_ event: ShortcutEvent) {
     switch preferences.captureMode {
     case .toggle, .penUpDelay:
-      if event == .down {
-        session.phase.isActive ? submitCapture() : beginCapture()
-      }
+      if event == .down { session.phase.isActive ? submitCapture() : beginCapture() }
     case .holdToCapture:
-      if event == .down, !session.phase.isActive { beginCapture() }
+      if event == .down, session.phase.isActive == false { beginCapture() }
       if event == .up, session.phase == .drawing { submitCapture() }
     }
   }
@@ -146,12 +182,15 @@ final class AppModel: ObservableObject {
     penUpTask = Task { [weak self] in
       guard let self else { return }
       try? await Task.sleep(for: .seconds(self.preferences.penUpDelay))
-      guard !Task.isCancelled, self.session.phase == .drawing, self.session.strokes.count == count else { return }
+      guard Task.isCancelled == false, self.session.phase == .drawing,
+        self.session.strokes.count == count
+      else { return }
       self.submitCapture()
     }
   }
 
-  private func finish(text: String, source: String, target: TargetReference?, strokes: [InkStroke]) {
+  private func finish(text: String, source: String, target: TargetReference?, strokes: [InkStroke])
+  {
     let outcome = delivery.deliver(text, to: target, mode: preferences.resultMode)
     history.append(text: text, strokes: strokes, mode: preferences.historyMode, source: source)
     session.phase = .delivered(outcome.message)
@@ -161,7 +200,7 @@ final class AppModel: ObservableObject {
         try? await Task.sleep(for: .seconds(1.6))
         guard let self, self.session.phase.isActive else { return }
         self.session.cancel()
-        CaptureOverlayController.shared.dismiss()
+        self.overlay.dismiss()
       }
     }
   }

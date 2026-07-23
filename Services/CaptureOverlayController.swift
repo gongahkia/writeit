@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class CaptureOverlayController {
+final class CaptureOverlayController: CaptureOverlayPresenting {
   static let shared = CaptureOverlayController()
   private var panel: NSPanel?
 

@@ -1,4 +1,6 @@
 .build/
 dist/
+release/*
+!release/.gitkeep
 .DS_Store
 .codex

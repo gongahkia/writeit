@@ -7,11 +7,13 @@ struct OCRCandidate: Equatable {
   var source: String
 }
 
-final class RecognitionService {
+final class RecognitionService: TextRecognizing {
   private let enhanced = EnhancedOCRAdapter()
 
   func recognize(image: NSImage) async -> OCRCandidate? {
-    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+      return nil
+    }
     let vision = await Task.detached(priority: .userInitiated) { Self.runVision(cgImage) }.value
     let localModel = await enhanced.recognize(image: cgImage)
     return [vision, localModel].compactMap { $0 }.max { $0.confidence < $1.confidence }
@@ -48,7 +50,8 @@ final class EnhancedOCRAdapter {
 
 enum TextSanitizer {
   static func normalize(_ input: String) -> String {
-    let trimmed = input.precomposedStringWithCanonicalMapping.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmed = input.precomposedStringWithCanonicalMapping.trimmingCharacters(
+      in: .whitespacesAndNewlines)
     return trimmed.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
   }
 }

@@ -19,21 +19,25 @@ enum DeliveryOutcome: Equatable {
   }
 }
 
-final class AccessibilityTextDelivery {
+final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
 
   var isTrusted: Bool { AXIsProcessTrusted() }
 
   func requestTrust() {
-    AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
+    AXIsProcessTrustedWithOptions(
+      [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
   }
 
   func captureTarget() -> TargetReference? {
     guard isTrusted else { return nil }
     let system = AXUIElementCreateSystemWide()
     var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
-          let element = value else { return nil }
+    guard
+      AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value)
+        == .success,
+      let element = value
+    else { return nil }
     let focused = unsafeBitCast(element, to: AXUIElement.self)
     var pid: pid_t = 0
     guard AXUIElementGetPid(focused, &pid) == .success, pid != 0 else { return nil }

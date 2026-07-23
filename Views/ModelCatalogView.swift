@@ -7,11 +7,12 @@ struct ModelCatalogView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
+      VStack(alignment: .leading, spacing: WriteItTheme.sectionSpacing) {
         HStack {
           VStack(alignment: .leading, spacing: 4) {
             Text("Model Catalog").font(.title.bold())
-            Text("Choose the on-device recognizer used for handwriting.").foregroundStyle(.secondary)
+            Text("Choose the on-device recognizer used for handwriting.").foregroundStyle(
+              .secondary)
           }
           Spacer()
           Button(action: { showSettings = true }) { Image(systemName: "gearshape") }
@@ -37,7 +38,8 @@ struct ModelCatalogView: View {
         ModelCard(
           title: "Apple Vision",
           metadata: ["Native Apple", "English", "On-device", "macOS 15+"],
-          description: "Built-in local handwriting recognition. No model download or network access.",
+          description:
+            "Built-in local handwriting recognition. No model download or network access.",
           status: .builtIn,
           actionTitle: nil,
           action: {}
@@ -45,7 +47,9 @@ struct ModelCatalogView: View {
         ModelCard(
           title: "TrOCR Small Handwritten",
           metadata: ["English", "Core ML", "Local file"],
-          description: model.models.enhancedModelURL == nil ? "Install a compiled .mlmodelc package to manage an enhanced local handwriting model." : "A compiled Core ML package is stored locally and ready for enhanced-model integration.",
+          description: model.models.enhancedModelURL == nil
+            ? "Install a compiled .mlmodelc package to manage an enhanced local handwriting model."
+            : "A compiled Core ML package is stored locally and ready for enhanced-model integration.",
           status: model.models.enhancedModelURL == nil ? .available : .installed,
           actionTitle: model.models.enhancedModelURL == nil ? "Install…" : nil,
           action: model.models.installEnhancedModel,
@@ -54,11 +58,18 @@ struct ModelCatalogView: View {
         if let error = model.models.lastError { Text(error).font(.caption).foregroundStyle(.red) }
       }
     case .cloud:
-      ContentUnavailableView("No cloud recognition", systemImage: "cloud.slash", description: Text("WriteIt keeps handwriting recognition on-device. AI cleanup is configured separately."))
-        .frame(maxWidth: .infinity, minHeight: 260)
+      ContentUnavailableView(
+        "No cloud recognition", systemImage: "cloud.slash",
+        description: Text(
+          "WriteIt keeps handwriting recognition on-device. AI cleanup is configured separately.")
+      )
+      .frame(maxWidth: .infinity, minHeight: 260)
     case .custom:
-      ContentUnavailableView("Custom providers", systemImage: "slider.horizontal.3", description: Text("Custom OCR providers are not enabled in this local-first release."))
-        .frame(maxWidth: .infinity, minHeight: 260)
+      ContentUnavailableView(
+        "Custom providers", systemImage: "slider.horizontal.3",
+        description: Text("Custom OCR providers are not enabled in this local-first release.")
+      )
+      .frame(maxWidth: .infinity, minHeight: 260)
     }
   }
 }
@@ -72,7 +83,10 @@ private struct ModelCard: View {
   var action: () -> Void
   var menu: AnyView?
 
-  init(title: String, metadata: [String], description: String, status: LocalModel.Status, actionTitle: String?, action: @escaping () -> Void, menu: AnyView? = nil) {
+  init(
+    title: String, metadata: [String], description: String, status: LocalModel.Status,
+    actionTitle: String?, action: @escaping () -> Void, menu: AnyView? = nil
+  ) {
     self.title = title
     self.metadata = metadata
     self.description = description
@@ -90,7 +104,8 @@ private struct ModelCard: View {
             Text(title).font(.headline)
             HStack(spacing: 14) {
               ForEach(metadata, id: \.self) { item in
-                Label(item, systemImage: icon(for: item)).font(.subheadline).foregroundStyle(.secondary)
+                Label(item, systemImage: icon(for: item)).font(.subheadline).foregroundStyle(
+                  .secondary)
               }
             }
           }
@@ -105,7 +120,10 @@ private struct ModelCard: View {
         }
         Text(description).foregroundStyle(.secondary)
         if let actionTitle {
-          HStack { Spacer(); Button(actionTitle, action: action).buttonStyle(.borderedProminent) }
+          HStack {
+            Spacer()
+            Button(actionTitle, action: action).buttonStyle(.borderedProminent)
+          }
         }
       }
       .padding(6)
@@ -145,7 +163,8 @@ private struct ModelSettingsSheet: View {
       HStack {
         Text("Model Settings").font(.title2.bold())
         Spacer()
-        Button(action: { isPresented = false }) { Image(systemName: "xmark") }.buttonStyle(.bordered)
+        Button(action: { isPresented = false }) { Image(systemName: "xmark") }.buttonStyle(
+          .bordered)
       }
       Picker("Processing", selection: .constant("Recognition")) {
         Text("Recognition").tag("Recognition")
@@ -162,10 +181,14 @@ private struct ModelSettingsSheet: View {
       }
       GroupBox("Enhanced local model") {
         VStack(alignment: .leading, spacing: 12) {
-          Text(model.models.enhancedModelURL == nil ? "No compiled Core ML model installed." : "Compiled Core ML model installed locally.")
+          Text(
+            model.models.enhancedModelURL == nil
+              ? "No compiled Core ML model installed." : "Compiled Core ML model installed locally."
+          )
           HStack {
-            if model.models.enhancedModelURL == nil { Button("Install model…", action: model.models.installEnhancedModel) }
-            else {
+            if model.models.enhancedModelURL == nil {
+              Button("Install model…", action: model.models.installEnhancedModel)
+            } else {
               Button("Show in Finder", action: model.models.revealEnhancedModel)
               Button("Delete", role: .destructive, action: model.models.removeEnhancedModel)
             }

@@ -9,11 +9,13 @@ final class ModelStore: ObservableObject {
 
   private let modelsDirectory: URL
 
-  init() {
-    let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+  init(modelsDirectory: URL? = nil) {
+    let base =
+      modelsDirectory
+      ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("WriteIt/Models", isDirectory: true)
     try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-    modelsDirectory = base
+    self.modelsDirectory = base
     let candidate = base.appendingPathComponent("TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
     enhancedModelURL = FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
   }
@@ -30,9 +32,12 @@ final class ModelStore: ObservableObject {
       lastError = "Choose a compiled .mlmodelc model."
       return
     }
-    let target = modelsDirectory.appendingPathComponent("TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
+    let target = modelsDirectory.appendingPathComponent(
+      "TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
     do {
-      if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
+      if FileManager.default.fileExists(atPath: target.path) {
+        try FileManager.default.removeItem(at: target)
+      }
       try FileManager.default.copyItem(at: source, to: target)
       enhancedModelURL = target
       lastError = nil

@@ -26,12 +26,21 @@ struct CaptureHistoryView: View {
       .padding(20)
       Divider()
       if entries.isEmpty {
-        ContentUnavailableView(query.isEmpty ? "No history" : "No matches", systemImage: query.isEmpty ? "clock" : "magnifyingglass", description: Text(query.isEmpty ? "Completed captures appear here when history is enabled." : "Try a different search."))
+        ContentUnavailableView(
+          query.isEmpty ? "No history" : "No matches",
+          systemImage: query.isEmpty ? "clock" : "magnifyingglass",
+          description: Text(
+            query.isEmpty
+              ? "Completed captures appear here when history is enabled."
+              : "Try a different search."))
       } else {
         ScrollView {
           LazyVStack(spacing: 12) {
             ForEach(entries) { entry in
-              HistoryEntryCard(entry: entry, isExpanded: expandedID == entry.id, onToggle: { expandedID = expandedID == entry.id ? nil : entry.id }, onDelete: { history.delete(entry) })
+              HistoryEntryCard(
+                entry: entry, isExpanded: expandedID == entry.id,
+                onToggle: { expandedID = expandedID == entry.id ? nil : entry.id },
+                onDelete: { history.delete(entry) })
             }
           }
           .padding(20)
@@ -40,7 +49,9 @@ struct CaptureHistoryView: View {
     }
     .navigationTitle("History")
     .sheet(isPresented: $showSettings) {
-      HistorySettingsSheet(history: history, preferences: preferences, onCleanup: onCleanup, isPresented: $showSettings)
+      HistorySettingsSheet(
+        history: history, preferences: preferences, onCleanup: onCleanup, isPresented: $showSettings
+      )
     }
   }
 }
@@ -61,7 +72,8 @@ private struct HistoryEntryCard: View {
           VStack(alignment: .leading, spacing: 6) {
             Text(entry.createdAt, format: .dateTime.month(.abbreviated).day().hour().minute())
               .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            Text(entry.text).font(.body).lineLimit(isExpanded ? nil : 2).multilineTextAlignment(.leading)
+            Text(entry.text).font(.body).lineLimit(isExpanded ? nil : 2).multilineTextAlignment(
+              .leading)
           }
           Spacer(minLength: 6)
           Image(systemName: isExpanded ? "chevron.up" : "chevron.right").foregroundStyle(.secondary)
@@ -71,7 +83,14 @@ private struct HistoryEntryCard: View {
       if isExpanded { detail }
     }
     .padding(18)
-    .background(.quaternary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .background(
+      WriteItTheme.cardFill,
+      in: RoundedRectangle(cornerRadius: WriteItTheme.cardCornerRadius, style: .continuous)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: WriteItTheme.cardCornerRadius, style: .continuous).stroke(
+        WriteItTheme.cardStroke)
+    )
     .contextMenu { Button("Delete", role: .destructive, action: onDelete) }
   }
 
@@ -107,7 +126,9 @@ private struct HistoryInkPreview: View {
             let location = CGPoint(x: point.x * scale, y: point.y * scale)
             if index == 0 { path.move(to: location) } else { path.addLine(to: location) }
           }
-          context.stroke(path, with: .color(.secondary), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+          context.stroke(
+            path, with: .color(.secondary),
+            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
       }
     }
@@ -126,7 +147,8 @@ private struct HistorySettingsSheet: View {
       HStack {
         Text("History Settings").font(.title2.bold())
         Spacer()
-        Button(action: { isPresented = false }) { Image(systemName: "xmark") }.buttonStyle(.bordered)
+        Button(action: { isPresented = false }) { Image(systemName: "xmark") }.buttonStyle(
+          .bordered)
       }
       GroupBox("Capture History") {
         VStack(alignment: .leading, spacing: 14) {
