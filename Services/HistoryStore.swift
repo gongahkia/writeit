@@ -34,6 +34,12 @@ final class HistoryStore: ObservableObject {
     persist()
   }
 
+  func removeEntries(olderThan date: Date) {
+    let originalCount = entries.count
+    entries.removeAll { $0.createdAt < date }
+    if entries.count != originalCount { persist() }
+  }
+
   private func persist() {
     guard let encoded = try? JSONEncoder().encode(entries), let sealed = try? AES.GCM.seal(encoded, using: key).combined else { return }
     try? sealed.write(to: fileURL, options: .atomic)

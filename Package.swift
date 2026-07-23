@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -9,9 +9,10 @@ let package = Package(
     .executableTarget(
       name: "WriteIt",
       path: ".",
-      exclude: ["Tests", "script", ".codex", ".gitignore", "Package.swift"],
+      exclude: ["Tests", "script", ".codex", "dist", ".gitignore", "Package.swift"],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),
     .testTarget(name: "WriteItTests", dependencies: ["WriteIt"], path: "Tests/WriteItTests")
-  ]
+  ],
+  swiftLanguageModes: [.v5]
 )

@@ -35,7 +35,6 @@ final class AccessibilityTextDelivery {
     guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
           let element = value else { return nil }
     let focused = unsafeBitCast(element, to: AXUIElement.self)
-    guard AXUIElementIsAttributeSettable(focused, kAXSelectedTextAttribute as CFString) else { return nil }
     var pid: pid_t = 0
     guard AXUIElementGetPid(focused, &pid) == .success, pid != 0 else { return nil }
     return TargetReference(pid: pid)
@@ -59,7 +58,7 @@ final class AccessibilityTextDelivery {
   }
 
   private func activate(_ target: TargetReference) {
-    NSRunningApplication(processIdentifier: target.pid)?.activate(options: [.activateIgnoringOtherApps])
+    NSRunningApplication(processIdentifier: target.pid)?.activate(options: [])
   }
 
   private func postKey(code: CGKeyCode, flags: CGEventFlags) {
