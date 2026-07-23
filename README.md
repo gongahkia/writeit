@@ -1,36 +1,61 @@
 # WriteIt
 
-WriteIt is a local-first handwriting-to-text utility for macOS. Press a shortcut, write with a mouse or stylus, then insert the recognized text into the previously focused text field.
+WriteIt is a local-first macOS utility for turning handwriting into text. Press a global shortcut, write with a mouse or tablet stylus, and send the result to the text field that was focused when capture began.
+
+## Status
+
+WriteIt is a source-first beta, currently developed and tested on Apple Silicon. It is not yet signed or notarized, and it does not currently provide downloadable OCR models or configured cloud OCR providers.
 
 ## Requirements
 
-- macOS 15 or later
-- Accessibility permission for the global shortcut and direct insertion
-- English handwriting in the current local OCR pipeline
+- macOS 15+
+- Apple Silicon is the current supported development target
+- Accessibility permission for the global shortcut and insertion
 
-## Install
+## What it does
 
-Signed releases will be published on the [Releases page](https://github.com/gongahkia/writeit/releases). Until the first release is available, build WriteIt from source.
-
-## Use
-
-1. Enable Accessibility in WriteIt.
-2. Press the configured shortcut to open the writing surface.
-3. Write, then press the shortcut again to recognize and insert.
-4. If no eligible text field is available, WriteIt copies the result to the clipboard.
-
-The default result mode inserts text and offers a brief Undo action. Review and clipboard-only modes are available in Settings.
+- Bottom-of-screen handwriting surface with mouse and tablet pressure input
+- Local Apple Vision OCR with runtime-discovered Latin-language capability
+- English fallback when a selected local language is unavailable
+- Paste, Accessibility replacement, or clipboard-only delivery
+- Editable review, cancellation, retry, and no-ink feedback
+- Encrypted local history; new installs keep text only for seven days
+- Optional OpenAI-compatible OCR cleanup; only recognized text is sent
 
 ## Privacy
 
-Handwriting recognition uses Apple Vision locally. Capture history is encrypted on the Mac and can be disabled or auto-deleted. Optional AI cleanup sends recognized text, not ink, to the OpenAI-compatible provider configured by the user.
+Apple Vision recognition runs on-device. WriteIt does not collect screen context, URLs, clipboard contents, raw ink, or recognized text in diagnostics.
 
-The model catalog can store a compiled Core ML handwriting model locally; Apple Vision remains the active recognizer until the enhanced decoder is implemented.
+Optional AI cleanup is off by default. When enabled, it sends recognized text to the endpoint and model selected by the user. API keys stay in Keychain.
 
-## Build from source
+Cloud OCR and custom providers are catalogued as future, explicit-consent capabilities. They are not implemented in this build.
+
+## Build and run
 
 ```sh
 ./script/build_and_run.sh
 ```
 
-See [BUILD.md](BUILD.md) for tests, Developer ID signing, and notarization.
+Run tests with:
+
+```sh
+swift test
+```
+
+See [BUILD.md](BUILD.md) for the current packaging notes.
+
+## Use
+
+1. Open WriteIt and enable Accessibility.
+2. Set a shortcut in Settings.
+3. Focus a text field in another app.
+4. Press the shortcut, write, then press it again to recognize.
+5. Retry, review, or use the copied result if direct delivery is unavailable.
+
+## Development direction
+
+The active implementation plan is tracked in this repository’s GitHub issues. The next substantial areas are verified model manifests, profile-scoped cloud consent, delivery compatibility testing, and privacy-preserving diagnostics/export.
+
+## License
+
+The intended license is MIT; the license file has not yet been added.
