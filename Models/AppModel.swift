@@ -26,7 +26,7 @@ final class AppModel: ObservableObject {
   }
 
   func start() {
-    refreshAccessibility()
+    refreshAccessibility(force: true)
     restartShortcutMonitor()
     updateLaunchAtLogin()
     cleanupHistory()
@@ -47,9 +47,9 @@ final class AppModel: ObservableObject {
     statusMessage = accessibilityGranted ? "Accessibility enabled" : "Enable Accessibility in System Settings"
   }
 
-  func refreshAccessibility() {
+  func refreshAccessibility(force: Bool = false) {
     let trusted = delivery.isTrusted
-    guard trusted != accessibilityGranted else { return }
+    guard force || trusted != accessibilityGranted else { return }
     accessibilityGranted = trusted
     if trusted {
       statusMessage = "Accessibility enabled"

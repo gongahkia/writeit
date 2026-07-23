@@ -34,6 +34,9 @@ struct SettingsView: View {
       }
       .padding(20).tabItem { Label("Capture", systemImage: "pencil.and.scribble") }
 
+      ModelCatalogView(model: model)
+        .tabItem { Label("Models", systemImage: "cpu") }
+
       Form {
         Section("OpenAI-compatible cleanup") {
           Toggle("Enable AI cleanup", isOn: $preferences.aiEnabled)
@@ -45,13 +48,8 @@ struct SettingsView: View {
             if keySaved || model.hasAPIKey() { Text("Saved in Keychain").foregroundStyle(.secondary) }
           }
         }
-        Section("Local OCR") {
-          LabeledContent("Language", value: "English")
-          LabeledContent("Primary recognizer", value: "Apple Vision")
-          Text("An optional packaged TrOCR model can be added without sending handwriting off-device.").font(.caption).foregroundStyle(.secondary)
-        }
       }
-      .padding(20).tabItem { Label("Recognition", systemImage: "text.viewfinder") }
+      .padding(20).tabItem { Label("Cleanup", systemImage: "sparkles") }
 
       Form {
         Section("History") {
@@ -59,6 +57,7 @@ struct SettingsView: View {
             ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }
           }
           Text("History is encrypted locally. It is never uploaded for training.").font(.caption).foregroundStyle(.secondary)
+          Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
           Button("Delete all history", role: .destructive, action: model.history.clear)
         }
         Section("App") {

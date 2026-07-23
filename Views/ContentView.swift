@@ -24,7 +24,7 @@ struct ContentView: View {
     } detail: {
       switch section ?? .capture {
       case .capture: CaptureDashboard(model: model)
-      case .history: HistoryView(history: model.history)
+      case .history: CaptureHistoryView(history: model.history, preferences: model.preferences, onCleanup: model.cleanupHistory)
       }
     }
   }
@@ -75,36 +75,6 @@ private struct CaptureDashboard: View {
     }
     .padding(32)
     .navigationTitle("Capture")
-  }
-}
-
-private struct HistoryView: View {
-  @ObservedObject var history: HistoryStore
-
-  var body: some View {
-    Group {
-      if history.entries.isEmpty {
-        ContentUnavailableView("No history", systemImage: "clock", description: Text("Completed captures appear here when history is enabled."))
-      } else {
-        List {
-          ForEach(history.entries) { entry in
-            VStack(alignment: .leading, spacing: 4) {
-              Text(entry.text).lineLimit(2)
-              HStack(spacing: 8) {
-                Text(entry.createdAt, format: .dateTime.month().day().hour().minute())
-                Text(entry.source)
-              }
-              .font(.caption).foregroundStyle(.secondary)
-            }
-            .contextMenu { Button("Delete", role: .destructive) { history.delete(entry) } }
-          }
-        }
-      }
-    }
-    .navigationTitle("History")
-    .toolbar {
-      if !history.entries.isEmpty { Button("Clear history", role: .destructive, action: history.clear) }
-    }
   }
 }
 

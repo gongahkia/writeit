@@ -25,7 +25,7 @@ struct WriteItApp: App {
 
     Settings {
       SettingsView(model: AppModel.shared)
-        .frame(width: 560, height: 480)
+        .frame(width: 860, height: 620)
     }
 
     MenuBarExtra("WriteIt", systemImage: "pencil.and.scribble") {
