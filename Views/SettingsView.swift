@@ -62,6 +62,7 @@ struct CaptureSettingsView: View {
         } maximumValueLabel: {
           Text("Smooth")
         }
+        InkStylePreview(style: preferences.inkStyle)
       }
       Section("Permissions") {
         LabeledContent(

@@ -315,6 +315,18 @@ struct CaptureModelTests {
     #expect(smoothedStylus.inputSource == .stylus)
   }
 
+  @Test("ink preview geometry reflects selected input settings")
+  func inkPreviewReflectsSelectedSettings() {
+    let raw = InkStyle(baseWidth: 4, pressureSensitivity: 0, smoothing: 0)
+    let smooth = InkStyle(baseWidth: 8, pressureSensitivity: 1, smoothing: 1)
+    let rawPoints = InkStylePreviewGeometry.smoothedPoints(for: raw)
+    let smoothPoints = InkStylePreviewGeometry.smoothedPoints(for: smooth)
+    #expect(rawPoints.count == InkStylePreviewGeometry.rawPoints.count)
+    #expect(rawPoints[1].x == InkStylePreviewGeometry.rawPoints[1].x)
+    #expect(smoothPoints[1].x < rawPoints[1].x)
+    #expect(smooth.lineWidth(for: 1) > raw.lineWidth(for: 1))
+  }
+
   @Test("empty and tap-only captures are rejected before OCR") @MainActor
   func captureInputValidation() {
     let session = CaptureSession()
