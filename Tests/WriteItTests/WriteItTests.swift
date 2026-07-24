@@ -201,6 +201,32 @@ struct AccessibilityDeliveryTests {
     #expect(operations.replacedTexts.isEmpty)
   }
 
+  @Test("Accessibility delivery replaces selected text in the captured target") @MainActor
+  func replacesSelectedTextWithAccessibility() {
+    let operations = TestAccessibilityDeliveryOperations()
+    let delivery = AccessibilityTextDelivery(operations: operations)
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+
+    let outcome = delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .accessibility,
+        clipboardHandling: .leaveRecognizedText
+      ))
+
+    #expect(outcome == .accessibilityInserted)
+    #expect(operations.copiedTexts == ["recognized text"])
+    #expect(operations.activatedPIDs == [getpid()])
+    #expect(operations.commandKeyCodes.isEmpty)
+    #expect(operations.replacedTexts == ["recognized text"])
+  }
+
   @Test("paste restores the previous clipboard after delivery") @MainActor
   func restoresPreviousClipboardAfterPaste() {
     let operations = TestAccessibilityDeliveryOperations()
