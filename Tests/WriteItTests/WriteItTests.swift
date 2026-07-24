@@ -285,6 +285,92 @@ struct ManifestModelInstallerTests {
   }
 }
 
+struct GitHubReleaseManifestFetcherTests {
+  @Test("retrieves and validates one versioned manifest from the latest release")
+  func retrievesVersionedManifest() async throws {
+    let repository = try GitHubReleaseRepository(owner: "owner", name: "models")
+    let manifestURL = URL(string: "https://github.com/owner/models/releases/download/v1/models.json")!
+    let manifest = VersionedModelManifest(
+      schemaVersion: VersionedModelManifest.currentSchemaVersion,
+      models: [
+        ModelManifest(
+          id: "fixture",
+          version: "1.0.0",
+          downloadURL: URL(string: "https://github.com/owner/models/releases/download/v1/fixture.zip")!,
+          sha256: String(repeating: "a", count: 64),
+          license: "MIT",
+          supportedLanguages: [.english],
+          requiresAppleSilicon: true
+        )
+      ]
+    )
+    let requester = TestGitHubReleaseRequester(responses: [
+      repository.latestReleaseURL: .init(
+        data: try releaseData(
+          assetName: GitHubReleaseManifestFetcher.defaultManifestAssetName,
+          assetURL: manifestURL
+        ),
+        statusCode: 200
+      ),
+      manifestURL: .init(data: try JSONEncoder().encode(manifest), statusCode: 200),
+    ])
+    let fetcher = GitHubReleaseManifestFetcher(repository: repository, requester: requester)
+
+    let fetched = try await fetcher.fetch()
+
+    #expect(fetched == manifest)
+    let requests = await requester.requests
+    #expect(requests.map(\.url) == [repository.latestReleaseURL, manifestURL])
+    #expect(requests[0].value(forHTTPHeaderField: "Accept") == "application/vnd.github+json")
+    #expect(requests[0].value(forHTTPHeaderField: "X-GitHub-Api-Version") == "2026-03-10")
+  }
+
+  @Test("rejects malformed release manifests without retaining their content")
+  func rejectsInvalidManifest() async throws {
+    let repository = try GitHubReleaseRepository(owner: "owner", name: "models")
+    let manifestURL = URL(string: "https://github.com/owner/models/releases/download/v1/models.json")!
+    let requester = TestGitHubReleaseRequester(responses: [
+      repository.latestReleaseURL: .init(
+        data: try releaseData(
+          assetName: GitHubReleaseManifestFetcher.defaultManifestAssetName,
+          assetURL: manifestURL
+        ),
+        statusCode: 200
+      ),
+      manifestURL: .init(data: Data("{\"schema_version\":2,\"models\":[]}".utf8), statusCode: 200),
+    ])
+    let fetcher = GitHubReleaseManifestFetcher(repository: repository, requester: requester)
+
+    do {
+      _ = try await fetcher.fetch()
+      Issue.record("Expected unsupported manifest schema")
+    } catch let error as GitHubReleaseManifestError {
+      #expect(error == .unsupportedManifestSchema)
+    }
+  }
+
+  @Test("rejects invalid repositories and releases without exactly one manifest asset")
+  func rejectsInvalidRepositoryAndRelease() async throws {
+    #expect(throws: GitHubReleaseManifestError.invalidRepository) {
+      try GitHubReleaseRepository(owner: "owner/name", name: "models")
+    }
+    let repository = try GitHubReleaseRepository(owner: "owner", name: "models")
+    let requester = TestGitHubReleaseRequester(responses: [
+      repository.latestReleaseURL: .init(
+        data: Data("{\"draft\":false,\"prerelease\":false,\"assets\":[]}".utf8),
+        statusCode: 200
+      )
+    ])
+
+    do {
+      _ = try await GitHubReleaseManifestFetcher(repository: repository, requester: requester).fetch()
+      Issue.record("Expected missing manifest asset")
+    } catch let error as GitHubReleaseManifestError {
+      #expect(error == .manifestAssetUnavailable)
+    }
+  }
+}
+
 struct AccessibilityDeliveryTests {
   @Test("native text control harness replaces the selected range") @MainActor
   func pastesIntoNativeTextControl() {
@@ -1598,6 +1684,34 @@ private func makeDefaults() -> UserDefaults {
   let defaults = UserDefaults(suiteName: name)!
   defaults.removePersistentDomain(forName: name)
   return defaults
+}
+
+private func releaseData(assetName: String, assetURL: URL) throws -> Data {
+  try JSONSerialization.data(withJSONObject: [
+    "draft": false,
+    "prerelease": false,
+    "assets": [[
+      "name": assetName,
+      "browser_download_url": assetURL.absoluteString,
+    ]],
+  ])
+}
+
+private actor TestGitHubReleaseRequester: GitHubReleaseRequesting {
+  let responses: [URL: GitHubReleaseHTTPResponse]
+  private(set) var requests: [URLRequest] = []
+
+  init(responses: [URL: GitHubReleaseHTTPResponse]) {
+    self.responses = responses
+  }
+
+  func data(for request: URLRequest) async throws -> GitHubReleaseHTTPResponse {
+    requests.append(request)
+    guard let url = request.url, let response = responses[url] else {
+      throw GitHubReleaseManifestError.networkUnavailable
+    }
+    return response
+  }
 }
 
 @MainActor
