@@ -483,6 +483,35 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("Latin corpus harness runs fixtures in deterministic order")
+  func runsLatinCorpusFixtures() async throws {
+    let fixtures = [
+      OCRCorpusFixture(
+        entry: OCRCorpusEntry(
+          id: "fr", imagePath: "fr.png", transcription: "bonjour", language: .french),
+        imageData: Data([2])
+      ),
+      OCRCorpusFixture(
+        entry: OCRCorpusEntry(
+          id: "de", imagePath: "de.png", transcription: "hallo", language: .german),
+        imageData: Data([1])
+      ),
+    ]
+
+    let samples = try await OCRCorpusBenchmarkHarness.run(
+      fixtures: fixtures,
+      recognizer: CorpusFixtureRecognition()
+    )
+
+    #expect(samples.map(\.fixtureID) == ["de", "fr"])
+    #expect(samples.map(\.language) == [.german, .french])
+    #expect(
+      samples.map(\.outcome) == [
+        .recognized(text: "hallo", confidence: 1, backendID: "fixture"),
+        .recognized(text: "bonjour", confidence: 1, backendID: "fixture"),
+      ])
+  }
+
   @Test("OCR corpus fixtures load in deterministic identifier order")
   func loadsDeterministicOCRCorpusFixtures() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -1457,6 +1486,26 @@ private actor TestRecognition: TextRecognizing {
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     throw RecognitionError.noText
+  }
+}
+
+private actor CorpusFixtureRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "fixture",
+    displayName: "Fixture",
+    supportedLanguages: Set(RecognitionLanguage.allCases),
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    RecognitionResult(
+      text: request.imageData == Data([1]) ? "hallo" : "bonjour",
+      confidence: 1,
+      backendID: "fixture",
+      languageResolution: .identity(request.language)
+    )
   }
 }
 
