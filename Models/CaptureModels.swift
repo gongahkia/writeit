@@ -171,6 +171,19 @@ enum ShortcutDisplayRenderer {
   }
 }
 
+enum ShortcutConflictValidator {
+  static func message(for shortcut: Shortcut) -> String? {
+    let modifiers = CGEventFlags(rawValue: shortcut.modifiers).intersection(
+      .maskCommand.union(.maskShift).union(.maskAlternate).union(.maskControl))
+    return switch (shortcut.keyCode, modifiers) {
+    case (53, []): "Escape is reserved to cancel capture."
+    case (36, []), (76, []): "Return is reserved to confirm capture."
+    case (51, .maskCommand): "Command-Delete is reserved to clear ink."
+    default: nil
+    }
+  }
+}
+
 enum CaptureCommand: Equatable {
   case cancel
   case clear

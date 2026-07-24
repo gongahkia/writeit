@@ -155,6 +155,16 @@ struct CaptureModelTests {
     #expect(ShortcutDisplayRenderer.displayName(for: decoded, keyName: { _ in nil }) == "⇧⌘Key 13")
   }
 
+  @Test("reserved capture commands cannot become global shortcuts")
+  func rejectsReservedCaptureShortcuts() {
+    #expect(ShortcutConflictValidator.message(for: .default) == nil)
+    #expect(ShortcutConflictValidator.message(for: Shortcut(keyCode: 53, modifiers: 0)) != nil)
+    #expect(ShortcutConflictValidator.message(for: Shortcut(keyCode: 36, modifiers: 0)) != nil)
+    #expect(
+      ShortcutConflictValidator.message(
+        for: Shortcut(keyCode: 51, modifiers: CGEventFlags.maskCommand.rawValue)) != nil)
+  }
+
   @Test("keyboard input resolves each capture command once")
   func resolvesKeyboardCommands() {
     let shortcut = Shortcut(

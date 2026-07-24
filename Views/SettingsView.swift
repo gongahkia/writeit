@@ -4,6 +4,7 @@ import SwiftUI
 struct CaptureSettingsView: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject private var preferences: Preferences
+  @State private var shortcutValidationMessage: String?
 
   init(capture: CaptureCoordinator, preferences: Preferences) {
     self.capture = capture
@@ -16,7 +17,13 @@ struct CaptureSettingsView: View {
         HStack {
           Text("Capture shortcut")
           Spacer()
-          ShortcutRecorder(shortcut: $preferences.shortcut)
+          ShortcutRecorder(
+            shortcut: $preferences.shortcut,
+            validationMessage: $shortcutValidationMessage
+          )
+        }
+        if let shortcutValidationMessage {
+          Text(shortcutValidationMessage).font(.caption).foregroundStyle(.red)
         }
         Picker("Capture mode", selection: $preferences.captureMode) {
           ForEach(CaptureMode.allCases) { Text($0.title).tag($0) }
@@ -157,8 +164,11 @@ struct PrivacySettingsView: View {
 
 private struct ShortcutRecorder: NSViewRepresentable {
   @Binding var shortcut: Shortcut
+  @Binding var validationMessage: String?
 
-  func makeCoordinator() -> Coordinator { Coordinator(shortcut: $shortcut) }
+  func makeCoordinator() -> Coordinator {
+    Coordinator(shortcut: $shortcut, validationMessage: $validationMessage)
+  }
   func makeNSView(context: Context) -> NSButton {
     let button = NSButton(
       title: shortcut.displayName, target: context.coordinator,
@@ -179,11 +189,15 @@ private struct ShortcutRecorder: NSViewRepresentable {
   @MainActor
   final class Coordinator: NSObject {
     var shortcut: Binding<Shortcut>
+    var validationMessage: Binding<String?>
     weak var button: NSButton?
     var recording = false
     private var monitor: Any?
 
-    init(shortcut: Binding<Shortcut>) { self.shortcut = shortcut }
+    init(shortcut: Binding<Shortcut>, validationMessage: Binding<String?>) {
+      self.shortcut = shortcut
+      self.validationMessage = validationMessage
+    }
 
     @objc func beginRecording() {
       stopRecording()
@@ -198,7 +212,14 @@ private struct ShortcutRecorder: NSViewRepresentable {
         if flags.contains(.option) { cgFlags.insert(.maskAlternate) }
         if flags.contains(.control) { cgFlags.insert(.maskControl) }
         if flags.contains(.shift) { cgFlags.insert(.maskShift) }
-        self.shortcut.wrappedValue = Shortcut(keyCode: event.keyCode, modifiers: cgFlags.rawValue)
+        let candidate = Shortcut(keyCode: event.keyCode, modifiers: cgFlags.rawValue)
+        if let message = ShortcutConflictValidator.message(for: candidate) {
+          self.validationMessage.wrappedValue = message
+          self.stopRecording()
+          return nil
+        }
+        self.validationMessage.wrappedValue = nil
+        self.shortcut.wrappedValue = candidate
         self.stopRecording()
         self.button?.title = self.shortcut.wrappedValue.displayName
         return nil
