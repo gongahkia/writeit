@@ -31,11 +31,17 @@ struct CaptureOverlayView: View {
         InkCanvas(session: session, style: preferences.inkStyle)
           .frame(height: 250)
           .background(Color.white.opacity(0.035))
+      case .opening:
+        progress("Opening capture…")
+          .frame(height: 250)
       case .recognizing:
-        progress
+        progress("Recognizing locally…")
           .frame(height: 250)
       case .reviewing:
         review
+          .frame(height: 250)
+      case .delivering:
+        progress("Inserting text…")
           .frame(height: 250)
       case .delivered(let message):
         delivered(message)
@@ -43,7 +49,7 @@ struct CaptureOverlayView: View {
       case .failed(let message):
         failed(message)
           .frame(height: 250)
-      case .idle:
+      case .dismissing, .idle:
         EmptyView()
       }
       Divider().overlay(Color.white.opacity(0.14))
@@ -86,7 +92,7 @@ struct CaptureOverlayView: View {
         Button("Undo", action: coordinator.undoInsertion).buttonStyle(.bordered)
       } else if case .failed = session.phase {
         Button("Retry", action: coordinator.retryRecognition).buttonStyle(.borderedProminent)
-      } else {
+      } else if case .drawing = session.phase {
         Text("Press \(preferences.shortcut.displayName) to submit")
           .font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.8))
       }
@@ -94,10 +100,10 @@ struct CaptureOverlayView: View {
     .padding(.horizontal, 22).padding(.vertical, 14)
   }
 
-  private var progress: some View {
+  private func progress(_ message: String) -> some View {
     VStack(spacing: 16) {
       ProgressView().controlSize(.large).tint(.white)
-      Text("Recognizing locally…").foregroundStyle(.white.opacity(0.8))
+      Text(message).foregroundStyle(.white.opacity(0.8))
     }
   }
 
@@ -134,10 +140,13 @@ struct CaptureOverlayView: View {
   private var title: String {
     switch session.phase {
     case .drawing: "Write naturally"
+    case .opening: "Opening capture"
     case .recognizing: "Reading handwriting"
     case .reviewing: "Review result"
+    case .delivering: "Sending text"
     case .delivered: "Done"
     case .failed: "Recognition failed"
+    case .dismissing: "Closing capture"
     case .idle: "WriteIt"
     }
   }

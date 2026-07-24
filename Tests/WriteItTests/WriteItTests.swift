@@ -165,6 +165,7 @@ struct CaptureModelTests {
   func inkSessionsRenderSubmittedStrokes() {
     let session = CaptureSession()
     session.begin(target: nil)
+    #expect(session.transition(to: .drawing))
     session.canvasSize = CGSize(width: 300, height: 120)
     session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
     session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
@@ -186,6 +187,7 @@ struct CaptureModelTests {
   func captureInputValidation() {
     let session = CaptureSession()
     session.begin(target: nil)
+    #expect(session.transition(to: .drawing))
     #expect(session.inputValidationMessage() == "Write something before recognizing.")
     session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
     #expect(session.inputValidationMessage() == "Draw a stroke before recognizing.")
@@ -206,6 +208,38 @@ struct CaptureModelTests {
     let legacyData = Data(#"{"x":20,"y":30,"pressure":0.5,"timestamp":0}"#.utf8)
     let legacy = try JSONDecoder().decode(InkPoint.self, from: legacyData)
     #expect(legacy.inputSource == .mouse)
+  }
+}
+
+struct CaptureLifecycleTests {
+  @Test("validates the opening through delivery lifecycle") @MainActor
+  func validatesSuccessfulLifecycle() {
+    let session = CaptureSession()
+    #expect(session.begin(target: nil))
+    #expect(session.phase == .opening)
+    #expect(session.transition(to: .drawing))
+    #expect(session.transition(to: .recognizing))
+    #expect(session.transition(to: .reviewing))
+    #expect(session.transition(to: .delivering))
+    #expect(session.transition(to: .delivered("Inserted")))
+    #expect(session.transition(to: .dismissing))
+    session.completeDismissal()
+    #expect(session.phase == .idle)
+  }
+
+  @Test("validates failure retry and rejects illegal lifecycle jumps") @MainActor
+  func validatesFailureAndIllegalTransitions() {
+    let session = CaptureSession()
+    #expect(session.transition(to: .drawing) == false)
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .delivered("Inserted")) == false)
+    #expect(session.transition(to: .drawing))
+    #expect(session.transition(to: .recognizing))
+    #expect(session.transition(to: .failed("No text")))
+    #expect(session.transition(to: .drawing))
+    #expect(session.transition(to: .dismissing))
+    session.completeDismissal()
+    #expect(session.phase == .idle)
   }
 }
 

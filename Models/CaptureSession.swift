@@ -3,7 +3,7 @@ import Combine
 
 @MainActor
 final class CaptureSession: ObservableObject {
-  @Published var phase: CapturePhase = .idle
+  @Published private(set) var phase: CapturePhase = .idle
   @Published var strokes: [InkStroke] = []
   @Published var recognizedText = ""
   @Published var canvasSize = CGSize(width: 760, height: 250)
@@ -11,15 +11,24 @@ final class CaptureSession: ObservableObject {
   var target: TargetReference?
   var onStrokeFinished: (() -> Void)?
 
-  func begin(target: TargetReference?) {
+  @discardableResult
+  func begin(target: TargetReference?) -> Bool {
+    guard transition(to: .opening) else { return false }
     self.target = target
     strokes = []
     recognizedText = ""
-    phase = .drawing
+    return true
   }
 
-  func cancel() {
-    phase = .idle
+  @discardableResult
+  func transition(to next: CapturePhase) -> Bool {
+    guard phase.allowsTransition(to: next) else { return false }
+    phase = next
+    return true
+  }
+
+  func completeDismissal() {
+    guard transition(to: .idle) else { return }
     strokes = []
     recognizedText = ""
     target = nil

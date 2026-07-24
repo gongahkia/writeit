@@ -66,8 +66,7 @@ final class CaptureCoordinator: ObservableObject {
     accessibilityTimer?.invalidate()
     accessibilityTimer = nil
     shortcutMonitor.stop()
-    session.cancel()
-    overlay.dismiss()
+    dismissPanel()
   }
 
   func restartShortcutMonitor() {
@@ -100,11 +99,16 @@ final class CaptureCoordinator: ObservableObject {
 
   func beginCapture() {
     cancelOwnedWork()
+    dismissPanel()
     clearError()
     refreshAccessibility()
     if accessibilityGranted == false { delivery.requestTrust() }
-    session.begin(target: delivery.captureTarget())
+    guard session.begin(target: delivery.captureTarget()) else { return }
     overlay.present(session: session, coordinator: self, preferences: preferences)
+    guard session.transition(to: .drawing) else {
+      dismissPanel()
+      return
+    }
     AppLog.capture.info(
       "capture_started target_available=\(self.session.target != nil, privacy: .public)")
     statusMessage =
@@ -115,8 +119,7 @@ final class CaptureCoordinator: ObservableObject {
 
   func cancelCapture() {
     cancelOwnedWork()
-    session.cancel()
-    overlay.dismiss()
+    dismissPanel()
     AppLog.capture.info("capture_cancelled")
     statusMessage = "Cancelled"
   }
@@ -126,7 +129,7 @@ final class CaptureCoordinator: ObservableObject {
   func retryRecognition() {
     guard case .failed = session.phase else { return }
     clearError()
-    session.phase = .drawing
+    guard session.transition(to: .drawing) else { return }
     submitCapture()
   }
 
@@ -144,7 +147,7 @@ final class CaptureCoordinator: ObservableObject {
     cancelPenUpTask()
     cancelCaptureTask()
     cancelDeliveryTask()
-    session.phase = .recognizing
+    guard session.transition(to: .recognizing) else { return }
     let strokes = session.strokes
     let target = session.target
     let recognitionRequest = RecognitionRequest(
@@ -202,7 +205,7 @@ final class CaptureCoordinator: ObservableObject {
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
         self.session.recognizedText = result
         if self.preferences.resultMode == .review {
-          self.session.phase = .reviewing
+          guard self.session.transition(to: .reviewing) else { return }
           self.statusMessage = "Review before inserting"
         } else {
           let notice = notices.joined(separator: " ")
@@ -222,7 +225,7 @@ final class CaptureCoordinator: ObservableObject {
         AppLog.recognition.error(
           "recognition_failed type=\(AppLog.errorType(error), privacy: .public)"
         )
-        self.session.phase = .failed(presentation.message)
+        guard self.session.transition(to: .failed(presentation.message)) else { return }
         self.error = presentation
         self.statusMessage = presentation.message
       }
@@ -230,7 +233,7 @@ final class CaptureCoordinator: ObservableObject {
   }
 
   func insertReviewedText() {
-    guard !session.recognizedText.isEmpty else { return }
+    guard session.phase == .reviewing, !session.recognizedText.isEmpty else { return }
     finish(
       text: session.recognizedText, source: "Reviewed", target: session.target,
       strokes: session.strokes,
@@ -280,7 +283,7 @@ final class CaptureCoordinator: ObservableObject {
         case .drawing: submitCapture()
         case .failed: retryRecognition()
         case .idle: beginCapture()
-        case .recognizing, .reviewing, .delivered: break
+        case .opening, .recognizing, .reviewing, .delivering, .delivered, .dismissing: break
         }
       }
     case .holdToCapture:
@@ -317,12 +320,13 @@ final class CaptureCoordinator: ObservableObject {
     strokes: [InkStroke],
     notice: String?
   ) {
+    guard session.transition(to: .delivering) else { return }
     cancelDeliveryTask()
     let taskID = UUID()
     deliveryTaskID = taskID
     deliveryTask = Task { [weak self, delivery] in
       defer { self?.completeDeliveryTask(id: taskID) }
-      guard let self, self.ownsDeliveryTask(taskID), self.session.phase.isActive else { return }
+      guard let self, self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       let strategy: OutputStrategy =
         self.preferences.resultMode == .clipboard ? .clipboard : self.preferences.outputStrategy
       let outcome = delivery.deliver(
@@ -332,10 +336,10 @@ final class CaptureCoordinator: ObservableObject {
           strategy: strategy,
           clipboardHandling: .leaveRecognizedText
         ))
-      guard self.ownsDeliveryTask(taskID), self.session.phase.isActive else { return }
+      guard self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       self.history.append(text: text, strokes: strokes, mode: self.preferences.historyMode, source: source)
       let message = [outcome.message, notice].compactMap { $0 }.joined(separator: " ")
-      self.session.phase = .delivered(message)
+      guard self.session.transition(to: .delivered(message)) else { return }
       self.statusMessage = message
       if self.preferences.resultMode != .review { self.scheduleDismissal() }
     }
@@ -416,8 +420,7 @@ final class CaptureCoordinator: ObservableObject {
       guard let self, self.dismissalTaskID == taskID, Task.isCancelled == false,
         self.session.phase.isActive
       else { return }
-      self.session.cancel()
-      self.overlay.dismiss()
+      self.dismissPanel()
     }
   }
 
@@ -425,5 +428,11 @@ final class CaptureCoordinator: ObservableObject {
     guard dismissalTaskID == id else { return }
     dismissalTask = nil
     dismissalTaskID = nil
+  }
+
+  private func dismissPanel() {
+    guard session.transition(to: .dismissing) else { return }
+    overlay.dismiss()
+    session.completeDismissal()
   }
 }

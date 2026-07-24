@@ -68,13 +68,60 @@ enum HistoryMode: String, CaseIterable, Codable, Identifiable {
 
 enum CapturePhase: Equatable {
   case idle
+  case opening
   case drawing
   case recognizing
   case reviewing
+  case delivering
   case delivered(String)
   case failed(String)
+  case dismissing
 
   var isActive: Bool { self != .idle }
+
+  private var kind: Kind {
+    switch self {
+    case .idle: .idle
+    case .opening: .opening
+    case .drawing: .drawing
+    case .recognizing: .recognizing
+    case .reviewing: .reviewing
+    case .delivering: .delivering
+    case .delivered: .delivered
+    case .failed: .failed
+    case .dismissing: .dismissing
+    }
+  }
+
+  func allowsTransition(to next: CapturePhase) -> Bool {
+    switch (kind, next.kind) {
+    case (.idle, .opening),
+      (.opening, .drawing), (.opening, .dismissing),
+      (.drawing, .recognizing), (.drawing, .dismissing),
+      (.recognizing, .reviewing), (.recognizing, .delivering), (.recognizing, .failed),
+      (.recognizing, .dismissing),
+      (.reviewing, .delivering), (.reviewing, .dismissing),
+      (.delivering, .delivered), (.delivering, .dismissing),
+      (.delivered, .dismissing),
+      (.failed, .drawing), (.failed, .dismissing),
+      (.dismissing, .idle):
+      true
+    default:
+      false
+    }
+  }
+
+  private enum Kind {
+    case idle
+    case opening
+    case drawing
+    case recognizing
+    case reviewing
+    case delivering
+    case delivered
+    case failed
+    case dismissing
+  }
 }
 
 struct Shortcut: Codable, Hashable {
