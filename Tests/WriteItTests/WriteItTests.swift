@@ -156,11 +156,11 @@ struct RecognitionContractTests {
 
 struct AccessibilityDeliveryTests {
   @Test("clipboard-only delivery does not access the captured target") @MainActor
-  func copiesWithoutAccessibilityDelivery() {
+  func copiesWithoutAccessibilityDelivery() async {
     let operations = TestAccessibilityDeliveryOperations()
     let delivery = AccessibilityTextDelivery(operations: operations)
 
-    let outcome = delivery.deliver(
+    let outcome = await delivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: nil,
@@ -176,9 +176,12 @@ struct AccessibilityDeliveryTests {
   }
 
   @Test("paste delivery uses the captured target and Command-V") @MainActor
-  func pastesIntoCapturedTarget() {
+  func pastesIntoCapturedTarget() async {
     let operations = TestAccessibilityDeliveryOperations()
-    let delivery = AccessibilityTextDelivery(operations: operations)
+    let delivery = AccessibilityTextDelivery(
+      operations: operations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
     let target = TargetReference(
       element: AXUIElementCreateApplication(getpid()),
       pid: getpid(),
@@ -186,7 +189,7 @@ struct AccessibilityDeliveryTests {
       displayID: nil
     )
 
-    let outcome = delivery.deliver(
+    let outcome = await delivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: target,
@@ -202,9 +205,12 @@ struct AccessibilityDeliveryTests {
   }
 
   @Test("Accessibility delivery replaces selected text in the captured target") @MainActor
-  func replacesSelectedTextWithAccessibility() {
+  func replacesSelectedTextWithAccessibility() async {
     let operations = TestAccessibilityDeliveryOperations()
-    let delivery = AccessibilityTextDelivery(operations: operations)
+    let delivery = AccessibilityTextDelivery(
+      operations: operations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
     let target = TargetReference(
       element: AXUIElementCreateApplication(getpid()),
       pid: getpid(),
@@ -212,7 +218,7 @@ struct AccessibilityDeliveryTests {
       displayID: nil
     )
 
-    let outcome = delivery.deliver(
+    let outcome = await delivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: target,
@@ -228,12 +234,13 @@ struct AccessibilityDeliveryTests {
   }
 
   @Test("paste restores the previous clipboard after delivery") @MainActor
-  func restoresPreviousClipboardAfterPaste() {
+  func restoresPreviousClipboardAfterPaste() async {
     let operations = TestAccessibilityDeliveryOperations()
     let scheduler = TestClipboardRestoreScheduler()
     let delivery = AccessibilityTextDelivery(
       operations: operations,
-      clipboardRestoreScheduler: scheduler
+      clipboardRestoreScheduler: scheduler,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
     )
     let target = TargetReference(
       element: AXUIElementCreateApplication(getpid()),
@@ -242,7 +249,7 @@ struct AccessibilityDeliveryTests {
       displayID: nil
     )
 
-    let outcome = delivery.deliver(
+    let outcome = await delivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: target,
@@ -258,12 +265,13 @@ struct AccessibilityDeliveryTests {
   }
 
   @Test("paste restoration does not overwrite a newer clipboard") @MainActor
-  func preservesNewerClipboardAfterPaste() {
+  func preservesNewerClipboardAfterPaste() async {
     let operations = TestAccessibilityDeliveryOperations()
     let scheduler = TestClipboardRestoreScheduler()
     let delivery = AccessibilityTextDelivery(
       operations: operations,
-      clipboardRestoreScheduler: scheduler
+      clipboardRestoreScheduler: scheduler,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
     )
     let target = TargetReference(
       element: AXUIElementCreateApplication(getpid()),
@@ -272,7 +280,7 @@ struct AccessibilityDeliveryTests {
       displayID: nil
     )
 
-    _ = delivery.deliver(
+    _ = await delivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: target,
@@ -283,6 +291,44 @@ struct AccessibilityDeliveryTests {
     scheduler.runNext()
 
     #expect(operations.restoreCount == 0)
+  }
+
+  @Test("delivery distinguishes activation request failure from timeout") @MainActor
+  func reportsActivationFailures() async {
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+    let failedOperations = TestAccessibilityDeliveryOperations()
+    failedOperations.activationSucceeds = false
+    let failedWaiter = TestTargetActivationWaiter(result: true)
+    let failedDelivery = AccessibilityTextDelivery(
+      operations: failedOperations,
+      targetActivationWaiter: failedWaiter
+    )
+    let timedOutOperations = TestAccessibilityDeliveryOperations()
+    let timedOutWaiter = TestTargetActivationWaiter(result: false)
+    let timedOutDelivery = AccessibilityTextDelivery(
+      operations: timedOutOperations,
+      targetActivationWaiter: timedOutWaiter
+    )
+    let request = DeliveryRequest(
+      text: "recognized text",
+      target: target,
+      strategy: .paste,
+      clipboardHandling: .leaveRecognizedText
+    )
+
+    let failedOutcome = await failedDelivery.deliver(request)
+    let timedOutOutcome = await timedOutDelivery.deliver(request)
+
+    #expect(failedOutcome == .clipboardFallback(.activationFailed))
+    #expect(failedWaiter.requestedPIDs.isEmpty)
+    #expect(timedOutOutcome == .clipboardFallback(.activationTimedOut))
+    #expect(timedOutWaiter.requestedPIDs == [getpid()])
+    #expect(timedOutOperations.commandKeyCodes.isEmpty)
   }
 }
 
@@ -1081,6 +1127,7 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   }
   func simulateExternalClipboardChange() { currentClipboardChangeCount += 1 }
   func isApplicationRunning(pid: pid_t) -> Bool { applicationRunning }
+  func isActive(pid: pid_t) -> Bool { true }
   func isEditable(_ element: AXUIElement) -> Bool { editable }
   func activate(pid: pid_t) -> Bool {
     activatedPIDs.append(pid)
@@ -1093,6 +1140,18 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
     replacedTexts.append(text)
     return replacementSucceeds
+  }
+}
+
+@MainActor
+private final class TestTargetActivationWaiter: TargetActivationWaiting {
+  let result: Bool
+  private(set) var requestedPIDs: [pid_t] = []
+
+  init(result: Bool) { self.result = result }
+  func waitForActivation(pid: pid_t, isActive: @escaping (pid_t) -> Bool) async -> Bool {
+    requestedPIDs.append(pid)
+    return result
   }
 }
 
@@ -1128,7 +1187,7 @@ private final class TestDelivery: AccessibilityDelivering {
   func clearCapturedTarget() {
     clearCapturedTargetRequests += 1
   }
-  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
+  func deliver(_ request: DeliveryRequest) async -> DeliveryOutcome {
     deliveryRequests += 1
     return .clipboard
   }

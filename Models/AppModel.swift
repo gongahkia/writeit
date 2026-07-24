@@ -363,7 +363,7 @@ final class CaptureCoordinator: ObservableObject {
       guard let self, self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       let strategy: OutputStrategy =
         self.preferences.resultMode == .clipboard ? .clipboard : self.preferences.outputStrategy
-      let outcome = delivery.deliver(
+      let outcome = await delivery.deliver(
         DeliveryRequest(
           text: text,
           target: target,

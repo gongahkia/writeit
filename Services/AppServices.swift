@@ -133,6 +133,7 @@ enum DeliveryFailure: Equatable {
   case targetNotEditable
   case targetAppNotRunning
   case activationFailed
+  case activationTimedOut
   case accessibilityInsertionFailed
   case pasteEventUnavailable
   case clipboardWriteFailed
@@ -143,6 +144,7 @@ enum DeliveryFailure: Equatable {
     case .targetNotEditable: "Captured field no longer accepts text"
     case .targetAppNotRunning: "Captured app is no longer running"
     case .activationFailed: "Couldn’t activate the captured app"
+    case .activationTimedOut: "Captured app did not become active in time"
     case .accessibilityInsertionFailed: "Accessibility could not replace text in the captured field"
     case .pasteEventUnavailable: "WriteIt could not send the paste shortcut"
     case .clipboardWriteFailed: "WriteIt could not copy the result to the clipboard"
@@ -174,7 +176,7 @@ protocol AccessibilityDelivering: AnyObject {
   func requestTrust()
   func captureTarget() -> TargetReference?
   func clearCapturedTarget()
-  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome
+  func deliver(_ request: DeliveryRequest) async -> DeliveryOutcome
   func undo()
 }
 

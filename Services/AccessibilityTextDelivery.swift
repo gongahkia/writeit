@@ -30,12 +30,34 @@ final class DelayedClipboardRestoreScheduler: ClipboardRestoreScheduling {
 }
 
 @MainActor
+protocol TargetActivationWaiting: AnyObject {
+  func waitForActivation(pid: pid_t, isActive: @escaping (pid_t) -> Bool) async -> Bool
+}
+
+@MainActor
+final class BoundedTargetActivationWaiter: TargetActivationWaiting {
+  func waitForActivation(pid: pid_t, isActive: @escaping (pid_t) -> Bool) async -> Bool {
+    if isActive(pid) { return true }
+    for _ in 0..<10 {
+      do {
+        try await Task.sleep(for: .milliseconds(50))
+      } catch {
+        return false
+      }
+      if isActive(pid) { return true }
+    }
+    return false
+  }
+}
+
+@MainActor
 protocol AccessibilityDeliveryOperating: AnyObject {
   func captureClipboard() -> ClipboardSnapshot
   func copy(_ text: String) -> Bool
   func clipboardChangeCount() -> Int
   func restoreClipboard(_ snapshot: ClipboardSnapshot) -> Bool
   func isApplicationRunning(pid: pid_t) -> Bool
+  func isActive(pid: pid_t) -> Bool
   func isEditable(_ element: AXUIElement) -> Bool
   func activate(pid: pid_t) -> Bool
   func postCommand(keyCode: CGKeyCode) -> Bool
@@ -77,6 +99,10 @@ final class SystemAccessibilityDeliveryOperations: AccessibilityDeliveryOperatin
 
   func isApplicationRunning(pid: pid_t) -> Bool {
     NSRunningApplication(processIdentifier: pid) != nil
+  }
+
+  func isActive(pid: pid_t) -> Bool {
+    NSRunningApplication(processIdentifier: pid)?.isActive ?? false
   }
 
   func isEditable(_ element: AXUIElement) -> Bool {
@@ -126,13 +152,16 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
   private let operations: any AccessibilityDeliveryOperating
   private let clipboardRestoreScheduler: any ClipboardRestoreScheduling
+  private let targetActivationWaiter: any TargetActivationWaiting
 
   init(
     operations: any AccessibilityDeliveryOperating = SystemAccessibilityDeliveryOperations(),
-    clipboardRestoreScheduler: any ClipboardRestoreScheduling = DelayedClipboardRestoreScheduler()
+    clipboardRestoreScheduler: any ClipboardRestoreScheduling = DelayedClipboardRestoreScheduler(),
+    targetActivationWaiter: any TargetActivationWaiting = BoundedTargetActivationWaiter()
   ) {
     self.operations = operations
     self.clipboardRestoreScheduler = clipboardRestoreScheduler
+    self.targetActivationWaiter = targetActivationWaiter
   }
 
   var isTrusted: Bool { AXIsProcessTrusted() }
@@ -168,7 +197,7 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     lastTarget = nil
   }
 
-  func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
+  func deliver(_ request: DeliveryRequest) async -> DeliveryOutcome {
     AppLog.delivery.info(
       "delivery_requested strategy=\(request.strategy.rawValue, privacy: .public) target_available=\(request.target != nil, privacy: .public)"
     )
@@ -181,8 +210,13 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     guard request.strategy != .clipboard else { return .clipboard }
     guard let target = request.target else { return .clipboardFallback(.targetUnavailable) }
     if let failure = targetFailure(target) { return .clipboardFallback(failure) }
-    lastTarget = target
     guard operations.activate(pid: target.pid) else { return .clipboardFallback(.activationFailed) }
+    guard await targetActivationWaiter.waitForActivation(
+      pid: target.pid,
+      isActive: operations.isActive(pid:)
+    ) else { return .clipboardFallback(.activationTimedOut) }
+    guard Task.isCancelled == false else { return .clipboardFallback(.activationTimedOut) }
+    lastTarget = target
     switch request.strategy {
     case .paste:
       guard operations.postCommand(keyCode: 9) else { return .failed(.pasteEventUnavailable) }
