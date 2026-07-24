@@ -94,6 +94,7 @@ struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
 enum ModelInstallationState: Sendable, Equatable {
   case notInstalled
   case downloading(progress: Double)
+  case paused(progress: Double)
   case installed(URL)
   case failed(String)
 }

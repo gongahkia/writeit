@@ -22,19 +22,35 @@ final class ModelStore: ObservableObject {
   @Published private(set) var error: AppErrorPresentation?
 
   private let modelsDirectory: URL
+  private let downloadCheckpointStore: ModelDownloadCheckpointStore
+  private var downloadCheckpoints: [String: ModelDownloadCheckpoint]
 
-  init(modelsDirectory: URL? = nil) {
+  init(modelsDirectory: URL? = nil, downloadCheckpointURL: URL? = nil) {
     let base =
       modelsDirectory
       ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("WriteIt/Models", isDirectory: true)
     self.modelsDirectory = base
+    self.downloadCheckpointStore = ModelDownloadCheckpointStore(
+      fileURL: downloadCheckpointURL ?? base.appendingPathComponent("downloads.json"))
     self.error = nil
     self.installationStates = [:]
+    self.downloadCheckpoints = [:]
     do {
       try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     } catch {
       record(ModelStoreError.directoryUnavailable)
+    }
+    do {
+      let checkpoints = try downloadCheckpointStore.load()
+      downloadCheckpoints = Dictionary(
+        uniqueKeysWithValues: checkpoints.map { (installationKey(for: $0.manifest), $0) })
+      for checkpoint in checkpoints {
+        installationStates[installationKey(for: checkpoint.manifest)] = .paused(
+          progress: checkpoint.progress)
+      }
+    } catch {
+      record(error)
     }
   }
 
@@ -53,6 +69,7 @@ final class ModelStore: ObservableObject {
         in: modelsDirectory
       )
       installationStates[installationKey(for: manifest)] = .installed(installed)
+      clearDownloadCheckpoint(for: manifest)
       error = nil
       AppLog.models.info("local_model_installed")
     } catch {
@@ -80,6 +97,43 @@ final class ModelStore: ObservableObject {
 
   func clearError() { error = nil }
 
+  func downloadCheckpoint(for manifest: ModelManifest) -> ModelDownloadCheckpoint? {
+    downloadCheckpoints[installationKey(for: manifest)]
+  }
+
+  func resumeDownload(for manifest: ModelManifest) -> Data? {
+    let checkpoint = downloadCheckpoint(for: manifest)
+    installationStates[installationKey(for: manifest)] = .downloading(
+      progress: checkpoint?.progress ?? 0)
+    return checkpoint?.resumeData
+  }
+
+  func recordDownloadProgress(
+    for manifest: ModelManifest,
+    progress: Double,
+    resumeData: Data?
+  ) {
+    let checkpoint = ModelDownloadCheckpoint(
+      schemaVersion: ModelDownloadCheckpoint.currentSchemaVersion,
+      manifest: manifest,
+      progress: min(max(progress, 0), 1),
+      resumeData: resumeData
+    )
+    downloadCheckpoints[installationKey(for: manifest)] = checkpoint
+    persistDownloadCheckpoints()
+    installationStates[installationKey(for: manifest)] = .downloading(progress: checkpoint.progress)
+  }
+
+  func pauseDownload(for manifest: ModelManifest, resumeData: Data?) {
+    recordDownloadProgress(
+      for: manifest,
+      progress: downloadCheckpoint(for: manifest)?.progress ?? 0,
+      resumeData: resumeData
+    )
+    installationStates[installationKey(for: manifest)] = .paused(
+      progress: downloadCheckpoint(for: manifest)?.progress ?? 0)
+  }
+
   private func record(_ error: Error) {
     AppLog.models.error(
       "local_model_storage_failed type=\(AppLog.errorType(error), privacy: .public)")
@@ -88,5 +142,18 @@ final class ModelStore: ObservableObject {
 
   private func installationKey(for manifest: ModelManifest) -> String {
     "\(manifest.id)@\(manifest.version)"
+  }
+
+  private func persistDownloadCheckpoints() {
+    do {
+      try downloadCheckpointStore.save(Array(downloadCheckpoints.values))
+    } catch {
+      record(error)
+    }
+  }
+
+  private func clearDownloadCheckpoint(for manifest: ModelManifest) {
+    downloadCheckpoints.removeValue(forKey: installationKey(for: manifest))
+    persistDownloadCheckpoints()
   }
 }

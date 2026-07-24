@@ -349,6 +349,68 @@ struct ModelAssetDigestVerifierTests {
   }
 }
 
+struct ModelDownloadCheckpointStoreTests {
+  @Test("persists resumable model progress without asset content")
+  func persistsDownloadCheckpoint() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: String(repeating: "a", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let store = ModelDownloadCheckpointStore(fileURL: directory.appendingPathComponent("downloads.json"))
+    let checkpoint = ModelDownloadCheckpoint(
+      schemaVersion: ModelDownloadCheckpoint.currentSchemaVersion,
+      manifest: manifest,
+      progress: 0.4,
+      resumeData: Data([1, 2, 3])
+    )
+
+    try store.save([checkpoint])
+
+    #expect(try store.load() == [checkpoint])
+  }
+
+  @Test("model store restores, updates, and clears resumable download state") @MainActor
+  func restoresDownloadState() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: String(repeating: "a", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let checkpointURL = directory.appendingPathComponent("downloads.json")
+    let store = ModelStore(
+      modelsDirectory: directory.appendingPathComponent("Models"),
+      downloadCheckpointURL: checkpointURL
+    )
+
+    store.recordDownloadProgress(for: manifest, progress: 1.5, resumeData: Data([1]))
+
+    #expect(store.installationState(for: manifest) == .downloading(progress: 1))
+    store.pauseDownload(for: manifest, resumeData: Data([2]))
+    #expect(store.installationState(for: manifest) == .paused(progress: 1))
+    let restored = ModelStore(
+      modelsDirectory: directory.appendingPathComponent("Models"),
+      downloadCheckpointURL: checkpointURL
+    )
+    #expect(restored.installationState(for: manifest) == .paused(progress: 1))
+    #expect(restored.downloadCheckpoint(for: manifest)?.resumeData == Data([2]))
+    #expect(restored.resumeDownload(for: manifest) == Data([2]))
+    #expect(restored.installationState(for: manifest) == .downloading(progress: 1))
+  }
+}
+
 struct GitHubReleaseManifestFetcherTests {
   @Test("retrieves and validates one versioned manifest from the latest release")
   func retrievesVersionedManifest() async throws {
