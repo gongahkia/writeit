@@ -260,7 +260,8 @@ struct InkStyle: Equatable, Sendable {
       x: previous.x + (point.x - previous.x) * (1 - weight),
       y: previous.y + (point.y - previous.y) * (1 - weight),
       pressure: previous.pressure + (point.pressure - previous.pressure) * (1 - weight),
-      timestamp: point.timestamp
+      timestamp: point.timestamp,
+      inputSource: point.inputSource
     )
   }
 }

@@ -240,6 +240,22 @@ struct CaptureModelTests {
     #expect(style.lineWidth(for: 2) == style.lineWidth(for: 1))
   }
 
+  @Test("smoothing is deterministic for mouse and tablet input")
+  func smoothingIsDeterministicAcrossInputSources() {
+    let style = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 1)
+    let previous = InkPoint(x: 0, y: 0, pressure: 0.5, timestamp: 0)
+    let mouse = InkPoint(x: 20, y: 10, pressure: 1, timestamp: 1, inputSource: .mouse)
+    let stylus = InkPoint(x: 20, y: 10, pressure: 1, timestamp: 1, inputSource: .stylus)
+    let smoothedMouse = style.smoothed(mouse, after: previous)
+    let smoothedStylus = style.smoothed(stylus, after: previous)
+    #expect(smoothedMouse.x == 5)
+    #expect(smoothedMouse.y == 2.5)
+    #expect(smoothedMouse.pressure == 0.625)
+    #expect(smoothedStylus.x == smoothedMouse.x)
+    #expect(smoothedStylus.y == smoothedMouse.y)
+    #expect(smoothedStylus.inputSource == .stylus)
+  }
+
   @Test("empty and tap-only captures are rejected before OCR") @MainActor
   func captureInputValidation() {
     let session = CaptureSession()
@@ -337,6 +353,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.recognitionLanguage = .italian
     #expect(Preferences(defaults: defaults).recognitionLanguage == .italian)
+  }
+
+  @Test("persists the selected stroke smoothing")
+  func persistsStrokeSmoothing() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.strokeSmoothing = 0.8
+    #expect(Preferences(defaults: defaults).inkStyle.smoothing == 0.8)
   }
 
   @Test("surfaces and resets malformed saved settings")
