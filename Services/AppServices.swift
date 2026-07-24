@@ -179,6 +179,16 @@ enum DeliveryOutcome: Equatable {
     case .failed(let failure): failure.message
     }
   }
+
+  var needsClipboardRecovery: Bool {
+    if case .clipboardFallback = self { return true }
+    return false
+  }
+
+  var failed: Bool {
+    if case .failed = self { return true }
+    return false
+  }
 }
 
 @MainActor

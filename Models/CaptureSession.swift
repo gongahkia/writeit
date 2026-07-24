@@ -7,6 +7,7 @@ final class CaptureSession: ObservableObject {
   @Published var strokes: [InkStroke] = []
   @Published var recognizedText = ""
   @Published var canvasSize = CGSize(width: 760, height: 250)
+  @Published private(set) var deliveryOutcome: DeliveryOutcome?
 
   var target: TargetReference?
   var onStrokeFinished: (() -> Void)?
@@ -21,6 +22,7 @@ final class CaptureSession: ObservableObject {
     self.target = target
     strokes = []
     recognizedText = ""
+    deliveryOutcome = nil
     captureActivatedAt = clock.now
     hasAcceptedFirstStroke = false
     return true
@@ -37,6 +39,7 @@ final class CaptureSession: ObservableObject {
     guard transition(to: .idle) else { return }
     strokes = []
     recognizedText = ""
+    deliveryOutcome = nil
     target = nil
     captureActivatedAt = nil
     hasAcceptedFirstStroke = false
@@ -72,6 +75,10 @@ final class CaptureSession: ObservableObject {
   func clear() {
     guard phase == .drawing else { return }
     strokes = []
+  }
+
+  func recordDeliveryOutcome(_ outcome: DeliveryOutcome) {
+    deliveryOutcome = outcome
   }
 
   func inputValidationMessage() -> String? {

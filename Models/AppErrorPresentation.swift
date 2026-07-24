@@ -24,6 +24,20 @@ struct AppErrorPresentation: Identifiable, Equatable {
     Self(kind: .configuration, title: "Add more ink", message: message)
   }
 
+  static func delivery(_ outcome: DeliveryOutcome) -> Self? {
+    switch outcome {
+    case .clipboardFallback(let failure):
+      return Self(
+        kind: .delivery,
+        title: "Copied to clipboard",
+        message: "\(failure.message). Your recognized text is available in the clipboard."
+      )
+    case .failed(let failure):
+      return Self(kind: .delivery, title: "Couldn’t deliver text", message: failure.message)
+    case .pasted, .accessibilityInserted, .clipboard: return nil
+    }
+  }
+
   static func persistence(_ error: Error) -> Self {
     let message = (error as? LocalizedError)?.errorDescription ?? "WriteIt could not update local data."
     return Self(kind: .persistence, title: "Local data unavailable", message: message)

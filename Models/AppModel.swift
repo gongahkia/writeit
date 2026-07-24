@@ -372,6 +372,8 @@ final class CaptureCoordinator: ObservableObject {
           verifyPaste: self.preferences.verifyPasteDelivery
         ))
       guard self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
+      self.session.recordDeliveryOutcome(outcome)
+      self.error = AppErrorPresentation.delivery(outcome)
       self.history.append(text: text, strokes: strokes, mode: self.preferences.historyMode, source: source)
       let message = [outcome.message, notice].compactMap { $0 }.joined(separator: " ")
       guard self.session.transition(to: .delivered(message)) else { return }

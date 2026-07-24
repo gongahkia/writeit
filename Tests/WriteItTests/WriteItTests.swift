@@ -144,6 +144,17 @@ struct RecognitionContractTests {
         != .pasted(.restorePrevious, .notRequested))
   }
 
+  @Test("delivery recovery retains a typed user-facing presentation")
+  func deliveryRecoveryPresentation() throws {
+    let fallback = try #require(
+      AppErrorPresentation.delivery(.clipboardFallback(.targetNotEditable)))
+    let failure = try #require(AppErrorPresentation.delivery(.failed(.clipboardWriteFailed)))
+    #expect(fallback.kind == .delivery)
+    #expect(fallback.title == "Copied to clipboard")
+    #expect(fallback.message.contains("available in the clipboard"))
+    #expect(failure.title == "Couldn’t deliver text")
+  }
+
   @Test("delivery rejects stale or noneditable captured targets")
   func validatesCapturedDeliveryTarget() {
     #expect(
@@ -984,6 +995,24 @@ struct KeychainStoreTests {
 }
 
 struct CaptureCoordinatorLifecycleTests {
+  @Test("clipboard fallback remains visible as delivery recovery") @MainActor
+  func surfacesClipboardRecovery() async {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.delivery.outcome = .clipboardFallback(.targetNotEditable)
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(capture.session.deliveryOutcome == .clipboardFallback(.targetNotEditable))
+    #expect(capture.error?.kind == .delivery)
+    #expect(capture.error?.title == "Copied to clipboard")
+  }
+
   @Test("capture start retains the exact focused editable target") @MainActor
   func retainsFocusedTargetAtCaptureStart() throws {
     let dependencies = TestDependencies(trusted: true)
@@ -1328,6 +1357,7 @@ private final class TestDelivery: AccessibilityDelivering {
   private(set) var captureTargetRequests = 0
   private(set) var clearCapturedTargetRequests = 0
   private(set) var deliveryRequests = 0
+  var outcome: DeliveryOutcome = .clipboard
   var isTrusted: Bool { trusted }
 
   init(trusted: Bool) { self.trusted = trusted }
@@ -1341,7 +1371,7 @@ private final class TestDelivery: AccessibilityDelivering {
   }
   func deliver(_ request: DeliveryRequest) async -> DeliveryOutcome {
     deliveryRequests += 1
-    return .clipboard
+    return outcome
   }
   func undo() {}
 }

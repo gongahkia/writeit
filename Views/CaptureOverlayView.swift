@@ -129,9 +129,21 @@ struct CaptureOverlayView: View {
   }
 
   private func delivered(_ message: String) -> some View {
-    VStack(spacing: 14) {
-      Image(systemName: "checkmark.circle.fill").font(.system(size: 38)).foregroundStyle(.green)
-      Text(message).font(.title3.weight(.semibold)).foregroundStyle(.white)
+    let outcome = session.deliveryOutcome
+    let requiresRecovery = outcome?.needsClipboardRecovery == true
+    let failed = outcome?.failed == true
+    return VStack(spacing: 14) {
+      Image(
+        systemName: failed
+          ? "exclamationmark.triangle.fill"
+          : requiresRecovery ? "doc.on.clipboard.fill" : "checkmark.circle.fill"
+      )
+      .font(.system(size: 38))
+      .foregroundStyle(failed || requiresRecovery ? .orange : .green)
+      Text(requiresRecovery ? "Copied to clipboard" : message)
+        .font(.title3.weight(.semibold))
+        .foregroundStyle(.white)
+      if requiresRecovery { Text(message).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.64)) }
       Text(session.recognizedText).lineLimit(3).multilineTextAlignment(.center).foregroundStyle(
         .white.opacity(0.64))
     }
