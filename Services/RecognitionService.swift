@@ -1,4 +1,3 @@
-import ImageIO
 import Vision
 
 actor RecognitionService: TextRecognizing {
@@ -19,7 +18,10 @@ actor RecognitionService: TextRecognizing {
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     try Task.checkCancellation()
-    guard let image = image(from: request.imageData) else { throw RecognitionError.invalidImage }
+    guard let preprocessed = HandwritingImagePreprocessor.process(request.imageData) else {
+      throw RecognitionError.invalidImage
+    }
+    let image = preprocessed.image
     guard let languageResolution = capabilities.resolve(request.language),
       let languageIdentifier = visionLanguageIdentifiers[languageResolution.resolved]
     else {
@@ -37,11 +39,6 @@ actor RecognitionService: TextRecognizing {
       return local.confidence > vision.confidence ? local : vision
     }
     return vision
-  }
-
-  private func image(from data: Data) -> CGImage? {
-    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-    return CGImageSourceCreateImageAtIndex(source, 0, nil)
   }
 
   private func runVision(

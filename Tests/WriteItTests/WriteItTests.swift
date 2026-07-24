@@ -483,6 +483,29 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("handwriting preprocessing produces timed local stages")
+  func preprocessesHandwritingImage() throws {
+    let bitmap = try #require(
+      NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: 24,
+        pixelsHigh: 12,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+      ))
+    let data = try #require(bitmap.representation(using: .png, properties: [:]))
+    let result = try #require(HandwritingImagePreprocessor.process(data))
+
+    #expect(result.image.width == 24)
+    #expect(result.image.height == 12)
+    #expect(Set(result.stageDurations.keys) == Set(ImagePreprocessingStage.allCases))
+  }
+
   @Test("shortcuts round-trip through storage")
   func shortcutsRoundTrip() throws {
     let shortcut = Shortcut(
