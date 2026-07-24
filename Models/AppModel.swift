@@ -6,6 +6,7 @@ final class CaptureCoordinator: ObservableObject {
   @Published private(set) var statusMessage = "Ready"
   @Published private(set) var accessibilityGranted: Bool
   @Published private(set) var error: AppErrorPresentation?
+  @Published private(set) var recognitionStartedAt: Date?
 
   private let preferences: Preferences
   private let history: HistoryStore
@@ -63,6 +64,7 @@ final class CaptureCoordinator: ObservableObject {
 
   func stop() {
     cancelOwnedWork()
+    recognitionStartedAt = nil
     accessibilityTimer?.invalidate()
     accessibilityTimer = nil
     shortcutMonitor.stop()
@@ -99,6 +101,7 @@ final class CaptureCoordinator: ObservableObject {
 
   func beginCapture() {
     cancelOwnedWork()
+    recognitionStartedAt = nil
     dismissPanel()
     clearError()
     refreshAccessibility()
@@ -119,6 +122,7 @@ final class CaptureCoordinator: ObservableObject {
 
   func cancelCapture() {
     cancelOwnedWork()
+    recognitionStartedAt = nil
     dismissPanel()
     AppLog.capture.info("capture_cancelled")
     statusMessage = "Cancelled"
@@ -145,6 +149,11 @@ final class CaptureCoordinator: ObservableObject {
 
   func clearError() { error = nil }
 
+  func recognitionElapsedSeconds(at date: Date = .now) -> Int? {
+    guard session.phase == .recognizing, let recognitionStartedAt else { return nil }
+    return max(0, Int(date.timeIntervalSince(recognitionStartedAt)))
+  }
+
   func retryRecognition() {
     guard case .failed = session.phase else { return }
     clearError()
@@ -167,6 +176,7 @@ final class CaptureCoordinator: ObservableObject {
     cancelCaptureTask()
     cancelDeliveryTask()
     guard session.transition(to: .recognizing) else { return }
+    recognitionStartedAt = .now
     let strokes = session.strokes
     let target = session.target
     let recognitionRequest = RecognitionRequest(
@@ -222,6 +232,7 @@ final class CaptureCoordinator: ObservableObject {
         }
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
+        self.recognitionStartedAt = nil
         self.session.recognizedText = result
         if self.preferences.resultMode == .review {
           guard self.session.transition(to: .reviewing) else { return }
@@ -240,6 +251,7 @@ final class CaptureCoordinator: ObservableObject {
         return
       } catch {
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
+        self.recognitionStartedAt = nil
         let presentation = AppErrorPresentation.recognition(error)
         AppLog.recognition.error(
           "recognition_failed type=\(AppLog.errorType(error), privacy: .public)"

@@ -686,6 +686,22 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(dependencies.history.entries.isEmpty)
   }
 
+  @Test("recognition progress reports elapsed time and clears on cancel") @MainActor
+  func reportsRecognitionProgress() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: DelayedRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    let startedAt = try #require(capture.recognitionStartedAt)
+    #expect(capture.recognitionElapsedSeconds(at: startedAt.addingTimeInterval(2.4)) == 2)
+    capture.execute(.cancel)
+    #expect(capture.recognitionStartedAt == nil)
+    #expect(capture.recognitionElapsedSeconds() == nil)
+  }
+
   @Test("new captures discard stale recognition results from prior owned work") @MainActor
   func newCaptureDiscardsStaleRecognition() async {
     let dependencies = TestDependencies(trusted: true, recognition: StaleThenFreshRecognition())

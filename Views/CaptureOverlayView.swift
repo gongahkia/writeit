@@ -35,7 +35,7 @@ struct CaptureOverlayView: View {
         progress("Opening capture…")
           .frame(height: 250)
       case .recognizing:
-        progress("Recognizing locally…")
+        recognitionProgress
           .frame(height: 250)
       case .reviewing:
         review
@@ -104,6 +104,19 @@ struct CaptureOverlayView: View {
     VStack(spacing: 16) {
       ProgressView().controlSize(.large).tint(.white)
       Text(message).foregroundStyle(.white.opacity(0.8))
+    }
+  }
+
+  private var recognitionProgress: some View {
+    TimelineView(.periodic(from: .now, by: 1)) { context in
+      VStack(spacing: 16) {
+        ProgressView().controlSize(.large).tint(.white)
+        Text("Recognizing locally…").foregroundStyle(.white.opacity(0.8))
+        if let seconds = coordinator.recognitionElapsedSeconds(at: context.date) {
+          Text("Elapsed \(seconds)s").font(.caption).foregroundStyle(.white.opacity(0.56))
+        }
+        Button("Cancel", action: { coordinator.execute(.cancel) }).buttonStyle(.bordered)
+      }
     }
   }
 
