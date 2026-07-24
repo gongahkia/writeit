@@ -10,6 +10,10 @@ final class CaptureSession: ObservableObject {
 
   var target: TargetReference?
   var onStrokeFinished: (() -> Void)?
+  var onFirstStrokeAccepted: ((Duration) -> Void)?
+  private let clock = ContinuousClock()
+  private var captureActivatedAt: ContinuousClock.Instant?
+  private var hasAcceptedFirstStroke = false
 
   @discardableResult
   func begin(target: TargetReference?) -> Bool {
@@ -17,6 +21,8 @@ final class CaptureSession: ObservableObject {
     self.target = target
     strokes = []
     recognizedText = ""
+    captureActivatedAt = clock.now
+    hasAcceptedFirstStroke = false
     return true
   }
 
@@ -32,10 +38,13 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     target = nil
+    captureActivatedAt = nil
+    hasAcceptedFirstStroke = false
   }
 
   func beginStroke(at point: InkPoint) {
     guard phase == .drawing else { return }
+    recordFirstStrokeLatency()
     strokes.append(InkStroke(points: [point]))
   }
 
@@ -65,6 +74,18 @@ final class CaptureSession: ObservableObject {
   func renderedImageData(style: InkStyle = .default) -> Data? {
     guard inputValidationMessage() == nil else { return nil }
     return renderedImage(style: style)?.tiffRepresentation
+  }
+
+  private func recordFirstStrokeLatency() {
+    guard hasAcceptedFirstStroke == false, let captureActivatedAt else { return }
+    hasAcceptedFirstStroke = true
+    let duration = clock.now - captureActivatedAt
+    let components = duration.components
+    let milliseconds = components.seconds * 1_000 + components.attoseconds / 1_000_000_000_000_000
+    AppLog.capture.info("first_stroke_latency_ms=\(milliseconds, privacy: .public)")
+    AppLog.captureSignposter.emitEvent(
+      "FirstStrokeLatency", "milliseconds=\(milliseconds, privacy: .public)")
+    onFirstStrokeAccepted?(duration)
   }
 
   private func renderedImage(style: InkStyle) -> NSImage? {

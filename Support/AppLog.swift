@@ -6,6 +6,7 @@ enum AppLog {
 
   static let app = Logger(subsystem: subsystem, category: "app")
   static let capture = Logger(subsystem: subsystem, category: "capture")
+  static let captureSignposter = OSSignposter(logger: capture)
   static let shortcut = Logger(subsystem: subsystem, category: "shortcut")
   static let recognition = Logger(subsystem: subsystem, category: "recognition")
   static let delivery = Logger(subsystem: subsystem, category: "delivery")

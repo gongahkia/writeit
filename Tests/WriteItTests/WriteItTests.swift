@@ -196,6 +196,29 @@ struct CaptureModelTests {
     #expect(session.renderedImageData() != nil)
   }
 
+  @Test("records first accepted stroke latency once per capture") @MainActor
+  func recordsFirstStrokeLatencyOncePerCapture() {
+    let session = CaptureSession()
+    var latencies: [Duration] = []
+    session.onFirstStrokeAccepted = { latencies.append($0) }
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    session.beginStroke(at: InkPoint(x: 40, y: 50, pressure: 1, timestamp: 0.1))
+    #expect(latencies.count == 1)
+    #expect(latencies[0] >= .zero)
+
+    #expect(session.transition(to: .recognizing))
+    #expect(session.transition(to: .delivering))
+    #expect(session.transition(to: .delivered("Copied")))
+    #expect(session.transition(to: .dismissing))
+    session.completeDismissal()
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    session.beginStroke(at: InkPoint(x: 60, y: 70, pressure: 1, timestamp: 0.2))
+    #expect(latencies.count == 2)
+  }
+
   @Test("ink styles smooth points and use pressure for width")
   func inkStylesApplyPressureAndSmoothing() {
     let style = InkStyle(baseWidth: 4, pressureSensitivity: 1, smoothing: 0.5)
