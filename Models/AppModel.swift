@@ -313,8 +313,8 @@ final class CaptureCoordinator: ObservableObject {
   private func schedulePenUpSubmit() {
     guard preferences.captureMode == .penUpDelay, session.phase == .drawing else { return }
     cancelPenUpTask()
-    let count = session.strokes.count
     let taskID = UUID()
+    let eligibility = PenUpSubmissionEligibility(taskID: taskID, strokeCount: session.strokes.count)
     penUpTaskID = taskID
     penUpTask = Task { [weak self] in
       defer { self?.completePenUpTask(id: taskID) }
@@ -324,8 +324,12 @@ final class CaptureCoordinator: ObservableObject {
       } catch {
         return
       }
-      guard self.ownsPenUpTask(taskID), self.session.phase == .drawing,
-        self.session.strokes.count == count
+      guard eligibility.allowsSubmission(
+        activeTaskID: self.penUpTaskID,
+        isCancelled: Task.isCancelled,
+        phase: self.session.phase,
+        strokeCount: self.session.strokes.count
+      )
       else { return }
       self.submitCapture()
     }
@@ -392,10 +396,6 @@ final class CaptureCoordinator: ObservableObject {
     dismissalTask?.cancel()
     dismissalTask = nil
     dismissalTaskID = nil
-  }
-
-  private func ownsPenUpTask(_ taskID: UUID) -> Bool {
-    penUpTaskID == taskID && Task.isCancelled == false
   }
 
   private func ownsCaptureTask(_ taskID: UUID) -> Bool {

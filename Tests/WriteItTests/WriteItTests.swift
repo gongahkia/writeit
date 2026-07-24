@@ -357,6 +357,32 @@ struct CaptureLifecycleTests {
   }
 }
 
+struct PenUpSubmissionEligibilityTests {
+  @Test("pen-up submission rejects stale capture state")
+  func rejectsStaleCaptureState() {
+    let taskID = UUID()
+    let eligibility = PenUpSubmissionEligibility(taskID: taskID, strokeCount: 1)
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: taskID, isCancelled: false, phase: .drawing, strokeCount: 1))
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: taskID, isCancelled: false, phase: .drawing, strokeCount: 2) == false)
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: taskID, isCancelled: false, phase: .drawing, strokeCount: 0) == false)
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: nil, isCancelled: false, phase: .drawing, strokeCount: 1) == false)
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: taskID, isCancelled: true, phase: .drawing, strokeCount: 1) == false)
+    #expect(
+      eligibility.allowsSubmission(
+        activeTaskID: taskID, isCancelled: false, phase: .recognizing, strokeCount: 1) == false)
+  }
+}
+
 struct PreferencesTests {
   @Test("registers defaults and records current schema")
   func registersDefaultsAndRecordsCurrentSchema() {

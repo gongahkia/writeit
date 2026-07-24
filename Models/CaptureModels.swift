@@ -124,6 +124,21 @@ enum CapturePhase: Equatable {
   }
 }
 
+struct PenUpSubmissionEligibility {
+  let taskID: UUID
+  let strokeCount: Int
+
+  func allowsSubmission(
+    activeTaskID: UUID?,
+    isCancelled: Bool,
+    phase: CapturePhase,
+    strokeCount: Int
+  ) -> Bool {
+    taskID == activeTaskID && isCancelled == false && phase == .drawing
+      && self.strokeCount == strokeCount
+  }
+}
+
 struct Shortcut: Codable, Hashable {
   var keyCode: UInt16
   var modifiers: UInt64
