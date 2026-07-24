@@ -422,6 +422,42 @@ struct AccessibilityDeliveryTests {
     #expect(pasteOperations.copiedTexts == ["recognized text"])
     #expect(accessibilityOperations.copiedTexts == ["recognized text"])
   }
+
+  @Test("undo is eligible only after a confirmed direct insertion") @MainActor
+  func limitsUndoToConfirmedInsertion() async {
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+    let failedOperations = TestAccessibilityDeliveryOperations()
+    failedOperations.commandSucceeds = false
+    let failedDelivery = AccessibilityTextDelivery(
+      operations: failedOperations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
+    let successfulOperations = TestAccessibilityDeliveryOperations()
+    let successfulDelivery = AccessibilityTextDelivery(
+      operations: successfulOperations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
+    let request = DeliveryRequest(
+      text: "recognized text",
+      target: target,
+      strategy: .paste,
+      clipboardHandling: .leaveRecognizedText,
+      verifyPaste: false
+    )
+
+    _ = await failedDelivery.deliver(request)
+    failedDelivery.undo()
+    _ = await successfulDelivery.deliver(request)
+    successfulDelivery.undo()
+
+    #expect(failedOperations.commandKeyCodes == [9])
+    #expect(successfulOperations.commandKeyCodes == [9, 6])
+  }
 }
 
 struct CaptureModelTests {
