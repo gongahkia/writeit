@@ -483,6 +483,52 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("OCR corpus fixtures load in deterministic identifier order")
+  func loadsDeterministicOCRCorpusFixtures() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data([2]).write(to: directory.appendingPathComponent("second.png"))
+    try Data([1]).write(to: directory.appendingPathComponent("first.png"))
+    let manifest = OCRCorpusManifest(
+      version: OCRCorpusManifest.currentVersion,
+      entries: [
+        OCRCorpusEntry(
+          id: "b", imagePath: "second.png", transcription: "second", language: .english),
+        OCRCorpusEntry(
+          id: "a", imagePath: "first.png", transcription: "first", language: .english),
+      ]
+    )
+
+    let fixtures = try OCRCorpusFixtureLoader.load(
+      manifestData: JSONEncoder().encode(manifest),
+      directory: directory
+    )
+
+    #expect(fixtures.map(\.entry.id) == ["a", "b"])
+    #expect(fixtures.map(\.imageData) == [Data([1]), Data([2])])
+  }
+
+  @Test("OCR corpus fixtures reject traversal paths")
+  func rejectsTraversalImagePaths() throws {
+    let manifest = OCRCorpusManifest(
+      version: OCRCorpusManifest.currentVersion,
+      entries: [
+        OCRCorpusEntry(
+          id: "fixture", imagePath: "../outside.png", transcription: "text", language: .english)
+      ]
+    )
+
+    do {
+      _ = try OCRCorpusFixtureLoader.load(
+        manifestData: JSONEncoder().encode(manifest),
+        directory: FileManager.default.temporaryDirectory
+      )
+      Issue.record("expected invalid corpus path")
+    } catch let error as OCRCorpusError {
+      #expect(error == .invalidImagePath)
+    }
+  }
+
   @Test("handwriting preprocessing produces timed local stages")
   func preprocessesHandwritingImage() throws {
     let bitmap = try #require(
