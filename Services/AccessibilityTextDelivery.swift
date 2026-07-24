@@ -9,6 +9,61 @@ struct TargetReference {
   let displayID: UInt32?
 }
 
+@MainActor
+protocol AccessibilityDeliveryOperating: AnyObject {
+  func copy(_ text: String) -> Bool
+  func isApplicationRunning(pid: pid_t) -> Bool
+  func isEditable(_ element: AXUIElement) -> Bool
+  func activate(pid: pid_t) -> Bool
+  func postCommand(keyCode: CGKeyCode) -> Bool
+  func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool
+}
+
+@MainActor
+final class SystemAccessibilityDeliveryOperations: AccessibilityDeliveryOperating {
+  func copy(_ text: String) -> Bool {
+    NSPasteboard.general.clearContents()
+    return NSPasteboard.general.setString(text, forType: .string)
+  }
+
+  func isApplicationRunning(pid: pid_t) -> Bool {
+    NSRunningApplication(processIdentifier: pid) != nil
+  }
+
+  func isEditable(_ element: AXUIElement) -> Bool {
+    var isSettable = DarwinBoolean(false)
+    return AXUIElementIsAttributeSettable(
+      element,
+      kAXSelectedTextAttribute as CFString,
+      &isSettable
+    ) == .success && isSettable.boolValue
+  }
+
+  func activate(pid: pid_t) -> Bool {
+    NSRunningApplication(processIdentifier: pid)?.activate(options: []) ?? false
+  }
+
+  func postCommand(keyCode: CGKeyCode) -> Bool {
+    let source = CGEventSource(stateID: .hidSystemState)
+    let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
+    let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+    guard let down, let up else { return false }
+    down.flags = .maskCommand
+    up.flags = .maskCommand
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+    return true
+  }
+
+  func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
+    AXUIElementSetAttributeValue(
+      element,
+      kAXSelectedTextAttribute as CFString,
+      text as CFTypeRef
+    ) == .success
+  }
+}
+
 enum CapturedTargetValidator {
   static func failure(isApplicationRunning: Bool, isEditable: Bool) -> DeliveryFailure? {
     guard isApplicationRunning else { return .targetAppNotRunning }
@@ -20,6 +75,11 @@ enum CapturedTargetValidator {
 @MainActor
 final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
+  private let operations: any AccessibilityDeliveryOperating
+
+  init(operations: any AccessibilityDeliveryOperating = SystemAccessibilityDeliveryOperations()) {
+    self.operations = operations
+  }
 
   var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -40,7 +100,7 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     let element = unsafeDowncast(value, to: AXUIElement.self)
     var pid: pid_t = 0
     guard AXUIElementGetPid(element, &pid) == .success, pid != 0,
-      isEditable(element)
+      operations.isEditable(element)
     else { return nil }
     return TargetReference(
       element: element,
@@ -58,24 +118,19 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     AppLog.delivery.info(
       "delivery_requested strategy=\(request.strategy.rawValue, privacy: .public) target_available=\(request.target != nil, privacy: .public)"
     )
-    guard copy(request.text) else { return .failed(.clipboardWriteFailed) }
+    guard operations.copy(request.text) else { return .failed(.clipboardWriteFailed) }
     guard request.strategy != .clipboard else { return .clipboard }
     guard let target = request.target else { return .clipboardFallback(.targetUnavailable) }
     if let failure = targetFailure(target) { return .clipboardFallback(failure) }
     lastTarget = target
-    guard activate(target) else { return .clipboardFallback(.activationFailed) }
+    guard operations.activate(pid: target.pid) else { return .clipboardFallback(.activationFailed) }
     switch request.strategy {
     case .paste:
-      return postKey(code: 9, flags: .maskCommand)
+      return operations.postCommand(keyCode: 9)
         ? .pasted(request.clipboardHandling)
         : .failed(.pasteEventUnavailable)
     case .accessibility:
-      let result = AXUIElementSetAttributeValue(
-        target.element,
-        kAXSelectedTextAttribute as CFString,
-        request.text as CFTypeRef
-      )
-      return result == .success
+      return operations.replaceSelectedText(in: target.element, with: request.text)
         ? .accessibilityInserted
         : .failed(.accessibilityInsertionFailed)
     case .clipboard:
@@ -85,18 +140,9 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
 
   func undo() {
     guard let lastTarget, targetFailure(lastTarget) == nil else { return }
-    _ = activate(lastTarget)
-    _ = postKey(code: 6, flags: .maskCommand)
+    _ = operations.activate(pid: lastTarget.pid)
+    _ = operations.postCommand(keyCode: 6)
     AppLog.delivery.info("delivery_undo_requested")
-  }
-
-  private func isEditable(_ element: AXUIElement) -> Bool {
-    var isSettable = DarwinBoolean(false)
-    return AXUIElementIsAttributeSettable(
-      element,
-      kAXSelectedTextAttribute as CFString,
-      &isSettable
-    ) == .success && isSettable.boolValue
   }
 
   private func displayID(for element: AXUIElement) -> UInt32? {
@@ -122,29 +168,8 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
 
   private func targetFailure(_ target: TargetReference) -> DeliveryFailure? {
     CapturedTargetValidator.failure(
-      isApplicationRunning: NSRunningApplication(processIdentifier: target.pid) != nil,
-      isEditable: isEditable(target.element)
+      isApplicationRunning: operations.isApplicationRunning(pid: target.pid),
+      isEditable: operations.isEditable(target.element)
     )
-  }
-
-  private func copy(_ text: String) -> Bool {
-    NSPasteboard.general.clearContents()
-    return NSPasteboard.general.setString(text, forType: .string)
-  }
-
-  private func activate(_ target: TargetReference) -> Bool {
-    NSRunningApplication(processIdentifier: target.pid)?.activate(options: []) ?? false
-  }
-
-  private func postKey(code: CGKeyCode, flags: CGEventFlags) -> Bool {
-    let source = CGEventSource(stateID: .hidSystemState)
-    let down = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true)
-    let up = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false)
-    guard let down, let up else { return false }
-    down.flags = flags
-    up.flags = flags
-    down.post(tap: .cghidEventTap)
-    up.post(tap: .cghidEventTap)
-    return true
   }
 }

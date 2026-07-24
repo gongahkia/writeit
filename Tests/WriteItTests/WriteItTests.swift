@@ -154,6 +154,34 @@ struct RecognitionContractTests {
   }
 }
 
+struct AccessibilityDeliveryTests {
+  @Test("paste delivery uses the captured target and Command-V") @MainActor
+  func pastesIntoCapturedTarget() {
+    let operations = TestAccessibilityDeliveryOperations()
+    let delivery = AccessibilityTextDelivery(operations: operations)
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+
+    let outcome = delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .paste,
+        clipboardHandling: .leaveRecognizedText
+      ))
+
+    #expect(outcome == .pasted(.leaveRecognizedText))
+    #expect(operations.copiedTexts == ["recognized text"])
+    #expect(operations.activatedPIDs == [getpid()])
+    #expect(operations.commandKeyCodes == [9])
+    #expect(operations.replacedTexts.isEmpty)
+  }
+}
+
 struct CaptureModelTests {
   @Test("shortcuts round-trip through storage")
   func shortcutsRoundTrip() throws {
@@ -909,6 +937,39 @@ private final class TestShortcutMonitor: GlobalShortcutMonitoring {
 
   func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) { starts += 1 }
   func stop() { stops += 1 }
+}
+
+@MainActor
+private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOperating {
+  var copySucceeds = true
+  var applicationRunning = true
+  var editable = true
+  var activationSucceeds = true
+  var commandSucceeds = true
+  var replacementSucceeds = true
+  private(set) var copiedTexts: [String] = []
+  private(set) var activatedPIDs: [pid_t] = []
+  private(set) var commandKeyCodes: [CGKeyCode] = []
+  private(set) var replacedTexts: [String] = []
+
+  func copy(_ text: String) -> Bool {
+    copiedTexts.append(text)
+    return copySucceeds
+  }
+  func isApplicationRunning(pid: pid_t) -> Bool { applicationRunning }
+  func isEditable(_ element: AXUIElement) -> Bool { editable }
+  func activate(pid: pid_t) -> Bool {
+    activatedPIDs.append(pid)
+    return activationSucceeds
+  }
+  func postCommand(keyCode: CGKeyCode) -> Bool {
+    commandKeyCodes.append(keyCode)
+    return commandSucceeds
+  }
+  func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
+    replacedTexts.append(text)
+    return replacementSucceeds
+  }
 }
 
 @MainActor
