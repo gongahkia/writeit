@@ -149,14 +149,25 @@ struct Shortcut: Codable, Hashable {
   )
 
   var displayName: String {
-    let flags = CGEventFlags(rawValue: modifiers)
+    ShortcutDisplayRenderer.displayName(for: self)
+  }
+}
+
+enum ShortcutDisplayRenderer {
+  typealias KeyNameResolver = (UInt16) -> String?
+
+  static func displayName(
+    for shortcut: Shortcut,
+    keyName: KeyNameResolver = KeyboardLayoutKeyRenderer.name(for:)
+  ) -> String {
+    let flags = CGEventFlags(rawValue: shortcut.modifiers)
     let prefix = [
       flags.contains(.maskControl) ? "⌃" : "",
       flags.contains(.maskAlternate) ? "⌥" : "",
       flags.contains(.maskShift) ? "⇧" : "",
       flags.contains(.maskCommand) ? "⌘" : "",
     ].joined()
-    return prefix + KeyName.name(for: keyCode)
+    return prefix + (keyName(shortcut.keyCode) ?? "Key \(shortcut.keyCode)")
   }
 }
 
@@ -198,17 +209,6 @@ enum CaptureKeyboardCommandResolver {
 
   private static func matchesShortcut(keyCode: UInt16, modifiers: UInt64, shortcut: Shortcut) -> Bool {
     keyCode == shortcut.keyCode && modifiers == shortcut.modifiers
-  }
-}
-
-enum KeyName {
-  static func name(for keyCode: UInt16) -> String {
-    let names: [UInt16: String] = [
-      0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
-      11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 31: "O", 32: "U",
-      34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N", 46: "M", 49: "Space", 36: "↩",
-    ]
-    return names[keyCode] ?? "Key \(keyCode)"
   }
 }
 

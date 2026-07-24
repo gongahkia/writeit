@@ -150,7 +150,9 @@ struct CaptureModelTests {
       keyCode: 13, modifiers: CGEventFlags.maskCommand.union(.maskShift).rawValue)
     let decoded = try JSONDecoder().decode(Shortcut.self, from: JSONEncoder().encode(shortcut))
     #expect(decoded == shortcut)
-    #expect(decoded.displayName == "⇧⌘W")
+    #expect(
+      ShortcutDisplayRenderer.displayName(for: decoded, keyName: { _ in "Z" }) == "⇧⌘Z")
+    #expect(ShortcutDisplayRenderer.displayName(for: decoded, keyName: { _ in nil }) == "⇧⌘Key 13")
   }
 
   @Test("keyboard input resolves each capture command once")
