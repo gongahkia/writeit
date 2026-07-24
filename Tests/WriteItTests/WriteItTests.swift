@@ -165,6 +165,13 @@ struct CaptureModelTests {
         for: Shortcut(keyCode: 51, modifiers: CGEventFlags.maskCommand.rawValue)) != nil)
   }
 
+  @Test("event tap disablement identifies recoverable tap failures")
+  func classifiesEventTapDisablement() {
+    #expect(EventTapDisablement(type: .tapDisabledByTimeout) == .timeout)
+    #expect(EventTapDisablement(type: .tapDisabledByUserInput) == .userInput)
+    #expect(EventTapDisablement(type: .keyDown) == nil)
+  }
+
   @Test("keyboard input resolves each capture command once")
   func resolvesKeyboardCommands() {
     let shortcut = Shortcut(

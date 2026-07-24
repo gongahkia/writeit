@@ -6,6 +6,26 @@ enum ShortcutEvent: Equatable {
   case up
 }
 
+enum EventTapDisablement: Equatable {
+  case timeout
+  case userInput
+
+  init?(type: CGEventType) {
+    switch type {
+    case .tapDisabledByTimeout: self = .timeout
+    case .tapDisabledByUserInput: self = .userInput
+    default: return nil
+    }
+  }
+
+  var logValue: String {
+    switch self {
+    case .timeout: "timeout"
+    case .userInput: "user_input"
+    }
+  }
+}
+
 final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
@@ -49,6 +69,10 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   }
 
   private func handle(type: CGEventType, event: CGEvent) {
+    if let disablement = EventTapDisablement(type: type) {
+      reenableEventTap(after: disablement)
+      return
+    }
     guard type == .keyDown || type == .keyUp else { return }
     let command = CaptureKeyboardCommandResolver.resolve(
       keyCode: UInt16(event.getIntegerValueField(.keyboardEventKeycode)),
@@ -58,5 +82,14 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
       event: type == .keyDown ? .down : .up
     )
     if let command { handler?(command) }
+  }
+
+  private func reenableEventTap(after disablement: EventTapDisablement) {
+    guard let eventTap else {
+      AppLog.shortcut.error("event_tap_reenable_failed reason=\(disablement.logValue, privacy: .public)")
+      return
+    }
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+    AppLog.shortcut.info("event_tap_reenabled reason=\(disablement.logValue, privacy: .public)")
   }
 }
