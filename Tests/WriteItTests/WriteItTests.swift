@@ -330,6 +330,48 @@ struct AccessibilityDeliveryTests {
     #expect(timedOutWaiter.requestedPIDs == [getpid()])
     #expect(timedOutOperations.commandKeyCodes.isEmpty)
   }
+
+  @Test("direct delivery failures retain a typed clipboard fallback") @MainActor
+  func fallsBackToCopiedTextAfterDirectDeliveryFailure() async {
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+    let pasteOperations = TestAccessibilityDeliveryOperations()
+    pasteOperations.commandSucceeds = false
+    let pasteDelivery = AccessibilityTextDelivery(
+      operations: pasteOperations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
+    let accessibilityOperations = TestAccessibilityDeliveryOperations()
+    accessibilityOperations.replacementSucceeds = false
+    let accessibilityDelivery = AccessibilityTextDelivery(
+      operations: accessibilityOperations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
+
+    let pasteOutcome = await pasteDelivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .paste,
+        clipboardHandling: .leaveRecognizedText
+      ))
+    let accessibilityOutcome = await accessibilityDelivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .accessibility,
+        clipboardHandling: .leaveRecognizedText
+      ))
+
+    #expect(pasteOutcome == .clipboardFallback(.pasteEventUnavailable))
+    #expect(accessibilityOutcome == .clipboardFallback(.accessibilityInsertionFailed))
+    #expect(pasteOperations.copiedTexts == ["recognized text"])
+    #expect(accessibilityOperations.copiedTexts == ["recognized text"])
+  }
 }
 
 struct CaptureModelTests {

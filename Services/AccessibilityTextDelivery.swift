@@ -216,18 +216,22 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
       isActive: operations.isActive(pid:)
     ) else { return .clipboardFallback(.activationTimedOut) }
     guard Task.isCancelled == false else { return .clipboardFallback(.activationTimedOut) }
-    lastTarget = target
     switch request.strategy {
     case .paste:
-      guard operations.postCommand(keyCode: 9) else { return .failed(.pasteEventUnavailable) }
+      guard operations.postCommand(keyCode: 9) else {
+        return .clipboardFallback(.pasteEventUnavailable)
+      }
+      lastTarget = target
       if let clipboardSnapshot {
         scheduleClipboardRestore(clipboardSnapshot, expectedChangeCount: recognizedClipboardChangeCount)
       }
       return .pasted(request.clipboardHandling)
     case .accessibility:
-      return operations.replaceSelectedText(in: target.element, with: request.text)
-        ? .accessibilityInserted
-        : .failed(.accessibilityInsertionFailed)
+      guard operations.replaceSelectedText(in: target.element, with: request.text) else {
+        return .clipboardFallback(.accessibilityInsertionFailed)
+      }
+      lastTarget = target
+      return .accessibilityInserted
     case .clipboard:
       return .clipboard
     }
