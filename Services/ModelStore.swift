@@ -18,7 +18,7 @@ enum ModelStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class ModelStore: ObservableObject {
-  @Published private(set) var enhancedModelURL: URL?
+  @Published private(set) var installationStates: [String: ModelInstallationState]
   @Published private(set) var error: AppErrorPresentation?
 
   private let modelsDirectory: URL
@@ -30,40 +30,29 @@ final class ModelStore: ObservableObject {
       .appendingPathComponent("WriteIt/Models", isDirectory: true)
     self.modelsDirectory = base
     self.error = nil
-    self.enhancedModelURL = nil
+    self.installationStates = [:]
     do {
       try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     } catch {
       record(ModelStoreError.directoryUnavailable)
     }
-    let candidate = base.appendingPathComponent("TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
-    enhancedModelURL = FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
   }
 
-  func installEnhancedModel() {
-    let panel = NSOpenPanel()
-    panel.title = "Install converted handwriting model"
-    panel.message = "Choose a compiled Core ML .mlmodelc folder."
-    panel.canChooseFiles = true
-    panel.canChooseDirectories = true
-    panel.allowsMultipleSelection = false
-    guard panel.runModal() == .OK, let source = panel.url else { return }
-    guard source.pathExtension == "mlmodelc" else {
-      error = AppErrorPresentation(
-        kind: .configuration,
-        title: "Unsupported model",
-        message: "Choose a compiled .mlmodelc model."
-      )
-      return
+  func installationState(for manifest: ModelManifest) -> ModelInstallationState {
+    if let installed = ManifestModelInstaller.installedAssetURL(for: manifest, in: modelsDirectory) {
+      return .installed(installed)
     }
-    let target = modelsDirectory.appendingPathComponent(
-      "TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
+    return installationStates[installationKey(for: manifest)] ?? .notInstalled
+  }
+
+  func install(manifest: ModelManifest, stagedAssetURL: URL) {
     do {
-      if FileManager.default.fileExists(atPath: target.path) {
-        try FileManager.default.removeItem(at: target)
-      }
-      try FileManager.default.copyItem(at: source, to: target)
-      enhancedModelURL = target
+      let installed = try ManifestModelInstaller.install(
+        manifest: manifest,
+        stagedAssetURL: stagedAssetURL,
+        in: modelsDirectory
+      )
+      installationStates[installationKey(for: manifest)] = .installed(installed)
       error = nil
       AppLog.models.info("local_model_installed")
     } catch {
@@ -71,11 +60,10 @@ final class ModelStore: ObservableObject {
     }
   }
 
-  func removeEnhancedModel() {
-    guard let enhancedModelURL else { return }
+  func remove(manifest: ModelManifest) {
     do {
-      try FileManager.default.removeItem(at: enhancedModelURL)
-      self.enhancedModelURL = nil
+      try ManifestModelInstaller.remove(manifest: manifest, in: modelsDirectory)
+      installationStates[installationKey(for: manifest)] = .notInstalled
       error = nil
       AppLog.models.info("local_model_removed")
     } catch {
@@ -83,9 +71,11 @@ final class ModelStore: ObservableObject {
     }
   }
 
-  func revealEnhancedModel() {
-    guard let enhancedModelURL else { return }
-    NSWorkspace.shared.activateFileViewerSelecting([enhancedModelURL])
+  func reveal(manifest: ModelManifest) {
+    guard let installed = ManifestModelInstaller.installedAssetURL(for: manifest, in: modelsDirectory) else {
+      return
+    }
+    NSWorkspace.shared.activateFileViewerSelecting([installed])
   }
 
   func clearError() { error = nil }
@@ -94,5 +84,9 @@ final class ModelStore: ObservableObject {
     AppLog.models.error(
       "local_model_storage_failed type=\(AppLog.errorType(error), privacy: .public)")
     self.error = .persistence(error)
+  }
+
+  private func installationKey(for manifest: ModelManifest) -> String {
+    "\(manifest.id)@\(manifest.version)"
   }
 }

@@ -180,6 +180,111 @@ struct RecognitionContractTests {
   }
 }
 
+struct ManifestModelInstallerTests {
+  @Test("model store exposes manifest-scoped installation state") @MainActor
+  func tracksManifestInstallationState() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
+      sha256: String(repeating: "0", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let store = ModelStore(modelsDirectory: directory.appendingPathComponent("Models"))
+
+    store.install(manifest: manifest, stagedAssetURL: source)
+
+    guard case .installed = store.installationState(for: manifest) else {
+      Issue.record("Expected installed manifest state")
+      return
+    }
+    store.remove(manifest: manifest)
+    #expect(store.installationState(for: manifest) == .notInstalled)
+  }
+
+  @Test("installs and resolves a model only through its manifest identity")
+  func installsManifestModel() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try Data([1]).write(to: source.appendingPathComponent("model.bin"))
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
+      sha256: String(repeating: "0", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+
+    let installed = try ManifestModelInstaller.install(
+      manifest: manifest,
+      stagedAssetURL: source,
+      in: directory.appendingPathComponent("Models", isDirectory: true)
+    )
+
+    #expect(FileManager.default.fileExists(atPath: installed.path))
+    #expect(ManifestModelInstaller.installedAssetURL(
+      for: manifest,
+      in: directory.appendingPathComponent("Models", isDirectory: true)
+    ) == installed)
+    #expect(ManifestModelInstaller.installedAssetURL(
+      for: ModelManifest(
+        id: "fixture", version: "2.0.0", downloadURL: manifest.downloadURL,
+        sha256: manifest.sha256, license: manifest.license,
+        supportedLanguages: manifest.supportedLanguages,
+        requiresAppleSilicon: manifest.requiresAppleSilicon
+      ),
+      in: directory.appendingPathComponent("Models", isDirectory: true)
+    ) == nil)
+  }
+
+  @Test("rejects unsafe manifests and preserves an existing model version")
+  func rejectsUnsafeOrDuplicateManifestModel() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    let validManifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
+      sha256: String(repeating: "0", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let unsafeManifest = ModelManifest(
+      id: "../outside",
+      version: "1.0.0",
+      downloadURL: validManifest.downloadURL,
+      sha256: validManifest.sha256,
+      license: validManifest.license,
+      supportedLanguages: validManifest.supportedLanguages,
+      requiresAppleSilicon: validManifest.requiresAppleSilicon
+    )
+    let modelsDirectory = directory.appendingPathComponent("Models", isDirectory: true)
+    _ = try ManifestModelInstaller.install(
+      manifest: validManifest, stagedAssetURL: source, in: modelsDirectory)
+
+    #expect(throws: ManifestModelInstallerError.alreadyInstalled) {
+      try ManifestModelInstaller.install(manifest: validManifest, stagedAssetURL: source, in: modelsDirectory)
+    }
+    #expect(throws: ManifestModelInstallerError.invalidManifest) {
+      try ManifestModelInstaller.install(manifest: unsafeManifest, stagedAssetURL: source, in: modelsDirectory)
+    }
+    #expect(ManifestModelInstaller.installedAssetURL(for: validManifest, in: modelsDirectory) != nil)
+  }
+}
+
 struct AccessibilityDeliveryTests {
   @Test("native text control harness replaces the selected range") @MainActor
   func pastesIntoNativeTextControl() {
