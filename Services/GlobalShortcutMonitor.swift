@@ -26,6 +26,36 @@ enum EventTapDisablement: Equatable {
   }
 }
 
+enum EventTapLifecycleEvent: Equatable {
+  case creationFailed
+  case runLoopSourceCreationFailed
+  case started
+  case stopped
+  case disabled(EventTapDisablement)
+  case reenabled(EventTapDisablement)
+  case reenableFailed(EventTapDisablement)
+
+  var message: String {
+    switch self {
+    case .creationFailed: "event_tap_lifecycle event=creation_failed"
+    case .runLoopSourceCreationFailed: "event_tap_lifecycle event=run_loop_source_creation_failed"
+    case .started: "event_tap_lifecycle event=started"
+    case .stopped: "event_tap_lifecycle event=stopped"
+    case .disabled(let reason): "event_tap_lifecycle event=disabled reason=\(reason.logValue)"
+    case .reenabled(let reason): "event_tap_lifecycle event=reenabled reason=\(reason.logValue)"
+    case .reenableFailed(let reason):
+      "event_tap_lifecycle event=reenable_failed reason=\(reason.logValue)"
+    }
+  }
+
+  var isError: Bool {
+    switch self {
+    case .creationFailed, .runLoopSourceCreationFailed, .reenableFailed: true
+    case .started, .stopped, .disabled, .reenabled: false
+    }
+  }
+}
+
 final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
@@ -52,20 +82,26 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
       userInfo: context
     )
     guard let eventTap else {
-      AppLog.shortcut.error("event_tap_creation_failed")
+      log(.creationFailed)
       return
     }
-    runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-    if let runLoopSource { CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      self.eventTap = nil
+      log(.runLoopSourceCreationFailed)
+      return
+    }
+    self.runLoopSource = runLoopSource
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
-    AppLog.shortcut.info("event_tap_started")
+    log(.started)
   }
 
   func stop() {
+    let wasActive = eventTap != nil || runLoopSource != nil
     if let runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes) }
     eventTap = nil
     runLoopSource = nil
-    AppLog.shortcut.info("event_tap_stopped")
+    if wasActive { log(.stopped) }
   }
 
   private func handle(type: CGEventType, event: CGEvent) {
@@ -85,11 +121,20 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   }
 
   private func reenableEventTap(after disablement: EventTapDisablement) {
+    log(.disabled(disablement))
     guard let eventTap else {
-      AppLog.shortcut.error("event_tap_reenable_failed reason=\(disablement.logValue, privacy: .public)")
+      log(.reenableFailed(disablement))
       return
     }
     CGEvent.tapEnable(tap: eventTap, enable: true)
-    AppLog.shortcut.info("event_tap_reenabled reason=\(disablement.logValue, privacy: .public)")
+    log(CGEvent.tapIsEnabled(tap: eventTap) ? .reenabled(disablement) : .reenableFailed(disablement))
+  }
+
+  private func log(_ event: EventTapLifecycleEvent) {
+    if event.isError {
+      AppLog.shortcut.error("\(event.message, privacy: .public)")
+    } else {
+      AppLog.shortcut.info("\(event.message, privacy: .public)")
+    }
   }
 }

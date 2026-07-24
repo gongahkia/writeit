@@ -172,6 +172,16 @@ struct CaptureModelTests {
     #expect(EventTapDisablement(type: .keyDown) == nil)
   }
 
+  @Test("event-tap lifecycle diagnostics use redacted stable fields")
+  func formatsEventTapLifecycleDiagnostics() {
+    #expect(EventTapLifecycleEvent.started.message == "event_tap_lifecycle event=started")
+    #expect(
+      EventTapLifecycleEvent.disabled(.timeout).message
+        == "event_tap_lifecycle event=disabled reason=timeout")
+    #expect(EventTapLifecycleEvent.reenableFailed(.userInput).isError)
+    #expect(EventTapLifecycleEvent.reenabled(.userInput).isError == false)
+  }
+
   @Test("keyboard input resolves each capture command once")
   func resolvesKeyboardCommands() {
     let shortcut = Shortcut(
