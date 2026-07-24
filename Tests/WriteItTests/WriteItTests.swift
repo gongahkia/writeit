@@ -368,6 +368,89 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(dependencies.delivery.deliveryRequests == 0)
     #expect(dependencies.history.entries.isEmpty)
   }
+
+  @Test("new captures discard stale recognition results from prior owned work") @MainActor
+  func newCaptureDiscardsStaleRecognition() async {
+    let dependencies = TestDependencies(trusted: true, recognition: StaleThenFreshRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    await Task.yield()
+
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 30, y: 40, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 180, y: 80, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    try? await Task.sleep(for: .milliseconds(100))
+
+    #expect(dependencies.delivery.deliveryRequests == 1)
+    #expect(dependencies.history.entries.map(\.text) == ["fresh"])
+  }
+
+  @Test("cancelling reviewed text prevents its queued delivery") @MainActor
+  func cancellingReviewPreventsQueuedDelivery() async {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.resultMode = .review
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+    #expect(capture.session.phase == .reviewing)
+
+    capture.insertReviewedText()
+    capture.cancelCapture()
+    for _ in 0..<4 { await Task.yield() }
+
+    #expect(capture.session.phase == .idle)
+    #expect(dependencies.delivery.deliveryRequests == 0)
+    #expect(dependencies.history.entries.isEmpty)
+  }
+
+  @Test("termination cancels owned recognition before delivery") @MainActor
+  func terminationCancelsRecognition() async {
+    let dependencies = TestDependencies(trusted: true, recognition: DelayedRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    await Task.yield()
+    capture.stop()
+    try? await Task.sleep(for: .milliseconds(30))
+    #expect(capture.session.phase == .idle)
+    #expect(dependencies.delivery.deliveryRequests == 0)
+    #expect(dependencies.history.entries.isEmpty)
+  }
+
+  @Test("retry starts a fresh owned recognition after failure") @MainActor
+  func retryStartsFreshRecognition() async {
+    let dependencies = TestDependencies(trusted: true, recognition: FailThenSucceedRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+    guard case .failed = capture.session.phase else {
+      Issue.record("first recognition should fail")
+      return
+    }
+
+    capture.retryRecognition()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveryRequests == 1)
+    #expect(dependencies.history.entries.map(\.text) == ["retried"])
+  }
 }
 
 private func makeDefaults() -> UserDefaults {
@@ -388,11 +471,13 @@ private final class TestDependencies {
   let loginItem = TestLoginItem()
   let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
     UUID().uuidString, isDirectory: true)
+  let preferences: Preferences
   let history: HistoryStore
 
   init(trusted: Bool, recognition: any TextRecognizing = TestRecognition()) {
     delivery = TestDelivery(trusted: trusted)
     self.recognition = recognition
+    preferences = Preferences(defaults: defaults)
     history = HistoryStore(
       fileURL: directory.appendingPathComponent("history.sealed"),
       key: SymmetricKey(size: .bits256)
@@ -401,7 +486,7 @@ private final class TestDependencies {
 
   func makeCaptureCoordinator() -> CaptureCoordinator {
     CaptureCoordinator(
-      preferences: Preferences(defaults: defaults),
+      preferences: preferences,
       history: history,
       session: CaptureSession(),
       shortcutMonitor: shortcutMonitor,
@@ -466,6 +551,61 @@ private actor DelayedRecognition: TextRecognizing {
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     try await Task.sleep(for: .seconds(1))
     return RecognitionResult(text: "late", confidence: 1, backendID: "delayed-test")
+  }
+}
+
+private actor SuccessfulRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "successful-test",
+    displayName: "Successful Test",
+    supportedLanguages: [.english],
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    RecognitionResult(text: "recognized", confidence: 1, backendID: "successful-test")
+  }
+}
+
+private actor StaleThenFreshRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "sequenced-test",
+    displayName: "Sequenced Test",
+    supportedLanguages: [.english],
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+  private var calls = 0
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    calls += 1
+    if calls == 1 {
+      try? await Task.sleep(for: .milliseconds(20))
+      return RecognitionResult(text: "stale", confidence: 1, backendID: "sequenced-test")
+    }
+    try? await Task.sleep(for: .milliseconds(60))
+    return RecognitionResult(text: "fresh", confidence: 1, backendID: "sequenced-test")
+  }
+}
+
+private actor FailThenSucceedRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "retry-test",
+    displayName: "Retry Test",
+    supportedLanguages: [.english],
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+  private var calls = 0
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    calls += 1
+    if calls == 1 { throw RecognitionError.noText }
+    return RecognitionResult(text: "retried", confidence: 1, backendID: "retry-test")
   }
 }
 

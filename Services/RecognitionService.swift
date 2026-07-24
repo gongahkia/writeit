@@ -58,8 +58,11 @@ actor RecognitionService: TextRecognizing {
     request.minimumTextHeight = 0.012
     let handler = VNImageRequestHandler(cgImage: image)
     do {
+      try Task.checkCancellation()
       try handler.perform([request])
+      try Task.checkCancellation()
     } catch {
+      if Task.isCancelled { throw CancellationError() }
       AppLog.recognition.error(
         "vision_request_failed type=\(AppLog.errorType(error), privacy: .public)"
       )

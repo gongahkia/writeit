@@ -18,8 +18,13 @@ final class CaptureCoordinator: ObservableObject {
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
   private var penUpTask: Task<Void, Never>?
+  private var penUpTaskID: UUID?
   private var captureTask: Task<Void, Never>?
+  private var captureTaskID: UUID?
+  private var deliveryTask: Task<Void, Never>?
+  private var deliveryTaskID: UUID?
   private var dismissalTask: Task<Void, Never>?
+  private var dismissalTaskID: UUID?
   private var accessibilityTimer: Timer?
 
   init(
@@ -57,9 +62,7 @@ final class CaptureCoordinator: ObservableObject {
   }
 
   func stop() {
-    penUpTask?.cancel()
-    captureTask?.cancel()
-    dismissalTask?.cancel()
+    cancelOwnedWork()
     accessibilityTimer?.invalidate()
     accessibilityTimer = nil
     shortcutMonitor.stop()
@@ -96,6 +99,7 @@ final class CaptureCoordinator: ObservableObject {
   }
 
   func beginCapture() {
+    cancelOwnedWork()
     clearError()
     refreshAccessibility()
     if accessibilityGranted == false { delivery.requestTrust() }
@@ -110,9 +114,7 @@ final class CaptureCoordinator: ObservableObject {
   }
 
   func cancelCapture() {
-    penUpTask?.cancel()
-    captureTask?.cancel()
-    dismissalTask?.cancel()
+    cancelOwnedWork()
     session.cancel()
     overlay.dismiss()
     AppLog.capture.info("capture_cancelled")
@@ -139,8 +141,9 @@ final class CaptureCoordinator: ObservableObject {
       return
     }
     clearError()
-    penUpTask?.cancel()
-    captureTask?.cancel()
+    cancelPenUpTask()
+    cancelCaptureTask()
+    cancelDeliveryTask()
     session.phase = .recognizing
     let strokes = session.strokes
     let target = session.target
@@ -157,12 +160,15 @@ final class CaptureCoordinator: ObservableObject {
     AppLog.recognition.info(
       "recognition_started language=\(recognitionRequest.language.rawValue, privacy: .public)"
     )
+    let taskID = UUID()
+    captureTaskID = taskID
     captureTask = Task { [weak self, recognition, enhancer] in
-      guard let self else { return }
-      defer { self.captureTask = nil }
+      defer { self?.completeCaptureTask(id: taskID) }
+      guard let self, self.ownsCaptureTask(taskID) else { return }
       do {
         let candidate = try await recognition.recognize(recognitionRequest)
         try Task.checkCancellation()
+        guard self.ownsCaptureTask(taskID) else { return }
         guard !candidate.text.isEmpty else { throw RecognitionError.noText }
         AppLog.recognition.info(
           "recognition_completed backend=\(candidate.backendID, privacy: .public)"
@@ -184,6 +190,7 @@ final class CaptureCoordinator: ObservableObject {
         } catch is CancellationError {
           return
         } catch {
+          guard self.ownsCaptureTask(taskID) else { return }
           result = candidate.text
           if error is KeychainError {
             let presentation = AppErrorPresentation.security(error)
@@ -192,7 +199,7 @@ final class CaptureCoordinator: ObservableObject {
           }
         }
         try Task.checkCancellation()
-        guard self.session.phase == .recognizing else { return }
+        guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
         self.session.recognizedText = result
         if self.preferences.resultMode == .review {
           self.session.phase = .reviewing
@@ -210,7 +217,7 @@ final class CaptureCoordinator: ObservableObject {
       } catch is CancellationError {
         return
       } catch {
-        guard self.session.phase == .recognizing else { return }
+        guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
         let presentation = AppErrorPresentation.recognition(error)
         AppLog.recognition.error(
           "recognition_failed type=\(AppLog.errorType(error), privacy: .public)"
@@ -284,12 +291,19 @@ final class CaptureCoordinator: ObservableObject {
 
   private func schedulePenUpSubmit() {
     guard preferences.captureMode == .penUpDelay, session.phase == .drawing else { return }
-    penUpTask?.cancel()
+    cancelPenUpTask()
     let count = session.strokes.count
+    let taskID = UUID()
+    penUpTaskID = taskID
     penUpTask = Task { [weak self] in
+      defer { self?.completePenUpTask(id: taskID) }
       guard let self else { return }
-      try? await Task.sleep(for: .seconds(self.preferences.penUpDelay))
-      guard Task.isCancelled == false, self.session.phase == .drawing,
+      do {
+        try await Task.sleep(for: .seconds(self.preferences.penUpDelay))
+      } catch {
+        return
+      }
+      guard self.ownsPenUpTask(taskID), self.session.phase == .drawing,
         self.session.strokes.count == count
       else { return }
       self.submitCapture()
@@ -303,28 +317,113 @@ final class CaptureCoordinator: ObservableObject {
     strokes: [InkStroke],
     notice: String?
   ) {
-    let strategy: OutputStrategy =
-      preferences.resultMode == .clipboard ? .clipboard : preferences.outputStrategy
-    let outcome = delivery.deliver(
-      DeliveryRequest(
-        text: text,
-        target: target,
-        strategy: strategy,
-        clipboardHandling: .leaveRecognizedText
-      ))
-    history.append(text: text, strokes: strokes, mode: preferences.historyMode, source: source)
-    let message = [outcome.message, notice].compactMap { $0 }.joined(separator: " ")
-    session.phase = .delivered(message)
-    statusMessage = message
-    if preferences.resultMode != .review {
-      dismissalTask?.cancel()
-      dismissalTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(1.6))
-        guard Task.isCancelled == false, let self, self.session.phase.isActive else { return }
-        self.session.cancel()
-        self.overlay.dismiss()
-        self.dismissalTask = nil
-      }
+    cancelDeliveryTask()
+    let taskID = UUID()
+    deliveryTaskID = taskID
+    deliveryTask = Task { [weak self, delivery] in
+      defer { self?.completeDeliveryTask(id: taskID) }
+      guard let self, self.ownsDeliveryTask(taskID), self.session.phase.isActive else { return }
+      let strategy: OutputStrategy =
+        self.preferences.resultMode == .clipboard ? .clipboard : self.preferences.outputStrategy
+      let outcome = delivery.deliver(
+        DeliveryRequest(
+          text: text,
+          target: target,
+          strategy: strategy,
+          clipboardHandling: .leaveRecognizedText
+        ))
+      guard self.ownsDeliveryTask(taskID), self.session.phase.isActive else { return }
+      self.history.append(text: text, strokes: strokes, mode: self.preferences.historyMode, source: source)
+      let message = [outcome.message, notice].compactMap { $0 }.joined(separator: " ")
+      self.session.phase = .delivered(message)
+      self.statusMessage = message
+      if self.preferences.resultMode != .review { self.scheduleDismissal() }
     }
+  }
+
+  private func cancelOwnedWork() {
+    cancelPenUpTask()
+    cancelCaptureTask()
+    cancelDeliveryTask()
+    cancelDismissalTask()
+  }
+
+  private func cancelPenUpTask() {
+    penUpTask?.cancel()
+    penUpTask = nil
+    penUpTaskID = nil
+  }
+
+  private func cancelCaptureTask() {
+    captureTask?.cancel()
+    captureTask = nil
+    captureTaskID = nil
+  }
+
+  private func cancelDeliveryTask() {
+    deliveryTask?.cancel()
+    deliveryTask = nil
+    deliveryTaskID = nil
+  }
+
+  private func cancelDismissalTask() {
+    dismissalTask?.cancel()
+    dismissalTask = nil
+    dismissalTaskID = nil
+  }
+
+  private func ownsPenUpTask(_ taskID: UUID) -> Bool {
+    penUpTaskID == taskID && Task.isCancelled == false
+  }
+
+  private func ownsCaptureTask(_ taskID: UUID) -> Bool {
+    captureTaskID == taskID && Task.isCancelled == false
+  }
+
+  private func ownsDeliveryTask(_ taskID: UUID) -> Bool {
+    deliveryTaskID == taskID && Task.isCancelled == false
+  }
+
+  private func completePenUpTask(id: UUID) {
+    guard penUpTaskID == id else { return }
+    penUpTask = nil
+    penUpTaskID = nil
+  }
+
+  private func completeCaptureTask(id: UUID) {
+    guard captureTaskID == id else { return }
+    captureTask = nil
+    captureTaskID = nil
+  }
+
+  private func completeDeliveryTask(id: UUID) {
+    guard deliveryTaskID == id else { return }
+    deliveryTask = nil
+    deliveryTaskID = nil
+  }
+
+  private func scheduleDismissal() {
+    cancelDismissalTask()
+    let taskID = UUID()
+    dismissalTaskID = taskID
+    dismissalTask = Task { [weak self] in
+      defer { self?.completeDismissalTask(id: taskID) }
+      do {
+        try await Task.sleep(for: .seconds(1.6))
+      } catch {
+        return
+      }
+      guard let self, self.dismissalTaskID == taskID, Task.isCancelled == false,
+        self.session.phase.isActive
+      else { return }
+      self.session.cancel()
+      self.overlay.dismiss()
+    }
+  }
+
+  private func completeDismissalTask(id: UUID) {
+    guard dismissalTaskID == id else { return }
+    dismissalTask = nil
+    dismissalTaskID = nil
   }
 }
