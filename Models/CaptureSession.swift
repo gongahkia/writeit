@@ -99,13 +99,29 @@ final class CaptureSession: ObservableObject {
     onFirstStrokeAccepted?(duration)
   }
 
-  private func renderedImage(style: InkStyle) -> NSImage? {
+  private func renderedImage(style: InkStyle) -> NSBitmapImageRep? {
     guard !strokes.isEmpty, canvasSize.width > 0, canvasSize.height > 0 else { return nil }
-    let output = CGSize(width: 1536, height: max(512, 1536 * canvasSize.height / canvasSize.width))
+    let output = InkRasterLayout.outputSize(for: canvasSize)
+    let pixels = InkRasterLayout.pixelSize(for: canvasSize)
     let xScale = output.width / canvasSize.width
     let yScale = output.height / canvasSize.height
-    let image = NSImage(size: output)
-    image.lockFocus()
+    guard let image = NSBitmapImageRep(
+      bitmapDataPlanes: nil,
+      pixelsWide: pixels.width,
+      pixelsHigh: pixels.height,
+      bitsPerSample: 8,
+      samplesPerPixel: 4,
+      hasAlpha: true,
+      isPlanar: false,
+      colorSpaceName: .deviceRGB,
+      bytesPerRow: 0,
+      bitsPerPixel: 0
+    ) else { return nil }
+    image.size = output
+    guard let context = NSGraphicsContext(bitmapImageRep: image) else { return nil }
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    defer { NSGraphicsContext.restoreGraphicsState() }
     NSColor.white.setFill()
     NSBezierPath(rect: NSRect(origin: .zero, size: output)).fill()
     NSColor.black.setStroke()
@@ -125,7 +141,6 @@ final class CaptureSession: ObservableObject {
         path.stroke()
       }
     }
-    image.unlockFocus()
     return image
   }
 }

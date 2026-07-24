@@ -288,6 +288,26 @@ enum CanvasCoordinateTransformer {
   }
 }
 
+enum InkRasterLayout {
+  static let logicalWidth: CGFloat = 1536
+  static let backingScale: CGFloat = 2
+
+  static func outputSize(for canvasSize: CGSize) -> CGSize {
+    CGSize(
+      width: logicalWidth,
+      height: max(512, logicalWidth * canvasSize.height / canvasSize.width)
+    )
+  }
+
+  static func pixelSize(for canvasSize: CGSize) -> (width: Int, height: Int) {
+    let output = outputSize(for: canvasSize)
+    return (
+      Int((output.width * backingScale).rounded(.up)),
+      Int((output.height * backingScale).rounded(.up))
+    )
+  }
+}
+
 struct InkStyle: Equatable, Sendable {
   static let `default` = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0.25)
 

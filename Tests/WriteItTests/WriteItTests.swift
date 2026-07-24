@@ -211,9 +211,39 @@ struct CaptureModelTests {
     #expect(points.map(\.x) == [60, 540])
     #expect(points.map(\.y) == [48, 192])
     let rendered = CanvasCoordinateTransformer.renderPoint(
-      points[0], canvasSize: session.canvasSize, outputSize: CGSize(width: 1536, height: 614.4))
+      points[0], canvasSize: session.canvasSize, outputSize: InkRasterLayout.outputSize(for: session.canvasSize))
     #expect(rendered.x == 153.6)
     #expect(rendered.y == 491.52)
+  }
+
+  @Test("high-DPI raster export preserves resolution and coordinates") @MainActor
+  func highDPIRenderingAcrossCanvasScales() throws {
+    let cases: [(CGSize, (Int, Int))] = [
+      (CGSize(width: 300, height: 120), (3072, 1229)),
+      (CGSize(width: 800, height: 100), (3072, 1024)),
+      (CGSize(width: 200, height: 400), (3072, 6144)),
+    ]
+    for (canvasSize, expectedPixels) in cases {
+      let session = CaptureSession()
+      #expect(session.begin(target: nil))
+      #expect(session.transition(to: .drawing))
+      session.canvasSize = canvasSize
+      session.beginStroke(
+        at: InkPoint(x: canvasSize.width * 0.25, y: canvasSize.height * 0.75, pressure: 1, timestamp: 0))
+      session.append(
+        point: InkPoint(x: canvasSize.width * 0.75, y: canvasSize.height * 0.25, pressure: 1, timestamp: 0.2),
+        style: InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0))
+      let data = try #require(session.renderedImageData())
+      let bitmap = try #require(NSBitmapImageRep(data: data))
+      #expect(bitmap.pixelsWide == expectedPixels.0)
+      #expect(bitmap.pixelsHigh == expectedPixels.1)
+      #expect(InkRasterLayout.pixelSize(for: canvasSize) == expectedPixels)
+      let output = InkRasterLayout.outputSize(for: canvasSize)
+      let point = CanvasCoordinateTransformer.renderPoint(
+        session.strokes[0].points[0], canvasSize: canvasSize, outputSize: output)
+      #expect(point.x == 384)
+      #expect(abs(point.y - output.height * 0.25) < 0.001)
+    }
   }
 
   @Test("records first accepted stroke latency once per capture") @MainActor
