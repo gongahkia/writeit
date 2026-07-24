@@ -483,6 +483,15 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("OCR accuracy evaluators use Unicode characters and normalized words")
+  func evaluatesOCRErrorRates() {
+    #expect(OCRAccuracyEvaluator.characterErrorRate(expected: "café", actual: "cafe") == 0.25)
+    #expect(
+      OCRAccuracyEvaluator.wordErrorRate(expected: "the  cat sat", actual: "the dog sat")
+        == 1.0 / 3.0)
+    #expect(OCRAccuracyEvaluator.characterErrorRate(expected: "", actual: "text") == 1)
+  }
+
   @Test("Latin corpus harness runs fixtures in deterministic order")
   func runsLatinCorpusFixtures() async throws {
     let fixtures = [
