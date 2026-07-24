@@ -9,6 +9,14 @@ struct TargetReference {
   let displayID: UInt32?
 }
 
+enum CapturedTargetValidator {
+  static func failure(isApplicationRunning: Bool, isEditable: Bool) -> DeliveryFailure? {
+    guard isApplicationRunning else { return .targetAppNotRunning }
+    guard isEditable else { return .targetNotEditable }
+    return nil
+  }
+}
+
 @MainActor
 final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
@@ -109,11 +117,10 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
   }
 
   private func targetFailure(_ target: TargetReference) -> DeliveryFailure? {
-    guard NSRunningApplication(processIdentifier: target.pid) != nil else {
-      return .targetAppNotRunning
-    }
-    guard isEditable(target.element) else { return .targetNotEditable }
-    return nil
+    CapturedTargetValidator.failure(
+      isApplicationRunning: NSRunningApplication(processIdentifier: target.pid) != nil,
+      isEditable: isEditable(target.element)
+    )
   }
 
   private func copy(_ text: String) -> Bool {

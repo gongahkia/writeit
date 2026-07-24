@@ -141,6 +141,17 @@ struct RecognitionContractTests {
     #expect(outcome.message == "Copied: Captured field no longer accepts text")
     #expect(DeliveryOutcome.pasted(.leaveRecognizedText) != .pasted(.restorePrevious))
   }
+
+  @Test("delivery rejects stale or noneditable captured targets")
+  func validatesCapturedDeliveryTarget() {
+    #expect(
+      CapturedTargetValidator.failure(isApplicationRunning: false, isEditable: true)
+        == .targetAppNotRunning)
+    #expect(
+      CapturedTargetValidator.failure(isApplicationRunning: true, isEditable: false)
+        == .targetNotEditable)
+    #expect(CapturedTargetValidator.failure(isApplicationRunning: true, isEditable: true) == nil)
+  }
 }
 
 struct CaptureModelTests {
