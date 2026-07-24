@@ -230,6 +230,16 @@ struct CaptureModelTests {
     #expect(style.lineWidth(for: 1) > style.lineWidth(for: 0))
   }
 
+  @Test("tablet pressure changes width while mouse baseline remains stable")
+  func pressureWidthPreservesMouseBaseline() {
+    let style = InkStyle(baseWidth: 4, pressureSensitivity: 1, smoothing: 0)
+    #expect(style.lineWidth(for: 0) == 1)
+    #expect(style.lineWidth(for: 0.5) == 4)
+    #expect(style.lineWidth(for: 1) == 8)
+    #expect(style.lineWidth(for: -1) == style.lineWidth(for: 0))
+    #expect(style.lineWidth(for: 2) == style.lineWidth(for: 1))
+  }
+
   @Test("empty and tap-only captures are rejected before OCR") @MainActor
   func captureInputValidation() {
     let session = CaptureSession()
