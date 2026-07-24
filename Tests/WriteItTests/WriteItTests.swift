@@ -12,6 +12,41 @@ struct TextSanitizerTests {
   }
 }
 
+struct CaptureDisplaySelectorTests {
+  @Test("maps AX top-left coordinates to the containing display")
+  func mapsAccessibilityPositionToDisplay() {
+    let displays = [
+      CaptureDisplay(id: 1, frame: CGRect(x: 0, y: 0, width: 1440, height: 900)),
+      CaptureDisplay(id: 2, frame: CGRect(x: 1440, y: 0, width: 1280, height: 1024)),
+      CaptureDisplay(id: 3, frame: CGRect(x: 0, y: 900, width: 1440, height: 900)),
+    ]
+    #expect(
+      CaptureDisplaySelector.sourceDisplayID(
+        accessibilityPosition: CGPoint(x: 1600, y: 100),
+        displays: displays
+      ) == 2
+    )
+    #expect(
+      CaptureDisplaySelector.sourceDisplayID(
+        accessibilityPosition: CGPoint(x: 200, y: -100),
+        displays: displays
+      ) == 3
+    )
+  }
+
+  @Test("uses the primary display when the source display is unavailable")
+  func usesDeterministicPrimaryFallback() {
+    let displays = [
+      CaptureDisplay(id: 19, frame: CGRect(x: 0, y: 0, width: 1440, height: 900)),
+      CaptureDisplay(id: 7, frame: CGRect(x: 1440, y: 0, width: 1280, height: 1024)),
+    ]
+    #expect(CaptureDisplaySelector.displayID(sourceDisplayID: 7, displays: displays) == 7)
+    #expect(CaptureDisplaySelector.displayID(sourceDisplayID: 99, displays: displays) == 19)
+    #expect(CaptureDisplaySelector.displayID(sourceDisplayID: nil, displays: displays) == 19)
+    #expect(CaptureDisplaySelector.displayID(sourceDisplayID: 19, displays: []) == nil)
+  }
+}
+
 struct RecognitionContractTests {
   @Test("recognition requests preserve an immutable language selection")
   func requestsPreserveLanguage() {

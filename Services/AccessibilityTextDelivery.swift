@@ -6,6 +6,7 @@ struct TargetReference {
   let element: AXUIElement
   let pid: pid_t
   let bundleIdentifier: String?
+  let displayID: UInt32?
 }
 
 @MainActor
@@ -36,7 +37,8 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     return TargetReference(
       element: element,
       pid: pid,
-      bundleIdentifier: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier
+      bundleIdentifier: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier,
+      displayID: displayID(for: element)
     )
   }
 
@@ -83,6 +85,27 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
       kAXSelectedTextAttribute as CFString,
       &isSettable
     ) == .success && isSettable.boolValue
+  }
+
+  private func displayID(for element: AXUIElement) -> UInt32? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &value) == .success,
+      let value,
+      CFGetTypeID(value) == AXValueGetTypeID()
+    else { return nil }
+    let positionValue = unsafeDowncast(value, to: AXValue.self)
+    guard AXValueGetType(positionValue) == .cgPoint else { return nil }
+    var position = CGPoint.zero
+    guard AXValueGetValue(positionValue, .cgPoint, &position) else { return nil }
+    let displays = NSScreen.screens.compactMap { screen -> CaptureDisplay? in
+      guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+      else { return nil }
+      return CaptureDisplay(id: id.uint32Value, frame: screen.frame)
+    }
+    return CaptureDisplaySelector.sourceDisplayID(
+      accessibilityPosition: position,
+      displays: displays
+    )
   }
 
   private func targetFailure(_ target: TargetReference) -> DeliveryFailure? {
