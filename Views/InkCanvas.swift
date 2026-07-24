@@ -28,7 +28,7 @@ struct InkCanvas: View {
         }
         InkInputView(session: session, style: style)
       }
-      .task(id: proxy.size) { session.canvasSize = proxy.size }
+      .task(id: proxy.size) { session.resizeCanvas(to: proxy.size) }
     }
   }
 }

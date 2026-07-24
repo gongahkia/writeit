@@ -196,6 +196,26 @@ struct CaptureModelTests {
     #expect(session.renderedImageData() != nil)
   }
 
+  @Test("canvas resize preserves live, stored, and rendered alignment") @MainActor
+  func canvasResizePreservesCoordinateAlignment() {
+    let session = CaptureSession()
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    session.canvasSize = CGSize(width: 300, height: 120)
+    session.beginStroke(at: InkPoint(x: 30, y: 24, pressure: 1, timestamp: 0))
+    session.append(
+      point: InkPoint(x: 270, y: 96, pressure: 1, timestamp: 0.2),
+      style: InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0))
+    session.resizeCanvas(to: CGSize(width: 600, height: 240))
+    let points = session.strokes[0].points
+    #expect(points.map(\.x) == [60, 540])
+    #expect(points.map(\.y) == [48, 192])
+    let rendered = CanvasCoordinateTransformer.renderPoint(
+      points[0], canvasSize: session.canvasSize, outputSize: CGSize(width: 1536, height: 614.4))
+    #expect(rendered.x == 153.6)
+    #expect(rendered.y == 491.52)
+  }
+
   @Test("records first accepted stroke latency once per capture") @MainActor
   func recordsFirstStrokeLatencyOncePerCapture() {
     let session = CaptureSession()

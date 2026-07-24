@@ -268,6 +268,26 @@ struct InkPoint: Codable, Hashable {
   }
 }
 
+enum CanvasCoordinateTransformer {
+  static func resize(_ point: InkPoint, from sourceSize: CGSize, to targetSize: CGSize) -> InkPoint {
+    guard sourceSize.width > 0, sourceSize.height > 0 else { return point }
+    return InkPoint(
+      x: point.x * targetSize.width / sourceSize.width,
+      y: point.y * targetSize.height / sourceSize.height,
+      pressure: point.pressure,
+      timestamp: point.timestamp,
+      inputSource: point.inputSource
+    )
+  }
+
+  static func renderPoint(_ point: InkPoint, canvasSize: CGSize, outputSize: CGSize) -> CGPoint {
+    CGPoint(
+      x: point.x * outputSize.width / canvasSize.width,
+      y: outputSize.height - point.y * outputSize.height / canvasSize.height
+    )
+  }
+}
+
 struct InkStyle: Equatable, Sendable {
   static let `default` = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0.25)
 

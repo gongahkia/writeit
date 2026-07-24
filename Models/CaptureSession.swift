@@ -58,6 +58,17 @@ final class CaptureSession: ObservableObject {
     onStrokeFinished?()
   }
 
+  func resizeCanvas(to size: CGSize) {
+    guard size.width > 0, size.height > 0, size != canvasSize else { return }
+    strokes = strokes.map { stroke in
+      InkStroke(
+        id: stroke.id,
+        points: stroke.points.map { CanvasCoordinateTransformer.resize($0, from: canvasSize, to: size) }
+      )
+    }
+    canvasSize = size
+  }
+
   func clear() {
     guard phase == .drawing else { return }
     strokes = []
@@ -107,8 +118,10 @@ final class CaptureSession: ObservableObject {
           for: (previous.pressure + point.pressure) / 2,
           scale: min(xScale, yScale)
         )
-        path.move(to: NSPoint(x: previous.x * xScale, y: output.height - previous.y * yScale))
-        path.line(to: NSPoint(x: point.x * xScale, y: output.height - point.y * yScale))
+        path.move(to: CanvasCoordinateTransformer.renderPoint(
+          previous, canvasSize: canvasSize, outputSize: output))
+        path.line(to: CanvasCoordinateTransformer.renderPoint(
+          point, canvasSize: canvasSize, outputSize: output))
         path.stroke()
       }
     }
