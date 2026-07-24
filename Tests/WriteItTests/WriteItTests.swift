@@ -170,6 +170,17 @@ struct RecognitionContractTests {
 }
 
 struct AccessibilityDeliveryTests {
+  @Test("native text control harness replaces the selected range") @MainActor
+  func pastesIntoNativeTextControl() {
+    let harness = NativeTextControlPasteHarness(
+      text: "before selected after",
+      selection: NSRange(location: 7, length: 8)
+    )
+
+    #expect(harness.paste("recognized"))
+    #expect(harness.text == "before recognized after")
+  }
+
   @Test("clipboard-only delivery does not access the captured target") @MainActor
   func copiesWithoutAccessibilityDelivery() async {
     let operations = TestAccessibilityDeliveryOperations()
