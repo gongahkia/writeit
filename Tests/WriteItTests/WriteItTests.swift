@@ -47,6 +47,17 @@ struct CaptureDisplaySelectorTests {
   }
 }
 
+struct CaptureOverlaySpacePolicyTests {
+  @Test("uses the active Space and full-screen auxiliary behavior without global leakage")
+  func scopesOverlayToActiveSpace() {
+    let behavior = CaptureOverlaySpacePolicy.collectionBehavior
+    #expect(behavior.contains(.moveToActiveSpace))
+    #expect(behavior.contains(.fullScreenAuxiliary))
+    #expect(behavior.contains(.ignoresCycle))
+    #expect(behavior.contains(.canJoinAllSpaces) == false)
+  }
+}
+
 struct RecognitionContractTests {
   @Test("recognition requests preserve an immutable language selection")
   func requestsPreserveLanguage() {

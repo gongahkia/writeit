@@ -1,6 +1,14 @@
 import AppKit
 import SwiftUI
 
+enum CaptureOverlaySpacePolicy {
+  static let collectionBehavior: NSWindow.CollectionBehavior = [
+    .moveToActiveSpace,
+    .fullScreenAuxiliary,
+    .ignoresCycle,
+  ]
+}
+
 @MainActor
 final class CaptureOverlayController: CaptureOverlayPresenting {
   static let shared = CaptureOverlayController()
@@ -45,7 +53,7 @@ final class CaptureOverlayController: CaptureOverlayPresenting {
     panel.backgroundColor = .clear
     panel.hasShadow = false
     panel.level = .statusBar
-    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+    panel.collectionBehavior = CaptureOverlaySpacePolicy.collectionBehavior
     panel.hidesOnDeactivate = false
     self.panel = panel
     return panel
