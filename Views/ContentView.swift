@@ -96,6 +96,9 @@ private struct CaptureDashboard: View {
           if let error = capture.error {
             CaptureErrorBanner(error: error, dismiss: capture.clearError)
           }
+          if let error = preferences.error {
+            CaptureErrorBanner(error: error, dismiss: preferences.clearError)
+          }
         }
         .padding(4)
       }

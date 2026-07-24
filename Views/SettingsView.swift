@@ -90,6 +90,11 @@ struct CleanupSettingsView: View {
           CaptureErrorBanner(error: error, dismiss: capture.clearError)
         }
       }
+      if let error = preferences.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: preferences.clearError)
+        }
+      }
       Section("OpenAI-compatible cleanup") {
         Toggle("Enable AI cleanup", isOn: $preferences.aiEnabled)
         TextField("Chat completions URL", text: $preferences.aiBaseURL)
@@ -119,6 +124,16 @@ struct PrivacySettingsView: View {
 
   var body: some View {
     Form {
+      if let error = history.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: history.clearError)
+        }
+      }
+      if let error = preferences.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: preferences.clearError)
+        }
+      }
       Section("History") {
         Picker("Retain captures", selection: $preferences.historyMode) {
           ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }

@@ -168,6 +168,11 @@ final class CaptureCoordinator: ObservableObject {
           "recognition_completed backend=\(candidate.backendID, privacy: .public)"
         )
         let result: String
+        var notices: [String] = []
+        if candidate.languageResolution.usedFallback {
+          notices.append(
+            "Used English because \(candidate.languageResolution.requested.displayName) is unavailable.")
+        }
         do {
           result = try await enhancer.clean(
             TextEnhancementRequest(
@@ -180,6 +185,11 @@ final class CaptureCoordinator: ObservableObject {
           return
         } catch {
           result = candidate.text
+          if error is KeychainError {
+            let presentation = AppErrorPresentation.security(error)
+            self.error = presentation
+            notices.append(presentation.message)
+          }
         }
         try Task.checkCancellation()
         guard self.session.phase == .recognizing else { return }
@@ -188,14 +198,13 @@ final class CaptureCoordinator: ObservableObject {
           self.session.phase = .reviewing
           self.statusMessage = "Review before inserting"
         } else {
+          let notice = notices.joined(separator: " ")
           self.finish(
             text: result,
             source: candidate.backendID,
             target: target,
             strokes: strokes,
-            notice: candidate.languageResolution.usedFallback
-              ? "Used English because \(candidate.languageResolution.requested.displayName) is unavailable."
-              : nil
+            notice: notice.isEmpty ? nil : notice
           )
         }
       } catch is CancellationError {
@@ -227,8 +236,25 @@ final class CaptureCoordinator: ObservableObject {
     statusMessage = "Undo sent"
   }
 
-  func saveAPIKey(_ key: String) { enhancer.saveAPIKey(key) }
-  func hasAPIKey() -> Bool { enhancer.hasAPIKey() }
+  func saveAPIKey(_ key: String) {
+    do {
+      try enhancer.saveAPIKey(key)
+      clearError()
+    } catch {
+      self.error = AppErrorPresentation.security(error)
+      statusMessage = self.error?.message ?? statusMessage
+    }
+  }
+
+  func hasAPIKey() -> Bool {
+    do {
+      return try enhancer.hasAPIKey()
+    } catch {
+      self.error = .security(error)
+      statusMessage = self.error?.message ?? statusMessage
+      return false
+    }
+  }
   func updateLaunchAtLogin() { loginItem.update(enabled: preferences.launchAtLogin) }
 
   func cleanupHistory() {

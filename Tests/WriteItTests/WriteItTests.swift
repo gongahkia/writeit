@@ -79,6 +79,16 @@ struct RecognitionContractTests {
     #expect(error.message == "No handwriting was recognized.")
   }
 
+  @Test("storage and Keychain failures retain typed user-facing presentations")
+  func storageAndKeychainErrorsMapToPresentations() {
+    let storage = AppErrorPresentation.persistence(HistoryStoreError.writeFailed)
+    let keychain = AppErrorPresentation.security(KeychainError.status(errSecAuthFailed))
+    #expect(storage.kind == .persistence)
+    #expect(storage.message == "WriteIt could not save local history.")
+    #expect(keychain.kind == .security)
+    #expect(keychain.message == "Secure storage could not complete the request.")
+  }
+
   @Test("delivery outcomes retain typed fallback and clipboard semantics")
   func deliveryOutcomesRetainTypedSemantics() {
     let outcome = DeliveryOutcome.clipboardFallback(.targetNotEditable)
@@ -191,6 +201,17 @@ struct PreferencesTests {
     preferences.recognitionLanguage = .italian
     #expect(Preferences(defaults: defaults).recognitionLanguage == .italian)
   }
+
+  @Test("surfaces and resets malformed saved settings")
+  func surfacesMalformedSavedSettings() {
+    let defaults = makeDefaults()
+    defaults.set(Data("not-json".utf8), forKey: "shortcut")
+    let preferences = Preferences(defaults: defaults)
+    #expect(preferences.shortcut == .default)
+    #expect(preferences.error?.kind == .persistence)
+    #expect(preferences.error?.message == "Some saved settings could not be read and were reset.")
+    #expect(defaults.data(forKey: "shortcut") == nil)
+  }
 }
 
 struct HistoryStoreTests {
@@ -232,6 +253,60 @@ struct HistoryStoreTests {
     let archive = try JSONDecoder().decode(HistoryArchive.self, from: archiveData)
     #expect(archive.version == HistoryArchive.currentVersion)
     #expect(archive.entries == legacyEntries)
+  }
+
+  @Test("surfaces history directory setup failures") @MainActor
+  func surfacesDirectorySetupFailure() throws {
+    let blockedPath = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try Data().write(to: blockedPath)
+    let history = HistoryStore(
+      fileURL: blockedPath.appendingPathComponent("history.sealed"),
+      key: SymmetricKey(size: .bits256)
+    )
+    #expect(history.entries.isEmpty)
+    #expect(history.error?.kind == .persistence)
+    #expect(history.error?.message == "WriteIt could not prepare local history storage.")
+  }
+
+  @Test("does not mutate visible history when persistence fails") @MainActor
+  func retainsEntriesWhenPersistenceFails() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let history = HistoryStore(fileURL: fileURL, key: SymmetricKey(size: .bits256))
+    try FileManager.default.createDirectory(at: fileURL, withIntermediateDirectories: true)
+    history.append(HistoryEntry(text: "unsaved", strokes: nil, source: "Vision"))
+    #expect(history.entries.isEmpty)
+    #expect(history.error?.kind == .persistence)
+    #expect(history.error?.message == "WriteIt could not save local history.")
+  }
+
+  @Test("does not overwrite unreadable history after surfacing its error") @MainActor
+  func preservesUnreadableHistory() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let original = Data("unreadable-history".utf8)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try original.write(to: fileURL)
+    let history = HistoryStore(fileURL: fileURL, key: SymmetricKey(size: .bits256))
+    history.append(HistoryEntry(text: "new", strokes: nil, source: "Vision"))
+    #expect(history.error?.kind == .persistence)
+    #expect(try Data(contentsOf: fileURL) == original)
+  }
+}
+
+struct KeychainStoreTests {
+  @Test("reads, updates, and removes keychain values")
+  func roundTripsValue() throws {
+    let account = "WriteItTests.\(UUID().uuidString)"
+    try KeychainStore.delete(account)
+    try KeychainStore.set(Data("first".utf8), for: account)
+    #expect(try KeychainStore.data(for: account) == Data("first".utf8))
+    try KeychainStore.set(Data("second".utf8), for: account)
+    #expect(try KeychainStore.data(for: account) == Data("second".utf8))
+    try KeychainStore.delete(account)
+    #expect(try KeychainStore.data(for: account) == nil)
   }
 }
 

@@ -192,8 +192,8 @@ typealias TextRecognizing = RecognitionBackend
 @MainActor
 protocol TextEnhancing: AnyObject {
   func clean(_ request: TextEnhancementRequest) async throws -> String
-  func saveAPIKey(_ value: String)
-  func hasAPIKey() -> Bool
+  func saveAPIKey(_ value: String) throws
+  func hasAPIKey() throws -> Bool
 }
 
 @MainActor

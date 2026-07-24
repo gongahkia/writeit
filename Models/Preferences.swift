@@ -1,6 +1,18 @@
 import Combine
 import Foundation
 
+enum PreferenceStoreError: LocalizedError, Equatable {
+  case invalidStoredValue
+  case serializationFailed
+
+  var errorDescription: String? {
+    switch self {
+    case .invalidStoredValue: "Some saved settings could not be read and were reset."
+    case .serializationFailed: "WriteIt could not save this setting."
+    }
+  }
+}
+
 final class Preferences: ObservableObject {
   static let currentSchemaVersion = 1
 
@@ -52,6 +64,7 @@ final class Preferences: ObservableObject {
       defaults.set(Self.validUnitInterval(strokeSmoothing), forKey: Key.strokeSmoothing.rawValue)
     }
   }
+  @Published private(set) var error: AppErrorPresentation?
 
   private let defaults: UserDefaults
 
@@ -59,12 +72,20 @@ final class Preferences: ObservableObject {
     self.defaults = defaults
     Self.registerDefaults(in: defaults)
     Self.migrate(defaults)
-    shortcut = Self.load(.shortcut, from: defaults, fallback: .default)
-    captureMode = Self.load(.captureMode, from: defaults, fallback: .toggle)
-    resultMode = Self.load(.resultMode, from: defaults, fallback: .autoInsert)
-    outputStrategy = Self.load(.outputStrategy, from: defaults, fallback: .paste)
-    recognitionLanguage = Self.load(.recognitionLanguage, from: defaults, fallback: .english)
-    historyMode = Self.load(.historyMode, from: defaults, fallback: .textOnly)
+    let shortcutResult = Self.load(.shortcut, from: defaults, fallback: Shortcut.default)
+    let captureModeResult = Self.load(.captureMode, from: defaults, fallback: CaptureMode.toggle)
+    let resultModeResult = Self.load(.resultMode, from: defaults, fallback: ResultMode.autoInsert)
+    let outputStrategyResult = Self.load(
+      .outputStrategy, from: defaults, fallback: OutputStrategy.paste)
+    let recognitionLanguageResult = Self.load(
+      .recognitionLanguage, from: defaults, fallback: RecognitionLanguage.english)
+    let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
+    shortcut = shortcutResult.value
+    captureMode = captureModeResult.value
+    resultMode = resultModeResult.value
+    outputStrategy = outputStrategyResult.value
+    recognitionLanguage = recognitionLanguageResult.value
+    historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
       defaults.integer(forKey: Key.historyRetentionDays.rawValue))
@@ -77,6 +98,14 @@ final class Preferences: ObservableObject {
     pressureSensitivity = Self.validUnitInterval(
       defaults.double(forKey: Key.pressureSensitivity.rawValue))
     strokeSmoothing = Self.validUnitInterval(defaults.double(forKey: Key.strokeSmoothing.rawValue))
+    error = [
+      shortcutResult.error,
+      captureModeResult.error,
+      resultModeResult.error,
+      outputStrategyResult.error,
+      recognitionLanguageResult.error,
+      historyModeResult.error,
+    ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
   }
 
   var inkStyle: InkStyle {
@@ -148,15 +177,31 @@ final class Preferences: ObservableObject {
     defaults.set(currentSchemaVersion, forKey: Key.schemaVersion.rawValue)
   }
 
-  private static func load<T: Codable>(_ key: Key, from defaults: UserDefaults, fallback: T) -> T {
-    guard let data = defaults.data(forKey: key.rawValue),
-      let value = try? JSONDecoder().decode(T.self, from: data)
-    else { return fallback }
-    return value
+  func clearError() { error = nil }
+
+  private static func load<T: Codable>(
+    _ key: Key,
+    from defaults: UserDefaults,
+    fallback: T
+  ) -> (value: T, error: PreferenceStoreError?) {
+    guard let data = defaults.data(forKey: key.rawValue) else { return (fallback, nil) }
+    do {
+      return (try JSONDecoder().decode(T.self, from: data), nil)
+    } catch {
+      defaults.removeObject(forKey: key.rawValue)
+      return (fallback, .invalidStoredValue)
+    }
   }
 
   private func save<T: Codable>(_ value: T, key: Key) {
-    defaults.set(try? JSONEncoder().encode(value), forKey: key.rawValue)
+    do {
+      defaults.set(try JSONEncoder().encode(value), forKey: key.rawValue)
+      error = nil
+    } catch {
+      AppLog.app.error(
+        "preferences_save_failed type=\(AppLog.errorType(error), privacy: .public)")
+      self.error = .persistence(PreferenceStoreError.serializationFailed)
+    }
   }
 
   private static func validRetentionDays(_ value: Int) -> Int { min(max(value, 1), 365) }

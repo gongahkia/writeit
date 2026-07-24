@@ -220,6 +220,9 @@ private struct ModelSettingsSheet: View {
         }
         .padding(6)
       }
+      if let error = models.error {
+        CaptureErrorBanner(error: error, dismiss: models.clearError)
+      }
       Spacer()
     }
     .padding(24)

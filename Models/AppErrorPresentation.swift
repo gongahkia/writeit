@@ -6,6 +6,7 @@ struct AppErrorPresentation: Identifiable, Equatable {
     case recognition
     case delivery
     case persistence
+    case security
     case configuration
   }
 
@@ -21,5 +22,15 @@ struct AppErrorPresentation: Identifiable, Equatable {
 
   static func captureInput(_ message: String) -> Self {
     Self(kind: .configuration, title: "Add more ink", message: message)
+  }
+
+  static func persistence(_ error: Error) -> Self {
+    let message = (error as? LocalizedError)?.errorDescription ?? "WriteIt could not update local data."
+    return Self(kind: .persistence, title: "Local data unavailable", message: message)
+  }
+
+  static func security(_ error: Error) -> Self {
+    let message = (error as? LocalizedError)?.errorDescription ?? "WriteIt could not access secure storage."
+    return Self(kind: .security, title: "Keychain unavailable", message: message)
   }
 }

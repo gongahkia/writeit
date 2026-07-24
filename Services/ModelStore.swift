@@ -2,10 +2,24 @@ import AppKit
 import Combine
 import Foundation
 
+enum ModelStoreError: LocalizedError, Equatable {
+  case directoryUnavailable
+  case installFailed
+  case removalFailed
+
+  var errorDescription: String? {
+    switch self {
+    case .directoryUnavailable: "WriteIt could not prepare local model storage."
+    case .installFailed: "WriteIt could not install the selected model."
+    case .removalFailed: "WriteIt could not delete the selected model."
+    }
+  }
+}
+
 @MainActor
 final class ModelStore: ObservableObject {
   @Published private(set) var enhancedModelURL: URL?
-  @Published private(set) var lastError: String?
+  @Published private(set) var error: AppErrorPresentation?
 
   private let modelsDirectory: URL
 
@@ -14,8 +28,14 @@ final class ModelStore: ObservableObject {
       modelsDirectory
       ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("WriteIt/Models", isDirectory: true)
-    try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     self.modelsDirectory = base
+    self.error = nil
+    self.enhancedModelURL = nil
+    do {
+      try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    } catch {
+      record(ModelStoreError.directoryUnavailable)
+    }
     let candidate = base.appendingPathComponent("TrOCRSmallHandwritten.mlmodelc", isDirectory: true)
     enhancedModelURL = FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
   }
@@ -29,7 +49,11 @@ final class ModelStore: ObservableObject {
     panel.allowsMultipleSelection = false
     guard panel.runModal() == .OK, let source = panel.url else { return }
     guard source.pathExtension == "mlmodelc" else {
-      lastError = "Choose a compiled .mlmodelc model."
+      error = AppErrorPresentation(
+        kind: .configuration,
+        title: "Unsupported model",
+        message: "Choose a compiled .mlmodelc model."
+      )
       return
     }
     let target = modelsDirectory.appendingPathComponent(
@@ -40,12 +64,10 @@ final class ModelStore: ObservableObject {
       }
       try FileManager.default.copyItem(at: source, to: target)
       enhancedModelURL = target
-      lastError = nil
+      error = nil
       AppLog.models.info("local_model_installed")
     } catch {
-      lastError = "Could not install the selected model."
-      AppLog.models.error(
-        "local_model_install_failed type=\(AppLog.errorType(error), privacy: .public)")
+      record(ModelStoreError.installFailed)
     }
   }
 
@@ -54,16 +76,23 @@ final class ModelStore: ObservableObject {
     do {
       try FileManager.default.removeItem(at: enhancedModelURL)
       self.enhancedModelURL = nil
+      error = nil
       AppLog.models.info("local_model_removed")
     } catch {
-      lastError = "Could not delete the selected model."
-      AppLog.models.error(
-        "local_model_delete_failed type=\(AppLog.errorType(error), privacy: .public)")
+      record(ModelStoreError.removalFailed)
     }
   }
 
   func revealEnhancedModel() {
     guard let enhancedModelURL else { return }
     NSWorkspace.shared.activateFileViewerSelecting([enhancedModelURL])
+  }
+
+  func clearError() { error = nil }
+
+  private func record(_ error: Error) {
+    AppLog.models.error(
+      "local_model_storage_failed type=\(AppLog.errorType(error), privacy: .public)")
+    self.error = .persistence(error)
   }
 }

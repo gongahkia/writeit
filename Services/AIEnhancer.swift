@@ -3,8 +3,16 @@ import Foundation
 @MainActor
 final class AIEnhancer: TextEnhancing {
   func clean(_ request: TextEnhancementRequest) async throws -> String {
-    guard request.enabled,
-      let keyData = KeychainStore.data(for: "ai-api-key"),
+    guard request.enabled else { return request.text }
+    let keyData: Data?
+    do {
+      keyData = try KeychainStore.data(for: "ai-api-key")
+    } catch {
+      AppLog.cleanup.error(
+        "cleanup_key_read_failed type=\(AppLog.errorType(error), privacy: .public)")
+      throw error
+    }
+    guard let keyData,
       let key = String(data: keyData, encoding: .utf8), !key.isEmpty,
       let url = URL(string: request.baseURL)
     else { return request.text }
@@ -42,20 +50,21 @@ final class AIEnhancer: TextEnhancing {
     }
   }
 
-  func saveAPIKey(_ value: String) {
-    if value.isEmpty {
-      KeychainStore.delete("ai-api-key")
-    } else {
-      do {
+  func saveAPIKey(_ value: String) throws {
+    do {
+      if value.isEmpty {
+        try KeychainStore.delete("ai-api-key")
+      } else {
         try KeychainStore.set(Data(value.utf8), for: "ai-api-key")
-      } catch {
-        AppLog.cleanup.error(
-          "cleanup_key_save_failed type=\(AppLog.errorType(error), privacy: .public)")
       }
+    } catch {
+      AppLog.cleanup.error(
+        "cleanup_key_save_failed type=\(AppLog.errorType(error), privacy: .public)")
+      throw error
     }
   }
 
-  func hasAPIKey() -> Bool { KeychainStore.data(for: "ai-api-key") != nil }
+  func hasAPIKey() throws -> Bool { try KeychainStore.data(for: "ai-api-key") != nil }
 }
 
 private struct ChatRequest: Encodable {

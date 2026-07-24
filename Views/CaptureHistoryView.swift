@@ -24,6 +24,11 @@ struct CaptureHistoryView: View {
           .buttonStyle(.bordered).help("History settings")
       }
       .padding(20)
+      if let error = history.error {
+        CaptureErrorBanner(error: error, dismiss: history.clearError)
+          .padding(.horizontal, 20)
+          .padding(.bottom, 20)
+      }
       Divider()
       if entries.isEmpty {
         ContentUnavailableView(
