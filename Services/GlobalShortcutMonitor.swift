@@ -1,7 +1,7 @@
 import ApplicationServices
 import Foundation
 
-enum ShortcutEvent {
+enum ShortcutEvent: Equatable {
   case down
   case up
 }
@@ -10,9 +10,9 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var shortcut = Shortcut.default
-  private var handler: ((ShortcutEvent) -> Void)?
+  private var handler: ((CaptureCommand) -> Void)?
 
-  func start(shortcut: Shortcut, handler: @escaping (ShortcutEvent) -> Void) {
+  func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) {
     stop()
     self.shortcut = shortcut
     self.handler = handler
@@ -50,13 +50,13 @@ final class GlobalShortcutMonitor: GlobalShortcutMonitoring {
 
   private func handle(type: CGEventType, event: CGEvent) {
     guard type == .keyDown || type == .keyUp else { return }
-    guard UInt16(event.getIntegerValueField(.keyboardEventKeycode)) == shortcut.keyCode else {
-      return
-    }
-    let relevant = CGEventFlags.maskCommand.union(.maskShift).union(.maskAlternate).union(
-      .maskControl)
-    guard event.flags.intersection(relevant).rawValue == shortcut.modifiers else { return }
-    if type == .keyDown, event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return }
-    handler?(type == .keyDown ? .down : .up)
+    let command = CaptureKeyboardCommandResolver.resolve(
+      keyCode: UInt16(event.getIntegerValueField(.keyboardEventKeycode)),
+      modifiers: event.flags.rawValue,
+      isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+      shortcut: shortcut,
+      event: type == .keyDown ? .down : .up
+    )
+    if let command { handler?(command) }
   }
 }

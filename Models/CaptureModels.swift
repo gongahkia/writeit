@@ -145,6 +145,47 @@ struct Shortcut: Codable, Hashable {
   }
 }
 
+enum CaptureCommand: Equatable {
+  case cancel
+  case clear
+  case confirm
+  case shortcut(ShortcutEvent)
+}
+
+enum CaptureKeyboardCommandResolver {
+  private static let relevantModifiers = CGEventFlags.maskCommand.union(.maskShift).union(
+    .maskAlternate).union(.maskControl)
+
+  static func resolve(
+    keyCode: UInt16,
+    modifiers: UInt64,
+    isAutorepeat: Bool,
+    shortcut: Shortcut,
+    event: ShortcutEvent
+  ) -> CaptureCommand? {
+    let relevant = CGEventFlags(rawValue: modifiers).intersection(relevantModifiers).rawValue
+    if event == .up {
+      return matchesShortcut(keyCode: keyCode, modifiers: relevant, shortcut: shortcut)
+        ? .shortcut(event)
+        : nil
+    }
+    guard isAutorepeat == false else { return nil }
+    switch (keyCode, relevant) {
+    case (53, 0): return .cancel
+    case (36, 0), (76, 0): return .confirm
+    case (51, CGEventFlags.maskCommand.rawValue): return .clear
+    default:
+      return matchesShortcut(keyCode: keyCode, modifiers: relevant, shortcut: shortcut)
+        ? .shortcut(event)
+        : nil
+    }
+  }
+
+  private static func matchesShortcut(keyCode: UInt16, modifiers: UInt64, shortcut: Shortcut) -> Bool {
+    keyCode == shortcut.keyCode && modifiers == shortcut.modifiers
+  }
+}
+
 enum KeyName {
   static func name(for keyCode: UInt16) -> String {
     let names: [UInt16: String] = [

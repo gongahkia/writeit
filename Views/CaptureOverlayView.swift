@@ -11,7 +11,7 @@ struct CaptureOverlayView: View {
       ZStack {
         Color.black.opacity(0.78).ignoresSafeArea()
           .contentShape(Rectangle())
-          .onTapGesture { coordinator.cancelCapture() }
+          .onTapGesture { coordinator.execute(.cancel) }
         VStack(spacing: 0) {
           Spacer()
           captureCard
@@ -73,11 +73,11 @@ struct CaptureOverlayView: View {
       }
       Spacer()
       if session.phase == .drawing {
-        Button(action: session.clear) { Image(systemName: "trash") }
-          .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Clear ink")
+        Button(action: { coordinator.execute(.clear) }) { Image(systemName: "trash") }
+          .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Clear ink (⌘⌫)")
       }
-      Button(action: coordinator.cancelCapture) { Image(systemName: "xmark") }
-        .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Cancel")
+      Button(action: { coordinator.execute(.cancel) }) { Image(systemName: "xmark") }
+        .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Cancel (Esc)")
     }
     .padding(.horizontal, 22).padding(.vertical, 16)
   }
@@ -87,11 +87,11 @@ struct CaptureOverlayView: View {
       Text("Esc to cancel").font(.caption).foregroundStyle(.white.opacity(0.48))
       Spacer()
       if case .reviewing = session.phase {
-        Button("Insert", action: coordinator.insertReviewedText).buttonStyle(.borderedProminent)
+        Button("Insert", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
       } else if case .delivered = session.phase {
         Button("Undo", action: coordinator.undoInsertion).buttonStyle(.bordered)
       } else if case .failed = session.phase {
-        Button("Retry", action: coordinator.retryRecognition).buttonStyle(.borderedProminent)
+        Button("Retry", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
       } else if case .drawing = session.phase {
         Text("Press \(preferences.shortcut.displayName) to submit")
           .font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.8))
@@ -132,7 +132,7 @@ struct CaptureOverlayView: View {
         .foregroundStyle(.orange)
       Text("Couldn’t read handwriting").font(.title3.weight(.semibold)).foregroundStyle(.white)
       Text(message).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.64))
-      Button("Retry", action: coordinator.retryRecognition).buttonStyle(.borderedProminent)
+      Button("Retry", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
     }
     .padding(30)
   }

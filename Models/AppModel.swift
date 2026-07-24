@@ -74,8 +74,8 @@ final class CaptureCoordinator: ObservableObject {
       shortcutMonitor.stop()
       return
     }
-    shortcutMonitor.start(shortcut: preferences.shortcut) { [weak self] event in
-      Task { @MainActor in self?.handleShortcut(event) }
+    shortcutMonitor.start(shortcut: preferences.shortcut) { [weak self] command in
+      Task { @MainActor in self?.execute(command) }
     }
   }
 
@@ -122,6 +122,25 @@ final class CaptureCoordinator: ObservableObject {
     dismissPanel()
     AppLog.capture.info("capture_cancelled")
     statusMessage = "Cancelled"
+  }
+
+  func execute(_ command: CaptureCommand) {
+    switch command {
+    case .cancel:
+      guard session.phase.isActive else { return }
+      cancelCapture()
+    case .clear:
+      session.clear()
+    case .confirm:
+      switch session.phase {
+      case .drawing: submitCapture()
+      case .reviewing: insertReviewedText()
+      case .failed: retryRecognition()
+      case .idle, .opening, .recognizing, .delivering, .delivered, .dismissing: break
+      }
+    case .shortcut(let event):
+      handleShortcut(event)
+    }
   }
 
   func clearError() { error = nil }
@@ -242,7 +261,7 @@ final class CaptureCoordinator: ObservableObject {
 
   func undoInsertion() {
     delivery.undo()
-    cancelCapture()
+    execute(.cancel)
     statusMessage = "Undo sent"
   }
 
@@ -280,8 +299,7 @@ final class CaptureCoordinator: ObservableObject {
     case .toggle, .penUpDelay:
       if event == .down {
         switch session.phase {
-        case .drawing: submitCapture()
-        case .failed: retryRecognition()
+        case .drawing, .failed: execute(.confirm)
         case .idle: beginCapture()
         case .opening, .recognizing, .reviewing, .delivering, .delivered, .dismissing: break
         }

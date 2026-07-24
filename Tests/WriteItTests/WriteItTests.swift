@@ -153,6 +153,30 @@ struct CaptureModelTests {
     #expect(decoded.displayName == "⇧⌘W")
   }
 
+  @Test("keyboard input resolves each capture command once")
+  func resolvesKeyboardCommands() {
+    let shortcut = Shortcut(
+      keyCode: 13, modifiers: CGEventFlags.maskCommand.union(.maskShift).rawValue)
+    #expect(
+      CaptureKeyboardCommandResolver.resolve(
+        keyCode: 53, modifiers: 0, isAutorepeat: false, shortcut: shortcut, event: .down) == .cancel)
+    #expect(
+      CaptureKeyboardCommandResolver.resolve(
+        keyCode: 36, modifiers: 0, isAutorepeat: false, shortcut: shortcut, event: .down) == .confirm)
+    #expect(
+      CaptureKeyboardCommandResolver.resolve(
+        keyCode: 51, modifiers: CGEventFlags.maskCommand.rawValue, isAutorepeat: false,
+        shortcut: shortcut, event: .down) == .clear)
+    #expect(
+      CaptureKeyboardCommandResolver.resolve(
+        keyCode: shortcut.keyCode, modifiers: shortcut.modifiers, isAutorepeat: false,
+        shortcut: shortcut, event: .down) == .shortcut(.down))
+    #expect(
+      CaptureKeyboardCommandResolver.resolve(
+        keyCode: shortcut.keyCode, modifiers: shortcut.modifiers, isAutorepeat: true,
+        shortcut: shortcut, event: .down) == nil)
+  }
+
   @Test("history entries may omit ink")
   func historyEntriesMayOmitInk() throws {
     let entry = HistoryEntry(text: "testing", strokes: nil, source: "Apple Vision")
@@ -408,6 +432,25 @@ struct CaptureCoordinatorLifecycleTests {
     model.stop()
   }
 
+  @Test("capture commands route shortcut, clear, confirm, and cancel") @MainActor
+  func routesCaptureCommands() async {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.resultMode = .review
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.execute(.shortcut(.down))
+    #expect(capture.session.phase == .drawing)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.execute(.clear)
+    #expect(capture.session.strokes.isEmpty)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+    capture.execute(.confirm)
+    for _ in 0..<8 { await Task.yield() }
+    #expect(capture.session.phase == .reviewing)
+    capture.execute(.cancel)
+    #expect(capture.session.phase == .idle)
+  }
+
   @Test("failed recognition preserves ink for an explicit retry") @MainActor
   func retriesFailedRecognition() async {
     let dependencies = TestDependencies(trusted: true)
@@ -465,7 +508,10 @@ struct CaptureCoordinatorLifecycleTests {
     capture.session.beginStroke(at: InkPoint(x: 30, y: 40, pressure: 1, timestamp: 0))
     capture.session.append(point: InkPoint(x: 180, y: 80, pressure: 1, timestamp: 0.2))
     capture.submitCapture()
-    try? await Task.sleep(for: .milliseconds(100))
+    for _ in 0..<100 {
+      guard dependencies.delivery.deliveryRequests == 0 else { break }
+      try? await Task.sleep(for: .milliseconds(10))
+    }
 
     #expect(dependencies.delivery.deliveryRequests == 1)
     #expect(dependencies.history.entries.map(\.text) == ["fresh"])
@@ -583,7 +629,7 @@ private final class TestShortcutMonitor: GlobalShortcutMonitoring {
   var starts = 0
   var stops = 0
 
-  func start(shortcut: Shortcut, handler: @escaping (ShortcutEvent) -> Void) { starts += 1 }
+  func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) { starts += 1 }
   func stop() { stops += 1 }
 }
 

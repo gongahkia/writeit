@@ -178,7 +178,7 @@ protocol AccessibilityDelivering: AnyObject {
 }
 
 protocol GlobalShortcutMonitoring: AnyObject {
-  func start(shortcut: Shortcut, handler: @escaping (ShortcutEvent) -> Void)
+  func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void)
   func stop()
 }
 
