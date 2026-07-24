@@ -14,13 +14,16 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 1
+  static let currentSchemaVersion = 2
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
   @Published var resultMode: ResultMode { didSet { save(resultMode, key: .resultMode) } }
   @Published var outputStrategy: OutputStrategy {
     didSet { save(outputStrategy, key: .outputStrategy) }
+  }
+  @Published var clipboardHandling: ClipboardHandling {
+    didSet { save(clipboardHandling, key: .clipboardHandling) }
   }
   @Published var recognitionLanguage: RecognitionLanguage {
     didSet { save(recognitionLanguage, key: .recognitionLanguage) }
@@ -77,6 +80,8 @@ final class Preferences: ObservableObject {
     let resultModeResult = Self.load(.resultMode, from: defaults, fallback: ResultMode.autoInsert)
     let outputStrategyResult = Self.load(
       .outputStrategy, from: defaults, fallback: OutputStrategy.paste)
+    let clipboardHandlingResult = Self.load(
+      .clipboardHandling, from: defaults, fallback: ClipboardHandling.restorePrevious)
     let recognitionLanguageResult = Self.load(
       .recognitionLanguage, from: defaults, fallback: RecognitionLanguage.english)
     let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
@@ -84,6 +89,7 @@ final class Preferences: ObservableObject {
     captureMode = captureModeResult.value
     resultMode = resultModeResult.value
     outputStrategy = outputStrategyResult.value
+    clipboardHandling = clipboardHandlingResult.value
     recognitionLanguage = recognitionLanguageResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
@@ -103,6 +109,7 @@ final class Preferences: ObservableObject {
       captureModeResult.error,
       resultModeResult.error,
       outputStrategyResult.error,
+      clipboardHandlingResult.error,
       recognitionLanguageResult.error,
       historyModeResult.error,
     ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
@@ -122,6 +129,7 @@ final class Preferences: ObservableObject {
     case captureMode
     case resultMode
     case outputStrategy
+    case clipboardHandling
     case recognitionLanguage
     case historyMode
     case historyAutoDelete

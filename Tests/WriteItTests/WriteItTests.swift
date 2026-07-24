@@ -200,6 +200,64 @@ struct AccessibilityDeliveryTests {
     #expect(operations.commandKeyCodes == [9])
     #expect(operations.replacedTexts.isEmpty)
   }
+
+  @Test("paste restores the previous clipboard after delivery") @MainActor
+  func restoresPreviousClipboardAfterPaste() {
+    let operations = TestAccessibilityDeliveryOperations()
+    let scheduler = TestClipboardRestoreScheduler()
+    let delivery = AccessibilityTextDelivery(
+      operations: operations,
+      clipboardRestoreScheduler: scheduler
+    )
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+
+    let outcome = delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .paste,
+        clipboardHandling: .restorePrevious
+      ))
+
+    #expect(outcome == .pasted(.restorePrevious))
+    #expect(scheduler.pendingCount == 1)
+    #expect(operations.restoreCount == 0)
+    scheduler.runNext()
+    #expect(operations.restoreCount == 1)
+  }
+
+  @Test("paste restoration does not overwrite a newer clipboard") @MainActor
+  func preservesNewerClipboardAfterPaste() {
+    let operations = TestAccessibilityDeliveryOperations()
+    let scheduler = TestClipboardRestoreScheduler()
+    let delivery = AccessibilityTextDelivery(
+      operations: operations,
+      clipboardRestoreScheduler: scheduler
+    )
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+
+    _ = delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .paste,
+        clipboardHandling: .restorePrevious
+      ))
+    operations.simulateExternalClipboardChange()
+    scheduler.runNext()
+
+    #expect(operations.restoreCount == 0)
+  }
 }
 
 struct CaptureModelTests {
@@ -541,6 +599,7 @@ struct PreferencesTests {
     #expect(preferences.historyAutoDelete)
     #expect(preferences.historyRetentionDays == 7)
     #expect(preferences.historyMode == .textOnly)
+    #expect(preferences.clipboardHandling == .restorePrevious)
     #expect(preferences.penUpDelay == 1.2)
     #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
@@ -562,6 +621,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.outputStrategy = .accessibility
     #expect(Preferences(defaults: defaults).outputStrategy == .accessibility)
+  }
+
+  @Test("persists the selected clipboard handling")
+  func persistsClipboardHandling() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.clipboardHandling = .leaveRecognizedText
+    #expect(Preferences(defaults: defaults).clipboardHandling == .leaveRecognizedText)
   }
 
   @Test("persists the selected recognition language")
@@ -967,15 +1034,26 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   var activationSucceeds = true
   var commandSucceeds = true
   var replacementSucceeds = true
+  var currentClipboardChangeCount = 0
   private(set) var copiedTexts: [String] = []
   private(set) var activatedPIDs: [pid_t] = []
   private(set) var commandKeyCodes: [CGKeyCode] = []
   private(set) var replacedTexts: [String] = []
+  private(set) var restoreCount = 0
+
+  func captureClipboard() -> ClipboardSnapshot { ClipboardSnapshot(items: []) }
 
   func copy(_ text: String) -> Bool {
     copiedTexts.append(text)
+    currentClipboardChangeCount += 1
     return copySucceeds
   }
+  func clipboardChangeCount() -> Int { currentClipboardChangeCount }
+  func restoreClipboard(_ snapshot: ClipboardSnapshot) -> Bool {
+    restoreCount += 1
+    return true
+  }
+  func simulateExternalClipboardChange() { currentClipboardChangeCount += 1 }
   func isApplicationRunning(pid: pid_t) -> Bool { applicationRunning }
   func isEditable(_ element: AXUIElement) -> Bool { editable }
   func activate(pid: pid_t) -> Bool {
@@ -989,6 +1067,20 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
     replacedTexts.append(text)
     return replacementSucceeds
+  }
+}
+
+@MainActor
+private final class TestClipboardRestoreScheduler: ClipboardRestoreScheduling {
+  private var actions: [() -> Void] = []
+  var pendingCount: Int { actions.count }
+
+  func schedule(_ action: @escaping () -> Void) {
+    actions.append(action)
+  }
+  func runNext() {
+    guard actions.isEmpty == false else { return }
+    actions.removeFirst()()
   }
 }
 

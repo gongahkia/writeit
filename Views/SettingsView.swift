@@ -43,6 +43,11 @@ struct CaptureSettingsView: View {
         Picker("Delivery", selection: $preferences.outputStrategy) {
           ForEach(OutputStrategy.allCases) { Text($0.title).tag($0) }
         }
+        if preferences.outputStrategy == .paste {
+          Picker("Clipboard after paste", selection: $preferences.clipboardHandling) {
+            ForEach(ClipboardHandling.allCases) { Text($0.title).tag($0) }
+          }
+        }
         Picker("Recognition language", selection: $preferences.recognitionLanguage) {
           ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
         }

@@ -46,9 +46,17 @@ enum OutputStrategy: String, CaseIterable, Codable, Identifiable {
   }
 }
 
-enum ClipboardHandling: String, Codable, Equatable {
+enum ClipboardHandling: String, CaseIterable, Codable, Equatable, Identifiable {
   case leaveRecognizedText
   case restorePrevious
+
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .leaveRecognizedText: "Keep recognized text"
+    case .restorePrevious: "Restore previous clipboard"
+    }
+  }
 }
 
 enum HistoryMode: String, CaseIterable, Codable, Identifiable {

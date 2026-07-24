@@ -9,9 +9,32 @@ struct TargetReference {
   let displayID: UInt32?
 }
 
+struct ClipboardSnapshot {
+  let items: [[NSPasteboard.PasteboardType: Data]]
+}
+
+@MainActor
+protocol ClipboardRestoreScheduling: AnyObject {
+  func schedule(_ action: @escaping () -> Void)
+}
+
+@MainActor
+final class DelayedClipboardRestoreScheduler: ClipboardRestoreScheduling {
+  func schedule(_ action: @escaping () -> Void) {
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(150))
+      guard Task.isCancelled == false else { return }
+      action()
+    }
+  }
+}
+
 @MainActor
 protocol AccessibilityDeliveryOperating: AnyObject {
+  func captureClipboard() -> ClipboardSnapshot
   func copy(_ text: String) -> Bool
+  func clipboardChangeCount() -> Int
+  func restoreClipboard(_ snapshot: ClipboardSnapshot) -> Bool
   func isApplicationRunning(pid: pid_t) -> Bool
   func isEditable(_ element: AXUIElement) -> Bool
   func activate(pid: pid_t) -> Bool
@@ -21,9 +44,35 @@ protocol AccessibilityDeliveryOperating: AnyObject {
 
 @MainActor
 final class SystemAccessibilityDeliveryOperations: AccessibilityDeliveryOperating {
+  func captureClipboard() -> ClipboardSnapshot {
+    ClipboardSnapshot(
+      items: NSPasteboard.general.pasteboardItems?.map { item in
+        var values: [NSPasteboard.PasteboardType: Data] = [:]
+        for type in item.types {
+          if let data = item.data(forType: type) { values[type] = data }
+        }
+        return values
+      } ?? []
+    )
+  }
+
   func copy(_ text: String) -> Bool {
     NSPasteboard.general.clearContents()
     return NSPasteboard.general.setString(text, forType: .string)
+  }
+
+  func clipboardChangeCount() -> Int { NSPasteboard.general.changeCount }
+
+  func restoreClipboard(_ snapshot: ClipboardSnapshot) -> Bool {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    guard snapshot.items.isEmpty == false else { return true }
+    let items = snapshot.items.map { values in
+      let item = NSPasteboardItem()
+      for (type, data) in values { item.setData(data, forType: type) }
+      return item
+    }
+    return pasteboard.writeObjects(items)
   }
 
   func isApplicationRunning(pid: pid_t) -> Bool {
@@ -76,9 +125,14 @@ enum CapturedTargetValidator {
 final class AccessibilityTextDelivery: AccessibilityDelivering {
   private var lastTarget: TargetReference?
   private let operations: any AccessibilityDeliveryOperating
+  private let clipboardRestoreScheduler: any ClipboardRestoreScheduling
 
-  init(operations: any AccessibilityDeliveryOperating = SystemAccessibilityDeliveryOperations()) {
+  init(
+    operations: any AccessibilityDeliveryOperating = SystemAccessibilityDeliveryOperations(),
+    clipboardRestoreScheduler: any ClipboardRestoreScheduling = DelayedClipboardRestoreScheduler()
+  ) {
     self.operations = operations
+    self.clipboardRestoreScheduler = clipboardRestoreScheduler
   }
 
   var isTrusted: Bool { AXIsProcessTrusted() }
@@ -118,7 +172,12 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     AppLog.delivery.info(
       "delivery_requested strategy=\(request.strategy.rawValue, privacy: .public) target_available=\(request.target != nil, privacy: .public)"
     )
+    let clipboardSnapshot =
+      request.strategy == .paste && request.clipboardHandling == .restorePrevious
+      ? operations.captureClipboard()
+      : nil
     guard operations.copy(request.text) else { return .failed(.clipboardWriteFailed) }
+    let recognizedClipboardChangeCount = operations.clipboardChangeCount()
     guard request.strategy != .clipboard else { return .clipboard }
     guard let target = request.target else { return .clipboardFallback(.targetUnavailable) }
     if let failure = targetFailure(target) { return .clipboardFallback(failure) }
@@ -126,9 +185,11 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     guard operations.activate(pid: target.pid) else { return .clipboardFallback(.activationFailed) }
     switch request.strategy {
     case .paste:
-      return operations.postCommand(keyCode: 9)
-        ? .pasted(request.clipboardHandling)
-        : .failed(.pasteEventUnavailable)
+      guard operations.postCommand(keyCode: 9) else { return .failed(.pasteEventUnavailable) }
+      if let clipboardSnapshot {
+        scheduleClipboardRestore(clipboardSnapshot, expectedChangeCount: recognizedClipboardChangeCount)
+      }
+      return .pasted(request.clipboardHandling)
     case .accessibility:
       return operations.replaceSelectedText(in: target.element, with: request.text)
         ? .accessibilityInserted
@@ -171,5 +232,13 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
       isApplicationRunning: operations.isApplicationRunning(pid: target.pid),
       isEditable: operations.isEditable(target.element)
     )
+  }
+
+  private func scheduleClipboardRestore(_ snapshot: ClipboardSnapshot, expectedChangeCount: Int) {
+    let operations = self.operations
+    clipboardRestoreScheduler.schedule {
+      guard operations.clipboardChangeCount() == expectedChangeCount else { return }
+      _ = operations.restoreClipboard(snapshot)
+    }
   }
 }
