@@ -291,6 +291,38 @@ struct CaptureModelTests {
     let legacy = try JSONDecoder().decode(InkPoint.self, from: legacyData)
     #expect(legacy.inputSource == .mouse)
   }
+
+  @Test("tablet input records start, continuation, and normalized pressure") @MainActor
+  func tabletInputRegressionCoverage() {
+    let session = CaptureSession()
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    let style = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0)
+    session.beginStroke(
+      at: InkPoint(
+        x: 20, y: 30, pressure: InkInputNormalizer.pressure(0.1), timestamp: 0,
+        inputSource: .stylus))
+    session.append(
+      point: InkPoint(
+        x: 80, y: 90, pressure: InkInputNormalizer.pressure(0.8), timestamp: 0.1,
+        inputSource: .stylus),
+      style: style)
+    #expect(session.strokes.count == 1)
+    #expect(session.strokes[0].points.count == 2)
+    #expect(session.strokes[0].points.map(\.inputSource) == [.stylus, .stylus])
+    #expect(session.strokes[0].points.map(\.pressure) == [0.5, 0.8])
+  }
+
+  @Test("input normalization clamps pressure and falls back to mouse")
+  func inputNormalizationRegressionCoverage() {
+    #expect(InkInputNormalizer.source(for: .pen) == .stylus)
+    #expect(InkInputNormalizer.source(for: .eraser) == .stylus)
+    #expect(InkInputNormalizer.source(for: .cursor) == .mouse)
+    #expect(InkInputNormalizer.source(for: .unknown) == .mouse)
+    #expect(InkInputNormalizer.pressure(-1) == 0.5)
+    #expect(InkInputNormalizer.pressure(0.75) == 0.75)
+    #expect(InkInputNormalizer.pressure(2) == 1)
+  }
 }
 
 struct CaptureLifecycleTests {

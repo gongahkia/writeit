@@ -65,7 +65,7 @@ private final class InkInputNSView: NSView {
 
   override func mouseDown(with event: NSEvent) {
     window?.makeFirstResponder(self)
-    activeInputSource = inputSource(for: event)
+    activeInputSource = InkInputNormalizer.source(for: event.pointingDeviceType)
     session?.beginStroke(at: point(from: event, source: activeInputSource))
   }
 
@@ -84,20 +84,12 @@ private final class InkInputNSView: NSView {
     session?.append(point: point(from: event, source: .stylus), style: style)
   }
 
-  private func inputSource(for event: NSEvent) -> InkInputSource {
-    switch event.pointingDeviceType {
-    case .pen, .eraser: .stylus
-    case .unknown, .cursor: .mouse
-    @unknown default: .mouse
-    }
-  }
-
   private func point(from event: NSEvent, source: InkInputSource) -> InkPoint {
     let location = convert(event.locationInWindow, from: nil)
     return InkPoint(
       x: location.x,
       y: location.y,
-      pressure: CGFloat(max(event.pressure, 0.5)),
+      pressure: InkInputNormalizer.pressure(CGFloat(event.pressure)),
       timestamp: event.timestamp,
       inputSource: source
     )

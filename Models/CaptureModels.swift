@@ -202,6 +202,18 @@ enum InkInputSource: String, Codable, Hashable {
   case stylus
 }
 
+enum InkInputNormalizer {
+  static func source(for device: NSEvent.PointingDeviceType) -> InkInputSource {
+    switch device {
+    case .pen, .eraser: .stylus
+    case .unknown, .cursor: .mouse
+    @unknown default: .mouse
+    }
+  }
+
+  static func pressure(_ value: CGFloat) -> CGFloat { min(max(value, 0.5), 1) }
+}
+
 struct InkPoint: Codable, Hashable {
   var x: CGFloat
   var y: CGFloat
