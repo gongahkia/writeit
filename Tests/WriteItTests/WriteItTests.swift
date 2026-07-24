@@ -483,6 +483,25 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("Apple Silicon benchmark runner reports corpus latency and memory")
+  func runsAppleSiliconBenchmark() async throws {
+    guard OCRBenchmarkRunner.isAppleSilicon else { return }
+    let fixture = OCRCorpusFixture(
+      entry: OCRCorpusEntry(
+        id: "fixture", imagePath: "fixture.png", transcription: "hello", language: .english),
+      imageData: Data([1])
+    )
+
+    let report = try await OCRBenchmarkRunner.run(
+      fixtures: [fixture],
+      recognizer: CorpusFixtureRecognition()
+    )
+
+    #expect(report.samples.map(\.fixtureID) == ["fixture"])
+    #expect(report.totalDuration >= .zero)
+    #expect(report.peakResidentMemoryBytes != nil)
+  }
+
   @Test("OCR accuracy evaluators use Unicode characters and normalized words")
   func evaluatesOCRErrorRates() {
     #expect(OCRAccuracyEvaluator.characterErrorRate(expected: "café", actual: "cafe") == 0.25)
