@@ -53,6 +53,7 @@ enum ManifestModelInstaller {
       throw ManifestModelInstallerError.assetMissing
     }
     let destination = try installationDirectory(for: manifest, in: modelsDirectory)
+    try ModelAssetDigestVerifier.verify(assetURL: stagedAssetURL, expectedSHA256: manifest.sha256)
     guard !FileManager.default.fileExists(atPath: destination.path) else {
       throw ManifestModelInstallerError.alreadyInstalled
     }

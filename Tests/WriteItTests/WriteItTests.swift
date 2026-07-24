@@ -185,13 +185,15 @@ struct ManifestModelInstallerTests {
   func tracksManifestInstallationState() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
-    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let source = directory.appendingPathComponent("fixture.asset")
+    try Data([1]).write(to: source)
+    let digest = try ModelAssetDigestVerifier.sha256(for: source)
     let manifest = ModelManifest(
       id: "fixture",
       version: "1.0.0",
-      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
-      sha256: String(repeating: "0", count: 64),
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: digest,
       license: "MIT",
       supportedLanguages: [.english],
       requiresAppleSilicon: true
@@ -212,14 +214,15 @@ struct ManifestModelInstallerTests {
   func installsManifestModel() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
-    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
-    try Data([1]).write(to: source.appendingPathComponent("model.bin"))
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let source = directory.appendingPathComponent("fixture.asset")
+    try Data([1]).write(to: source)
+    let digest = try ModelAssetDigestVerifier.sha256(for: source)
     let manifest = ModelManifest(
       id: "fixture",
       version: "1.0.0",
-      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
-      sha256: String(repeating: "0", count: 64),
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: digest,
       license: "MIT",
       supportedLanguages: [.english],
       requiresAppleSilicon: true
@@ -251,13 +254,15 @@ struct ManifestModelInstallerTests {
   func rejectsUnsafeOrDuplicateManifestModel() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
-    let source = directory.appendingPathComponent("fixture.mlmodelc", isDirectory: true)
-    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let source = directory.appendingPathComponent("fixture.asset")
+    try Data([1]).write(to: source)
+    let digest = try ModelAssetDigestVerifier.sha256(for: source)
     let validManifest = ModelManifest(
       id: "fixture",
       version: "1.0.0",
-      downloadURL: URL(string: "https://example.invalid/fixture.mlmodelc")!,
-      sha256: String(repeating: "0", count: 64),
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: digest,
       license: "MIT",
       supportedLanguages: [.english],
       requiresAppleSilicon: true
@@ -282,6 +287,65 @@ struct ManifestModelInstallerTests {
       try ManifestModelInstaller.install(manifest: unsafeManifest, stagedAssetURL: source, in: modelsDirectory)
     }
     #expect(ManifestModelInstaller.installedAssetURL(for: validManifest, in: modelsDirectory) != nil)
+  }
+}
+
+struct ModelAssetDigestVerifierTests {
+  @Test("streams SHA-256 verification for downloaded model assets")
+  func verifiesModelAssetDigest() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let asset = directory.appendingPathComponent("fixture.asset")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("abc".utf8).write(to: asset)
+
+    #expect(try ModelAssetDigestVerifier.sha256(for: asset)
+      == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    try ModelAssetDigestVerifier.verify(
+      assetURL: asset,
+      expectedSHA256: "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD"
+    )
+  }
+
+  @Test("rejects mismatched and non-file model assets before installation")
+  func rejectsInvalidModelAsset() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let asset = directory.appendingPathComponent("fixture.asset")
+    try Data("abc".utf8).write(to: asset)
+
+    #expect(throws: ModelAssetDigestError.digestMismatch) {
+      try ModelAssetDigestVerifier.verify(assetURL: asset, expectedSHA256: String(repeating: "0", count: 64))
+    }
+    #expect(throws: ModelAssetDigestError.assetIsNotAFile) {
+      try ModelAssetDigestVerifier.sha256(for: directory)
+    }
+  }
+
+  @Test("installer rejects an asset whose manifest digest does not match")
+  func installerRejectsMismatchedAsset() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let asset = directory.appendingPathComponent("fixture.asset")
+    try Data("abc".utf8).write(to: asset)
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: String(repeating: "0", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let modelsDirectory = directory.appendingPathComponent("Models", isDirectory: true)
+
+    #expect(throws: ModelAssetDigestError.digestMismatch) {
+      try ManifestModelInstaller.install(
+        manifest: manifest, stagedAssetURL: asset, in: modelsDirectory)
+    }
+    #expect(ManifestModelInstaller.installedAssetURL(for: manifest, in: modelsDirectory) == nil)
   }
 }
 
