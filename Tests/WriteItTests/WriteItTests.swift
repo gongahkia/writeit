@@ -240,6 +240,15 @@ struct CaptureModelTests {
     #expect(style.lineWidth(for: 2) == style.lineWidth(for: 1))
   }
 
+  @Test("base width applies equally to mouse and stylus pressure")
+  func baseWidthAppliesAcrossInputSources() {
+    let style = InkStyle(baseWidth: 9, pressureSensitivity: 0, smoothing: 0)
+    let mouse = InkPoint(x: 0, y: 0, pressure: 0.5, timestamp: 0, inputSource: .mouse)
+    let stylus = InkPoint(x: 0, y: 0, pressure: 0.5, timestamp: 0, inputSource: .stylus)
+    #expect(style.lineWidth(for: mouse.pressure) == 9)
+    #expect(style.lineWidth(for: stylus.pressure) == 9)
+  }
+
   @Test("smoothing is deterministic for mouse and tablet input")
   func smoothingIsDeterministicAcrossInputSources() {
     let style = InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 1)
@@ -361,6 +370,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.strokeSmoothing = 0.8
     #expect(Preferences(defaults: defaults).inkStyle.smoothing == 0.8)
+  }
+
+  @Test("persists the selected base stroke width")
+  func persistsBaseStrokeWidth() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.strokeWidth = 9
+    #expect(Preferences(defaults: defaults).inkStyle.baseWidth == 9)
   }
 
   @Test("surfaces and resets malformed saved settings")
