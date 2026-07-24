@@ -483,6 +483,147 @@ struct AccessibilityDeliveryTests {
 }
 
 struct CaptureModelTests {
+  @Test("backend qualification accepts a benchmark at all configured thresholds")
+  func qualifiesBenchmarkAtThresholds() throws {
+    let report = OCRBenchmarkReport(
+      samples: [
+        OCRCorpusBenchmarkSample(
+          fixtureID: "fixture",
+          language: .english,
+          expectedText: "hello world",
+          outcome: .recognized(text: "hello world", confidence: 1, backendID: "fixture"),
+          duration: .milliseconds(100)
+        )
+      ],
+      totalDuration: .milliseconds(100),
+      peakResidentMemoryBytes: 1_024
+    )
+    let thresholds = try OCRBackendQualificationThresholds(
+      maximumMeanCharacterErrorRate: 0,
+      maximumMeanWordErrorRate: 0,
+      maximumSampleDuration: .milliseconds(100),
+      maximumTotalDuration: .milliseconds(100),
+      maximumPeakResidentMemoryBytes: 1_024
+    )
+
+    let qualification = OCRBackendQualifier.qualify(
+      report: report,
+      backendID: "fixture",
+      thresholds: thresholds
+    )
+
+    #expect(qualification.isQualified)
+    #expect(qualification.metrics.sampleCount == 1)
+    #expect(qualification.metrics.meanCharacterErrorRate == 0)
+    #expect(qualification.metrics.peakResidentMemoryBytes == 1_024)
+  }
+
+  @Test("backend qualification rejects failed, mismatched, and threshold-exceeding samples")
+  func rejectsUnqualifiedBenchmark() throws {
+    let report = OCRBenchmarkReport(
+      samples: [
+        OCRCorpusBenchmarkSample(
+          fixtureID: "failed",
+          language: .english,
+          expectedText: "hello",
+          outcome: .failed,
+          duration: .milliseconds(10)
+        ),
+        OCRCorpusBenchmarkSample(
+          fixtureID: "wrong-backend",
+          language: .english,
+          expectedText: "hello",
+          outcome: .recognized(text: "hello", confidence: 1, backendID: "other"),
+          duration: .milliseconds(10)
+        ),
+        OCRCorpusBenchmarkSample(
+          fixtureID: "slow-inaccurate",
+          language: .english,
+          expectedText: "hello world",
+          outcome: .recognized(text: "goodbye", confidence: 1, backendID: "fixture"),
+          duration: .seconds(2)
+        ),
+      ],
+      totalDuration: .seconds(3),
+      peakResidentMemoryBytes: 2_048
+    )
+    let thresholds = try OCRBackendQualificationThresholds(
+      maximumMeanCharacterErrorRate: 0.1,
+      maximumMeanWordErrorRate: 0.1,
+      maximumSampleDuration: .seconds(1),
+      maximumTotalDuration: .seconds(1),
+      maximumPeakResidentMemoryBytes: 1_024
+    )
+
+    let qualification = OCRBackendQualifier.qualify(
+      report: report,
+      backendID: "fixture",
+      thresholds: thresholds
+    )
+
+    #expect(!qualification.isQualified)
+    #expect(qualification.failures == [
+      .failedSamples(1),
+      .unexpectedBackendSamples(1),
+      .characterErrorRate(10.0 / 11.0),
+      .wordErrorRate(1),
+      .sampleDuration(.seconds(2)),
+      .totalDuration(.seconds(3)),
+      .peakResidentMemory(2_048),
+    ])
+  }
+
+  @Test("backend qualification rejects invalid limits and unavailable required memory")
+  func rejectsInvalidQualificationThresholds() throws {
+    #expect(throws: OCRBackendQualificationThresholdError.invalidErrorRate) {
+      try OCRBackendQualificationThresholds(
+        maximumMeanCharacterErrorRate: 1.1,
+        maximumMeanWordErrorRate: 0,
+        maximumSampleDuration: .seconds(1),
+        maximumTotalDuration: .seconds(1)
+      )
+    }
+    #expect(throws: OCRBackendQualificationThresholdError.negativeDuration) {
+      try OCRBackendQualificationThresholds(
+        maximumMeanCharacterErrorRate: 0,
+        maximumMeanWordErrorRate: 0,
+        maximumSampleDuration: .seconds(-1),
+        maximumTotalDuration: .seconds(1)
+      )
+    }
+    let report = OCRBenchmarkReport(
+      samples: [
+        OCRCorpusBenchmarkSample(
+          fixtureID: "fixture",
+          language: .english,
+          expectedText: "hello",
+          outcome: .recognized(text: "hello", confidence: 1, backendID: "fixture"),
+          duration: .milliseconds(1)
+        )
+      ],
+      totalDuration: .milliseconds(1),
+      peakResidentMemoryBytes: nil
+    )
+    let thresholds = try OCRBackendQualificationThresholds(
+      maximumMeanCharacterErrorRate: 0,
+      maximumMeanWordErrorRate: 0,
+      maximumSampleDuration: .seconds(1),
+      maximumTotalDuration: .seconds(1),
+      maximumPeakResidentMemoryBytes: 1
+    )
+
+    #expect(OCRBackendQualifier.qualify(
+      report: report,
+      backendID: "fixture",
+      thresholds: thresholds
+    ).failures == [.memoryUnavailable])
+    #expect(OCRBackendQualifier.qualify(
+      report: OCRBenchmarkReport(samples: [], totalDuration: .zero, peakResidentMemoryBytes: nil),
+      backendID: "fixture",
+      thresholds: thresholds
+    ).failures == [.noSamples, .memoryUnavailable])
+  }
+
   @Test("Apple Silicon benchmark runner reports corpus latency and memory")
   func runsAppleSiliconBenchmark() async throws {
     guard OCRBenchmarkRunner.isAppleSilicon else { return }
