@@ -461,8 +461,12 @@ final class CaptureCoordinator: ObservableObject {
   }
 
   private func dismissPanel() {
-    guard session.transition(to: .dismissing) else { return }
+    guard session.transition(to: .dismissing) else {
+      if session.phase == .idle { delivery.clearCapturedTarget() }
+      return
+    }
     overlay.dismiss()
     session.completeDismissal()
+    delivery.clearCapturedTarget()
   }
 }

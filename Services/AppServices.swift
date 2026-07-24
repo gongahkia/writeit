@@ -173,6 +173,7 @@ protocol AccessibilityDelivering: AnyObject {
   var isTrusted: Bool { get }
   func requestTrust()
   func captureTarget() -> TargetReference?
+  func clearCapturedTarget()
   func deliver(_ request: DeliveryRequest) -> DeliveryOutcome
   func undo()
 }

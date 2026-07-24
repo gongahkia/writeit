@@ -669,6 +669,12 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(target.bundleIdentifier == expected.bundleIdentifier)
     #expect(target.displayID == expected.displayID)
     #expect(dependencies.delivery.captureTargetRequests == 1)
+    #expect(dependencies.delivery.clearCapturedTargetRequests == 1)
+
+    capture.cancelCapture()
+
+    #expect(capture.session.target == nil)
+    #expect(dependencies.delivery.clearCapturedTargetRequests == 2)
   }
 
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
@@ -910,6 +916,7 @@ private final class TestDelivery: AccessibilityDelivering {
   var trusted: Bool
   var capturedTarget: TargetReference?
   private(set) var captureTargetRequests = 0
+  private(set) var clearCapturedTargetRequests = 0
   private(set) var deliveryRequests = 0
   var isTrusted: Bool { trusted }
 
@@ -918,6 +925,9 @@ private final class TestDelivery: AccessibilityDelivering {
   func captureTarget() -> TargetReference? {
     captureTargetRequests += 1
     return capturedTarget
+  }
+  func clearCapturedTarget() {
+    clearCapturedTargetRequests += 1
   }
   func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
     deliveryRequests += 1

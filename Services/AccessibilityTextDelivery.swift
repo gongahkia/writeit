@@ -50,6 +50,10 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
     )
   }
 
+  func clearCapturedTarget() {
+    lastTarget = nil
+  }
+
   func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
     AppLog.delivery.info(
       "delivery_requested strategy=\(request.strategy.rawValue, privacy: .public) target_available=\(request.target != nil, privacy: .public)"
