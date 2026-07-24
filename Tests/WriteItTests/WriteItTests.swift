@@ -155,6 +155,26 @@ struct RecognitionContractTests {
 }
 
 struct AccessibilityDeliveryTests {
+  @Test("clipboard-only delivery does not access the captured target") @MainActor
+  func copiesWithoutAccessibilityDelivery() {
+    let operations = TestAccessibilityDeliveryOperations()
+    let delivery = AccessibilityTextDelivery(operations: operations)
+
+    let outcome = delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: nil,
+        strategy: .clipboard,
+        clipboardHandling: .leaveRecognizedText
+      ))
+
+    #expect(outcome == .clipboard)
+    #expect(operations.copiedTexts == ["recognized text"])
+    #expect(operations.activatedPIDs.isEmpty)
+    #expect(operations.commandKeyCodes.isEmpty)
+    #expect(operations.replacedTexts.isEmpty)
+  }
+
   @Test("paste delivery uses the captured target and Command-V") @MainActor
   func pastesIntoCapturedTarget() {
     let operations = TestAccessibilityDeliveryOperations()
