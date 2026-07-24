@@ -47,6 +47,7 @@ struct CaptureSettingsView: View {
           Picker("Clipboard after paste", selection: $preferences.clipboardHandling) {
             ForEach(ClipboardHandling.allCases) { Text($0.title).tag($0) }
           }
+          Toggle("Verify paste when available", isOn: $preferences.verifyPasteDelivery)
         }
         Picker("Recognition language", selection: $preferences.recognitionLanguage) {
           ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }

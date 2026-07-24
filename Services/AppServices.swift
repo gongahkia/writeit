@@ -126,6 +126,14 @@ struct DeliveryRequest {
   let target: TargetReference?
   let strategy: OutputStrategy
   let clipboardHandling: ClipboardHandling
+  let verifyPaste: Bool
+}
+
+enum PasteDeliveryVerification: Equatable {
+  case notRequested
+  case verified
+  case unavailable
+  case failed
 }
 
 enum DeliveryFailure: Equatable {
@@ -153,7 +161,7 @@ enum DeliveryFailure: Equatable {
 }
 
 enum DeliveryOutcome: Equatable {
-  case pasted(ClipboardHandling)
+  case pasted(ClipboardHandling, PasteDeliveryVerification)
   case accessibilityInserted
   case clipboard
   case clipboardFallback(DeliveryFailure)
@@ -161,7 +169,10 @@ enum DeliveryOutcome: Equatable {
 
   var message: String {
     switch self {
-    case .pasted: "Pasted into captured field"
+    case .pasted(_, .notRequested): "Pasted into captured field"
+    case .pasted(_, .verified): "Pasted and verified in captured field"
+    case .pasted(_, .unavailable): "Pasted; target could not verify insertion"
+    case .pasted(_, .failed): "Paste sent; target did not verify insertion"
     case .accessibilityInserted: "Inserted into captured field"
     case .clipboard: "Copied to clipboard"
     case .clipboardFallback(let failure): "Copied: \(failure.message)"

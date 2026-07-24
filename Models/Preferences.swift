@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 2
+  static let currentSchemaVersion = 3
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -24,6 +24,9 @@ final class Preferences: ObservableObject {
   }
   @Published var clipboardHandling: ClipboardHandling {
     didSet { save(clipboardHandling, key: .clipboardHandling) }
+  }
+  @Published var verifyPasteDelivery: Bool {
+    didSet { defaults.set(verifyPasteDelivery, forKey: Key.verifyPasteDelivery.rawValue) }
   }
   @Published var recognitionLanguage: RecognitionLanguage {
     didSet { save(recognitionLanguage, key: .recognitionLanguage) }
@@ -90,6 +93,7 @@ final class Preferences: ObservableObject {
     resultMode = resultModeResult.value
     outputStrategy = outputStrategyResult.value
     clipboardHandling = clipboardHandlingResult.value
+    verifyPasteDelivery = defaults.bool(forKey: Key.verifyPasteDelivery.rawValue)
     recognitionLanguage = recognitionLanguageResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
@@ -130,6 +134,7 @@ final class Preferences: ObservableObject {
     case resultMode
     case outputStrategy
     case clipboardHandling
+    case verifyPasteDelivery
     case recognitionLanguage
     case historyMode
     case historyAutoDelete
@@ -151,6 +156,7 @@ final class Preferences: ObservableObject {
     defaults.register(defaults: [
       Key.schemaVersion.rawValue: 0,
       Key.historyAutoDelete.rawValue: true,
+      Key.verifyPasteDelivery.rawValue: false,
       Key.historyRetentionDays.rawValue: 7,
       Key.aiEnabled.rawValue: false,
       Key.aiBaseURL.rawValue: defaultAIBaseURL,

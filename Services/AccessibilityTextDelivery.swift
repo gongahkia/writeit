@@ -9,6 +9,18 @@ struct TargetReference {
   let displayID: UInt32?
 }
 
+enum PasteDeliveryVerifier {
+  static func result(
+    expectedText: String,
+    selectedText: String?,
+    value: String?
+  ) -> PasteDeliveryVerification {
+    if selectedText == expectedText || value?.contains(expectedText) == true { return .verified }
+    if selectedText == nil && value == nil { return .unavailable }
+    return .failed
+  }
+}
+
 struct ClipboardSnapshot {
   let items: [[NSPasteboard.PasteboardType: Data]]
 }
@@ -61,6 +73,7 @@ protocol AccessibilityDeliveryOperating: AnyObject {
   func isEditable(_ element: AXUIElement) -> Bool
   func activate(pid: pid_t) -> Bool
   func postCommand(keyCode: CGKeyCode) -> Bool
+  func verifyPastedText(_ text: String, in element: AXUIElement) async -> PasteDeliveryVerification
   func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool
 }
 
@@ -130,12 +143,33 @@ final class SystemAccessibilityDeliveryOperations: AccessibilityDeliveryOperatin
     return true
   }
 
+  func verifyPastedText(_ text: String, in element: AXUIElement) async -> PasteDeliveryVerification {
+    do {
+      try await Task.sleep(for: .milliseconds(150))
+    } catch {
+      return .unavailable
+    }
+    return PasteDeliveryVerifier.result(
+      expectedText: text,
+      selectedText: stringAttribute(kAXSelectedTextAttribute, in: element),
+      value: stringAttribute(kAXValueAttribute, in: element)
+    )
+  }
+
   func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
     AXUIElementSetAttributeValue(
       element,
       kAXSelectedTextAttribute as CFString,
       text as CFTypeRef
     ) == .success
+  }
+
+  private func stringAttribute(_ attribute: String, in element: AXUIElement) -> String? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success,
+      let value
+    else { return nil }
+    return value as? String
   }
 }
 
@@ -221,11 +255,18 @@ final class AccessibilityTextDelivery: AccessibilityDelivering {
       guard operations.postCommand(keyCode: 9) else {
         return .clipboardFallback(.pasteEventUnavailable)
       }
-      lastTarget = target
       if let clipboardSnapshot {
         scheduleClipboardRestore(clipboardSnapshot, expectedChangeCount: recognizedClipboardChangeCount)
       }
-      return .pasted(request.clipboardHandling)
+      let verification =
+        request.verifyPaste
+        ? await operations.verifyPastedText(request.text, in: target.element)
+        : .notRequested
+      guard Task.isCancelled == false else {
+        return .pasted(request.clipboardHandling, .unavailable)
+      }
+      lastTarget = target
+      return .pasted(request.clipboardHandling, verification)
     case .accessibility:
       guard operations.replaceSelectedText(in: target.element, with: request.text) else {
         return .clipboardFallback(.accessibilityInsertionFailed)

@@ -139,7 +139,9 @@ struct RecognitionContractTests {
   func deliveryOutcomesRetainTypedSemantics() {
     let outcome = DeliveryOutcome.clipboardFallback(.targetNotEditable)
     #expect(outcome.message == "Copied: Captured field no longer accepts text")
-    #expect(DeliveryOutcome.pasted(.leaveRecognizedText) != .pasted(.restorePrevious))
+    #expect(
+      DeliveryOutcome.pasted(.leaveRecognizedText, .notRequested)
+        != .pasted(.restorePrevious, .notRequested))
   }
 
   @Test("delivery rejects stale or noneditable captured targets")
@@ -151,6 +153,19 @@ struct RecognitionContractTests {
       CapturedTargetValidator.failure(isApplicationRunning: true, isEditable: false)
         == .targetNotEditable)
     #expect(CapturedTargetValidator.failure(isApplicationRunning: true, isEditable: true) == nil)
+  }
+
+  @Test("paste verification uses selected text or exposed value without retaining text")
+  func classifiesPasteVerification() {
+    #expect(
+      PasteDeliveryVerifier.result(expectedText: "ink", selectedText: "ink", value: nil) == .verified)
+    #expect(
+      PasteDeliveryVerifier.result(expectedText: "ink", selectedText: nil, value: "prefix ink")
+        == .verified)
+    #expect(
+      PasteDeliveryVerifier.result(expectedText: "ink", selectedText: nil, value: nil) == .unavailable)
+    #expect(
+      PasteDeliveryVerifier.result(expectedText: "ink", selectedText: "", value: "other") == .failed)
   }
 }
 
@@ -165,7 +180,8 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: nil,
         strategy: .clipboard,
-        clipboardHandling: .leaveRecognizedText
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: false
       ))
 
     #expect(outcome == .clipboard)
@@ -194,14 +210,42 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: target,
         strategy: .paste,
-        clipboardHandling: .leaveRecognizedText
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: false
       ))
 
-    #expect(outcome == .pasted(.leaveRecognizedText))
+    #expect(outcome == .pasted(.leaveRecognizedText, .notRequested))
     #expect(operations.copiedTexts == ["recognized text"])
     #expect(operations.activatedPIDs == [getpid()])
     #expect(operations.commandKeyCodes == [9])
     #expect(operations.replacedTexts.isEmpty)
+  }
+
+  @Test("paste verification reports the target verification state") @MainActor
+  func verifiesPasteWhenRequested() async {
+    let operations = TestAccessibilityDeliveryOperations()
+    operations.pasteVerification = .verified
+    let delivery = AccessibilityTextDelivery(
+      operations: operations,
+      targetActivationWaiter: TestTargetActivationWaiter(result: true)
+    )
+    let target = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: nil
+    )
+
+    let outcome = await delivery.deliver(
+      DeliveryRequest(
+        text: "recognized text",
+        target: target,
+        strategy: .paste,
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: true
+      ))
+
+    #expect(outcome == .pasted(.leaveRecognizedText, .verified))
   }
 
   @Test("Accessibility delivery replaces selected text in the captured target") @MainActor
@@ -223,7 +267,8 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: target,
         strategy: .accessibility,
-        clipboardHandling: .leaveRecognizedText
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: false
       ))
 
     #expect(outcome == .accessibilityInserted)
@@ -254,10 +299,11 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: target,
         strategy: .paste,
-        clipboardHandling: .restorePrevious
+        clipboardHandling: .restorePrevious,
+        verifyPaste: false
       ))
 
-    #expect(outcome == .pasted(.restorePrevious))
+    #expect(outcome == .pasted(.restorePrevious, .notRequested))
     #expect(scheduler.pendingCount == 1)
     #expect(operations.restoreCount == 0)
     scheduler.runNext()
@@ -285,7 +331,8 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: target,
         strategy: .paste,
-        clipboardHandling: .restorePrevious
+        clipboardHandling: .restorePrevious,
+        verifyPaste: false
       ))
     operations.simulateExternalClipboardChange()
     scheduler.runNext()
@@ -318,7 +365,8 @@ struct AccessibilityDeliveryTests {
       text: "recognized text",
       target: target,
       strategy: .paste,
-      clipboardHandling: .leaveRecognizedText
+      clipboardHandling: .leaveRecognizedText,
+      verifyPaste: false
     )
 
     let failedOutcome = await failedDelivery.deliver(request)
@@ -357,14 +405,16 @@ struct AccessibilityDeliveryTests {
         text: "recognized text",
         target: target,
         strategy: .paste,
-        clipboardHandling: .leaveRecognizedText
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: false
       ))
     let accessibilityOutcome = await accessibilityDelivery.deliver(
       DeliveryRequest(
         text: "recognized text",
         target: target,
         strategy: .accessibility,
-        clipboardHandling: .leaveRecognizedText
+        clipboardHandling: .leaveRecognizedText,
+        verifyPaste: false
       ))
 
     #expect(pasteOutcome == .clipboardFallback(.pasteEventUnavailable))
@@ -714,6 +764,7 @@ struct PreferencesTests {
     #expect(preferences.historyRetentionDays == 7)
     #expect(preferences.historyMode == .textOnly)
     #expect(preferences.clipboardHandling == .restorePrevious)
+    #expect(preferences.verifyPasteDelivery == false)
     #expect(preferences.penUpDelay == 1.2)
     #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
@@ -743,6 +794,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.clipboardHandling = .leaveRecognizedText
     #expect(Preferences(defaults: defaults).clipboardHandling == .leaveRecognizedText)
+  }
+
+  @Test("persists paste verification preference")
+  func persistsPasteVerification() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.verifyPasteDelivery = true
+    #expect(Preferences(defaults: defaults).verifyPasteDelivery)
   }
 
   @Test("persists the selected recognition language")
@@ -1148,6 +1207,7 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   var activationSucceeds = true
   var commandSucceeds = true
   var replacementSucceeds = true
+  var pasteVerification: PasteDeliveryVerification = .unavailable
   var currentClipboardChangeCount = 0
   private(set) var copiedTexts: [String] = []
   private(set) var activatedPIDs: [pid_t] = []
@@ -1178,6 +1238,9 @@ private final class TestAccessibilityDeliveryOperations: AccessibilityDeliveryOp
   func postCommand(keyCode: CGKeyCode) -> Bool {
     commandKeyCodes.append(keyCode)
     return commandSucceeds
+  }
+  func verifyPastedText(_ text: String, in element: AXUIElement) async -> PasteDeliveryVerification {
+    pasteVerification
   }
   func replaceSelectedText(in element: AXUIElement, with text: String) -> Bool {
     replacedTexts.append(text)

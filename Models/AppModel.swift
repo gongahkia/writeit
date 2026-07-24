@@ -368,7 +368,8 @@ final class CaptureCoordinator: ObservableObject {
           text: text,
           target: target,
           strategy: strategy,
-          clipboardHandling: self.preferences.clipboardHandling
+          clipboardHandling: self.preferences.clipboardHandling,
+          verifyPaste: self.preferences.verifyPasteDelivery
         ))
       guard self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       self.history.append(text: text, strokes: strokes, mode: self.preferences.historyMode, source: source)
