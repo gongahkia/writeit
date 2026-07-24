@@ -638,6 +638,28 @@ struct KeychainStoreTests {
 }
 
 struct CaptureCoordinatorLifecycleTests {
+  @Test("capture start retains the exact focused editable target") @MainActor
+  func retainsFocusedTargetAtCaptureStart() throws {
+    let dependencies = TestDependencies(trusted: true)
+    let expected = TargetReference(
+      element: AXUIElementCreateApplication(getpid()),
+      pid: getpid(),
+      bundleIdentifier: "com.gongahkia.writeit.tests",
+      displayID: 42
+    )
+    dependencies.delivery.capturedTarget = expected
+    let capture = dependencies.makeCaptureCoordinator()
+
+    capture.beginCapture()
+
+    let target = try #require(capture.session.target)
+    #expect(CFEqual(target.element, expected.element))
+    #expect(target.pid == expected.pid)
+    #expect(target.bundleIdentifier == expected.bundleIdentifier)
+    #expect(target.displayID == expected.displayID)
+    #expect(dependencies.delivery.captureTargetRequests == 1)
+  }
+
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
   func startsAndStopsShortcutMonitoringWithAccessibility() {
     let dependencies = TestDependencies(trusted: false)
@@ -875,12 +897,17 @@ private final class TestShortcutMonitor: GlobalShortcutMonitoring {
 @MainActor
 private final class TestDelivery: AccessibilityDelivering {
   var trusted: Bool
+  var capturedTarget: TargetReference?
+  private(set) var captureTargetRequests = 0
   private(set) var deliveryRequests = 0
   var isTrusted: Bool { trusted }
 
   init(trusted: Bool) { self.trusted = trusted }
   func requestTrust() {}
-  func captureTarget() -> TargetReference? { nil }
+  func captureTarget() -> TargetReference? {
+    captureTargetRequests += 1
+    return capturedTarget
+  }
   func deliver(_ request: DeliveryRequest) -> DeliveryOutcome {
     deliveryRequests += 1
     return .clipboard
