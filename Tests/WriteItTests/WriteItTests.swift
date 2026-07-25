@@ -120,6 +120,72 @@ struct ReplacementPreviewModelTests {
   }
 }
 
+struct ReplacementRuleArchiveTests {
+  @Test("round trips ordered literal and regex replacement rules")
+  func roundTripsRules() throws {
+    let archive = ReplacementRuleArchive(
+      literalRules: LiteralReplacementRules(rules: [
+        try LiteralReplacementRule(find: "teh", replacement: "the"),
+      ]),
+      regexRules: try RegexReplacementRules(rules: [
+        try RegexReplacementRule(pattern: "the (cloud)", replacement: "WriteIt $1"),
+      ])
+    )
+    let decoded = try ReplacementRuleArchiveCodec.decode(
+      ReplacementRuleArchiveCodec.encode(archive))
+
+    #expect(decoded == archive)
+    #expect(decoded.literalRules.applying(to: "teh cloud") == "the cloud")
+    #expect(try RegexReplacementWorker.apply(decoded.regexRules, to: "the cloud") == "WriteIt cloud")
+  }
+
+  @Test("rejects unsupported and invalid replacement-rule archives")
+  func rejectsInvalidArchives() throws {
+    let unsupported = Data("""
+    {"schemaVersion":2,"literalRules":{"rules":[]},"regexRules":{"rules":[]}}
+    """.utf8)
+    let invalid = Data("""
+    {"schemaVersion":1,"literalRules":{"rules":[{"id":"2A45F2F0-6D01-4E1B-9D85-7D5D2D4AA1C6","find":"","replacement":"x"}]},"regexRules":{"rules":[]}}
+    """.utf8)
+
+    #expect(throws: ReplacementRuleArchiveError.unsupportedVersion) {
+      try ReplacementRuleArchiveCodec.decode(unsupported)
+    }
+    #expect(throws: ReplacementRuleArchiveError.invalidArchive) {
+      try ReplacementRuleArchiveCodec.decode(invalid)
+    }
+  }
+
+  @Test("import validates before replacing persisted rules")
+  func importIsAtomic() throws {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.literalReplacementRules = LiteralReplacementRules(rules: [
+      try LiteralReplacementRule(find: "old", replacement: "kept"),
+    ])
+    let invalid = Data("""
+    {"schemaVersion":1,"literalRules":{"rules":[]},"regexRules":{"rules":[{"id":"2A45F2F0-6D01-4E1B-9D85-7D5D2D4AA1C6","pattern":"(","replacement":"x"}]}}
+    """.utf8)
+
+    #expect(throws: ReplacementRuleArchiveError.invalidArchive) {
+      try preferences.importReplacementRules(from: invalid)
+    }
+    #expect(preferences.literalReplacementRules.applying(to: "old") == "kept")
+    #expect(preferences.regexReplacementRules.rules.isEmpty)
+  }
+
+  @Test("file archive store writes and reads the exact exported data")
+  func readsAndWritesArchiveData() throws {
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-rules-\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let data = Data("replacement rules".utf8)
+
+    try ReplacementRuleArchiveFileStore.write(data, to: url)
+    #expect(try ReplacementRuleArchiveFileStore.read(from: url) == data)
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {

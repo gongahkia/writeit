@@ -269,6 +269,20 @@ final class Preferences: ObservableObject {
     }
   }
 
+  func exportReplacementRules() throws -> Data {
+    try ReplacementRuleArchiveCodec.encode(
+      ReplacementRuleArchive(
+        literalRules: literalReplacementRules,
+        regexRules: regexReplacementRules
+      ))
+  }
+
+  func importReplacementRules(from data: Data) throws {
+    let archive = try ReplacementRuleArchiveCodec.decode(data)
+    literalReplacementRules = archive.literalRules
+    regexReplacementRules = archive.regexRules
+  }
+
   private static func load<T: Codable>(
     _ key: Key,
     from defaults: UserDefaults,

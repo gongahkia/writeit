@@ -83,6 +83,8 @@ struct CaptureSettingsView: View {
         RegexReplacementRulesSettingsView(preferences: preferences)
         Divider()
         ReplacementPreviewView(preferences: preferences)
+        Divider()
+        ReplacementRuleImportExportView(preferences: preferences)
       }
       Section("Permissions") {
         LabeledContent(
