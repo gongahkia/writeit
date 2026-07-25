@@ -6,6 +6,7 @@ final class AppRuntime {
   let history: HistoryStore
   let models: ModelStore
   let profiles: AppProfileStore
+  let profileCreator: CurrentAppProfileCreator
   let session: CaptureSession
   let recognition: RecognitionService
   let capture: CaptureCoordinator
@@ -14,7 +15,13 @@ final class AppRuntime {
     preferences = Preferences(defaults: defaults)
     history = HistoryStore()
     models = ModelStore()
-    profiles = AppProfileStore(defaults: defaults)
+    let profileStore = AppProfileStore(defaults: defaults)
+    let foregroundApplicationResolver = ForegroundApplicationBundleIdentifierResolver()
+    profiles = profileStore
+    profileCreator = CurrentAppProfileCreator(
+      profiles: profileStore,
+      foregroundApplicationResolver: foregroundApplicationResolver
+    )
     session = CaptureSession()
     recognition = RecognitionService()
     capture = CaptureCoordinator(
@@ -26,7 +33,8 @@ final class AppRuntime {
       recognition: recognition,
       enhancer: AIEnhancer(),
       overlay: CaptureOverlayController.shared,
-      loginItem: LoginItemService()
+      loginItem: LoginItemService(),
+      foregroundApplicationResolver: foregroundApplicationResolver
     )
   }
 

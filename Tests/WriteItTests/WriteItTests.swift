@@ -1912,6 +1912,38 @@ struct AppProfileStoreTests {
       try AppProfile(bundleIdentifier: "com.example editor")
     }
   }
+
+  @Test("creates and persists a profile for the resolved foreground app") @MainActor
+  func createsCurrentAppProfile() throws {
+    let defaults = makeDefaults()
+    let resolver = TestForegroundApplicationBundleIdentifierResolver()
+    resolver.bundleIdentifier = "com.example.editor"
+    let store = AppProfileStore(defaults: defaults)
+    let creator = CurrentAppProfileCreator(
+      profiles: store,
+      foregroundApplicationResolver: resolver
+    )
+
+    let profile = try creator.create()
+
+    #expect(profile.bundleIdentifier == "com.example.editor")
+    #expect(store.profiles == [profile])
+    #expect(resolver.resolveRequests == 1)
+    #expect(AppProfileStore(defaults: defaults).profiles == [profile])
+  }
+
+  @Test("refuses profile creation when no foreground app is available") @MainActor
+  func rejectsMissingForegroundAppForProfileCreation() {
+    let resolver = TestForegroundApplicationBundleIdentifierResolver()
+    let creator = CurrentAppProfileCreator(
+      profiles: AppProfileStore(defaults: makeDefaults()),
+      foregroundApplicationResolver: resolver
+    )
+
+    #expect(throws: AppProfileCreationError.foregroundApplicationUnavailable) {
+      try creator.create()
+    }
+  }
 }
 
 struct HistoryStoreTests {
