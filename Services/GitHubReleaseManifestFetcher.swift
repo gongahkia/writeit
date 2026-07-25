@@ -84,6 +84,8 @@ struct VersionedModelManifest: Codable, Equatable, Sendable {
       && hash.allSatisfy { $0.isASCII && $0.isHexDigit }
       && !manifest.license.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && !manifest.supportedLanguages.isEmpty
+      && manifest.assetSizeBytes > 0
+      && manifest.minimumMacOSVersion >= .macOS15
   }
 
   private static func isSafeComponent(_ value: String) -> Bool {

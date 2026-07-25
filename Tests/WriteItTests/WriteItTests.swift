@@ -349,6 +349,40 @@ struct ModelAssetDigestVerifierTests {
   }
 }
 
+struct ModelCompatibilityCheckerTests {
+  @Test("requires Apple Silicon, macOS support, and two asset copies plus headroom")
+  func validatesModelCompatibility() {
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: String(repeating: "a", count: 64),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true,
+      assetSizeBytes: 100,
+      minimumMacOSVersion: ModelMacOSVersion(major: 16, minor: 1, patch: 0)
+    )
+    let required = ModelCompatibilityChecker.requiredStorageBytes(for: manifest)
+
+    #expect(required == ModelCompatibilityChecker.installHeadroomBytes + 200)
+    #expect(ModelCompatibilityChecker.failure(for: manifest, environment: .init(
+      isAppleSilicon: false, macOSVersion: .macOS15, availableStorageBytes: required
+    )) == .requiresAppleSilicon)
+    #expect(ModelCompatibilityChecker.failure(for: manifest, environment: .init(
+      isAppleSilicon: true, macOSVersion: .macOS15, availableStorageBytes: required
+    )) == .requiresMacOS(manifest.minimumMacOSVersion))
+    #expect(ModelCompatibilityChecker.failure(for: manifest, environment: .init(
+      isAppleSilicon: true,
+      macOSVersion: manifest.minimumMacOSVersion,
+      availableStorageBytes: required - 1
+    )) == .insufficientStorage(required: required, available: required - 1))
+    #expect(ModelCompatibilityChecker.failure(for: manifest, environment: .init(
+      isAppleSilicon: true, macOSVersion: manifest.minimumMacOSVersion, availableStorageBytes: required
+    )) == nil)
+  }
+}
+
 struct ModelDownloadCheckpointStoreTests {
   @Test("persists resumable model progress without asset content")
   func persistsDownloadCheckpoint() throws {
@@ -426,7 +460,8 @@ struct GitHubReleaseManifestFetcherTests {
           sha256: String(repeating: "a", count: 64),
           license: "MIT",
           supportedLanguages: [.english],
-          requiresAppleSilicon: true
+          requiresAppleSilicon: true,
+          assetSizeBytes: 1_024
         )
       ]
     )

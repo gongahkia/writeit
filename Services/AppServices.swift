@@ -81,6 +81,18 @@ enum RecognitionBackendAvailability: Sendable, Equatable {
   case unavailable(String)
 }
 
+struct ModelMacOSVersion: Codable, Sendable, Hashable, Comparable {
+  let major: Int
+  let minor: Int
+  let patch: Int
+
+  static let macOS15 = Self(major: 15, minor: 0, patch: 0)
+
+  static func < (lhs: Self, rhs: Self) -> Bool {
+    (lhs.major, lhs.minor, lhs.patch) < (rhs.major, rhs.minor, rhs.patch)
+  }
+}
+
 struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
   let id: String
   let version: String
@@ -89,6 +101,30 @@ struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
   let license: String
   let supportedLanguages: Set<RecognitionLanguage>
   let requiresAppleSilicon: Bool
+  let assetSizeBytes: UInt64
+  let minimumMacOSVersion: ModelMacOSVersion
+
+  init(
+    id: String,
+    version: String,
+    downloadURL: URL,
+    sha256: String,
+    license: String,
+    supportedLanguages: Set<RecognitionLanguage>,
+    requiresAppleSilicon: Bool,
+    assetSizeBytes: UInt64 = 0,
+    minimumMacOSVersion: ModelMacOSVersion = .macOS15
+  ) {
+    self.id = id
+    self.version = version
+    self.downloadURL = downloadURL
+    self.sha256 = sha256
+    self.license = license
+    self.supportedLanguages = supportedLanguages
+    self.requiresAppleSilicon = requiresAppleSilicon
+    self.assetSizeBytes = assetSizeBytes
+    self.minimumMacOSVersion = minimumMacOSVersion
+  }
 }
 
 enum ModelInstallationState: Sendable, Equatable {

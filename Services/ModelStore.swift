@@ -62,6 +62,15 @@ final class ModelStore: ObservableObject {
   }
 
   func install(manifest: ModelManifest, stagedAssetURL: URL) {
+    if let failure = ModelCompatibilityChecker.failure(
+      for: manifest,
+      environment: ModelCompatibilityChecker.currentEnvironment(storageURL: modelsDirectory)
+    ) {
+      installationStates[installationKey(for: manifest)] = .failed(
+        failure.errorDescription ?? "Model compatibility check failed.")
+      error = AppErrorPresentation(kind: .configuration, title: "Model unavailable", message: failure.errorDescription ?? "Model compatibility check failed.")
+      return
+    }
     do {
       let installed = try ManifestModelInstaller.install(
         manifest: manifest,
