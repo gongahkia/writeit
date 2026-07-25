@@ -1982,6 +1982,29 @@ struct AppProfileStoreTests {
     ) == .english)
   }
 
+  @Test("resolves a backend model override only for its matching profile") @MainActor
+  func resolvesProfileBackendOverride() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(recognitionBackendID: "fixture@1.0.0")
+      ),
+    ])
+    let resolver = AppProfileOverrideResolver(profiles: store)
+
+    #expect(resolver.value(
+      for: "com.example.editor",
+      override: \.recognitionBackendID,
+      global: ModelStore.appleVisionModelID
+    ) == "fixture@1.0.0")
+    #expect(resolver.value(
+      for: "com.example.other",
+      override: \.recognitionBackendID,
+      global: ModelStore.appleVisionModelID
+    ) == ModelStore.appleVisionModelID)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()

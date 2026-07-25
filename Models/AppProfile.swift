@@ -51,9 +51,14 @@ struct AppProfile: Codable, Sendable, Equatable, Identifiable {
 
 struct AppProfileOverrides: Codable, Sendable, Equatable {
   let recognitionLanguage: RecognitionLanguage?
+  let recognitionBackendID: String?
 
-  init(recognitionLanguage: RecognitionLanguage? = nil) {
+  init(
+    recognitionLanguage: RecognitionLanguage? = nil,
+    recognitionBackendID: String? = nil
+  ) {
     self.recognitionLanguage = recognitionLanguage
+    self.recognitionBackendID = recognitionBackendID
   }
 }
 
