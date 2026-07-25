@@ -2931,6 +2931,24 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(dependencies.delivery.deliveredRequests.first?.text == "regex-ed")
   }
 
+  @Test("cleanup failure delivers unchanged recognized text with a notice") @MainActor
+  func cleanupFailureFallsBackWithoutDataLoss() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.aiEnabled = true
+    dependencies.enhancer.cleanError = RecognitionError.failed("unavailable")
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveredRequests.first?.text == "recognized")
+    #expect(capture.statusMessage.contains("AI cleanup failed; used recognized text unchanged."))
+  }
+
   @Test("capture exposes regular-expression timeout failures") @MainActor
   func exposesRegexReplacementTimeout() async throws {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
@@ -3733,9 +3751,11 @@ private actor FailThenSucceedRecognition: TextRecognizing {
 @MainActor
 private final class TestEnhancer: TextEnhancing {
   private(set) var requests: [TextEnhancementRequest] = []
+  var cleanError: Error?
 
   func clean(_ request: TextEnhancementRequest) async throws -> String {
     requests.append(request)
+    if let cleanError { throw cleanError }
     return request.text
   }
   func saveAPIKey(_ value: String) {}

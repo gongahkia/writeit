@@ -283,6 +283,8 @@ final class CaptureCoordinator: ObservableObject {
             let presentation = AppErrorPresentation.security(error)
             self.error = presentation
             notices.append(presentation.message)
+          } else {
+            notices.append("AI cleanup failed; used recognized text unchanged.")
           }
         }
         try Task.checkCancellation()
