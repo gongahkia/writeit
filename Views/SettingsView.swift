@@ -53,29 +53,8 @@ struct CaptureSettingsView: View {
           ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
         }
       }
-      Section("Ink input") {
-        Slider(value: $preferences.strokeWidth, in: 1...12, step: 0.5) {
-          Text("Stroke width")
-        } minimumValueLabel: {
-          Text("Fine")
-        } maximumValueLabel: {
-          Text("Bold")
-        }
-        Slider(value: $preferences.pressureSensitivity, in: 0...1, step: 0.05) {
-          Text("Pressure response")
-        } minimumValueLabel: {
-          Text("Fixed")
-        } maximumValueLabel: {
-          Text("Strong")
-        }
-        Slider(value: $preferences.strokeSmoothing, in: 0...1, step: 0.05) {
-          Text("Stroke smoothing")
-        } minimumValueLabel: {
-          Text("Raw")
-        } maximumValueLabel: {
-          Text("Smooth")
-        }
-        InkStylePreview(style: preferences.inkStyle)
+      Section {
+        InputTuningPanel(preferences: preferences)
       }
       Section("Recognition replacements") {
         LiteralReplacementRulesSettingsView(preferences: preferences)

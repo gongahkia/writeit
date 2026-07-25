@@ -2902,6 +2902,14 @@ struct PreferencesTests {
     #expect(Preferences(defaults: defaults).inkStyle.baseWidth == 9)
   }
 
+  @Test("persists the selected pressure response")
+  func persistsPressureSensitivity() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.pressureSensitivity = 0.85
+    #expect(Preferences(defaults: defaults).inkStyle.pressureSensitivity == 0.85)
+  }
+
   @Test("surfaces and resets malformed saved settings")
   func surfacesMalformedSavedSettings() {
     let defaults = makeDefaults()
