@@ -30,12 +30,13 @@ final class AIEnhancer: TextEnhancing {
     }
     var urlRequest = URLRequest(url: url)
     urlRequest.httpMethod = "POST"
+    urlRequest.timeoutInterval = AICleanupTransportPolicy.timeoutInterval
     urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
     urlRequest.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
     urlRequest.httpBody = try JSONEncoder().encode(body)
     do {
       AppLog.cleanup.info("cleanup_request_started")
-      let response = try await requester.data(for: urlRequest)
+      let response = try await send(urlRequest)
       guard response.statusCode == 200 else {
         throw AICleanupContractError.invalidResponse
       }
@@ -78,5 +79,25 @@ final class AIEnhancer: TextEnhancing {
     } catch {
       return .notConfigured
     }
+  }
+
+  private func send(_ request: URLRequest) async throws -> AICleanupHTTPResponse {
+    for attempt in 1...AICleanupTransportPolicy.maximumAttempts {
+      try Task.checkCancellation()
+      do {
+        let response = try await requester.data(for: request)
+        guard AICleanupTransportPolicy.shouldRetry(statusCode: response.statusCode),
+          attempt < AICleanupTransportPolicy.maximumAttempts
+        else { return response }
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch {
+        guard AICleanupTransportPolicy.shouldRetry(error: error),
+          attempt < AICleanupTransportPolicy.maximumAttempts
+        else { throw error }
+      }
+      try await Task.sleep(for: AICleanupTransportPolicy.retryDelay)
+    }
+    throw URLError(.unknown)
   }
 }

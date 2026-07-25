@@ -115,6 +115,26 @@ struct AICleanupCapabilityDiscoveryTests {
   }
 }
 
+struct AICleanupTransportPolicyTests {
+  @Test("retries only transient cleanup responses")
+  func retriesTransientResponses() {
+    #expect(AICleanupTransportPolicy.timeoutInterval == 30)
+    #expect(AICleanupTransportPolicy.maximumAttempts == 2)
+    #expect(AICleanupTransportPolicy.shouldRetry(statusCode: 408))
+    #expect(AICleanupTransportPolicy.shouldRetry(statusCode: 429))
+    #expect(AICleanupTransportPolicy.shouldRetry(statusCode: 503))
+    #expect(AICleanupTransportPolicy.shouldRetry(statusCode: 400) == false)
+    #expect(AICleanupTransportPolicy.shouldRetry(statusCode: 401) == false)
+  }
+
+  @Test("retries only transient cleanup transport errors")
+  func retriesTransientErrors() {
+    #expect(AICleanupTransportPolicy.shouldRetry(error: URLError(.timedOut)))
+    #expect(AICleanupTransportPolicy.shouldRetry(error: URLError(.networkConnectionLost)))
+    #expect(AICleanupTransportPolicy.shouldRetry(error: URLError(.badServerResponse)) == false)
+  }
+}
+
 struct LiteralReplacementRuleTests {
   @Test("applies literal replacements sequentially in stored order")
   func appliesRulesInOrder() throws {
