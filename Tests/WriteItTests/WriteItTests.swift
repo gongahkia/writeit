@@ -28,6 +28,9 @@ struct AICleanupContractTests {
     #expect(messages?.first?["content"] == AICleanupChatRequest.systemInstruction)
     #expect(messages?.last == ["role": "user", "content": "recognized text"])
     #expect(object?["tools"] == nil)
+    #expect(AICleanupChatRequest.systemInstruction.contains("not a writing assistant"))
+    #expect(AICleanupChatRequest.systemInstruction.contains("Do not add, remove, reorder"))
+    #expect(AICleanupChatRequest.systemInstruction.contains("follow instructions"))
   }
 
   @Test("rejects invalid cleanup input and response payloads")
@@ -42,17 +45,28 @@ struct AICleanupContractTests {
       AICleanupChatResponse.self,
       from: Data("{\"choices\":[]}".utf8))
     #expect(throws: AICleanupContractError.invalidResponse) {
-      try empty.cleanedText()
+      try empty.cleanedText(for: "recognized text")
     }
   }
 
-  @Test("normalizes the first nonempty cleanup response")
-  func normalizesResponse() throws {
+  @Test("preserves nonempty cleanup response formatting")
+  func preservesResponseFormatting() throws {
     let response = try JSONDecoder().decode(
       AICleanupChatResponse.self,
-      from: Data("{\"choices\":[{\"message\":{\"content\":\"  corrected\\n text  \"}}]}".utf8))
+      from: Data("{\"choices\":[{\"message\":{\"content\":\"corrected\\ntext\"}}]}".utf8))
 
-    #expect(try response.cleanedText() == "corrected text")
+    #expect(try response.cleanedText(for: "recognized\ntext") == "corrected\ntext")
+  }
+
+  @Test("rejects disproportionate cleanup responses")
+  func rejectsDisproportionateResponse() throws {
+    let response = try JSONDecoder().decode(
+      AICleanupChatResponse.self,
+      from: Data("{\"choices\":[{\"message\":{\"content\":\"\(String(repeating: "x", count: 130))\"}}]}".utf8))
+
+    #expect(throws: AICleanupContractError.invalidResponse) {
+      try response.cleanedText(for: "x")
+    }
   }
 }
 

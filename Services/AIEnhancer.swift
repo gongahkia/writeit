@@ -33,7 +33,8 @@ final class AIEnhancer: TextEnhancing {
       guard (response as? HTTPURLResponse)?.statusCode == 200 else {
         throw AICleanupContractError.invalidResponse
       }
-      return try JSONDecoder().decode(AICleanupChatResponse.self, from: data).cleanedText()
+      return try JSONDecoder().decode(AICleanupChatResponse.self, from: data).cleanedText(
+        for: request.text)
     } catch {
       if error is CancellationError { throw error }
       AppLog.cleanup.error(
