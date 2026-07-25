@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 4
+  static let currentSchemaVersion = 5
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -30,6 +30,9 @@ final class Preferences: ObservableObject {
   }
   @Published var recognitionLanguage: RecognitionLanguage {
     didSet { save(recognitionLanguage, key: .recognitionLanguage) }
+  }
+  @Published var recognitionBackendID: String {
+    didSet { save(recognitionBackendID, key: .recognitionBackendID) }
   }
   @Published var customWords: CustomWordList {
     didSet { save(customWords, key: .customWords) }
@@ -90,6 +93,8 @@ final class Preferences: ObservableObject {
       .clipboardHandling, from: defaults, fallback: ClipboardHandling.restorePrevious)
     let recognitionLanguageResult = Self.load(
       .recognitionLanguage, from: defaults, fallback: RecognitionLanguage.english)
+    let recognitionBackendIDResult = Self.load(
+      .recognitionBackendID, from: defaults, fallback: "apple-vision")
     let customWordsResult = Self.load(
       .customWords, from: defaults, fallback: CustomWordList(words: []))
     let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
@@ -100,6 +105,7 @@ final class Preferences: ObservableObject {
     clipboardHandling = clipboardHandlingResult.value
     verifyPasteDelivery = defaults.bool(forKey: Key.verifyPasteDelivery.rawValue)
     recognitionLanguage = recognitionLanguageResult.value
+    recognitionBackendID = recognitionBackendIDResult.value
     customWords = customWordsResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
@@ -121,6 +127,7 @@ final class Preferences: ObservableObject {
       outputStrategyResult.error,
       clipboardHandlingResult.error,
       recognitionLanguageResult.error,
+      recognitionBackendIDResult.error,
       customWordsResult.error,
       historyModeResult.error,
     ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
@@ -143,6 +150,7 @@ final class Preferences: ObservableObject {
     case clipboardHandling
     case verifyPasteDelivery
     case recognitionLanguage
+    case recognitionBackendID
     case customWords
     case historyMode
     case historyAutoDelete

@@ -149,7 +149,7 @@ actor AzureVisionRecognitionService: TextRecognizing, CloudCredentialValidating 
     return url
   }
 
-  private static func isAzureEndpoint(_ endpoint: URL) -> Bool {
+  static func isAzureEndpoint(_ endpoint: URL) -> Bool {
     guard endpoint.scheme?.lowercased() == "https", let host = endpoint.host?.lowercased() else {
       return false
     }

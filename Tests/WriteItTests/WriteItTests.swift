@@ -524,6 +524,64 @@ struct RecognitionContractTests {
   }
 }
 
+struct CloudOCRProviderStoreTests {
+  @Test("admits a configured provider only after its credential test succeeds") @MainActor
+  func admitsValidatedProvider() async throws {
+    let defaults = makeDefaults()
+    let credentials = TestCloudOCRCredentialStore()
+    let store = CloudOCRProviderStore(
+      defaults: defaults,
+      credentials: credentials,
+      tester: TestCloudOCRProviderTester(status: .valid)
+    )
+
+    try store.configureGoogle(apiKey: "google-key")
+    #expect(store.isSelectable(.googleVision) == false)
+    #expect(try credentials.data(for: CloudOCRProvider.googleVision.credentialAccount)
+      == Data("google-key".utf8))
+
+    #expect(await store.test(.googleVision) == .valid)
+    #expect(store.isSelectable(.googleVision))
+    #expect(store.configuration(for: .googleVision)?.isValidated == true)
+
+    let restored = CloudOCRProviderStore(
+      defaults: defaults,
+      credentials: credentials,
+      tester: TestCloudOCRProviderTester(status: .unavailable)
+    )
+    #expect(restored.isSelectable(.googleVision))
+    try restored.remove(.googleVision)
+    #expect(restored.configuration(for: .googleVision) == nil)
+    #expect(try credentials.data(for: CloudOCRProvider.googleVision.credentialAccount) == nil)
+  }
+
+  @Test("changing cloud configuration revokes prior validation") @MainActor
+  func changingConfigurationRevokesValidation() async throws {
+    let credentials = TestCloudOCRCredentialStore()
+    let store = CloudOCRProviderStore(
+      defaults: makeDefaults(),
+      credentials: credentials,
+      tester: TestCloudOCRProviderTester(status: .valid)
+    )
+    try store.configureAzure(
+      endpoint: "https://writeit.cognitiveservices.azure.com",
+      apiKey: "first-key"
+    )
+    _ = await store.test(.azureVision)
+    #expect(store.isSelectable(.azureVision))
+
+    try store.configureAzure(
+      endpoint: "https://writeit.cognitiveservices.azure.com",
+      apiKey: "second-key"
+    )
+    #expect(store.isSelectable(.azureVision) == false)
+    #expect(store.validationStatus(for: .azureVision) == .notConfigured)
+    #expect(throws: CloudOCRProviderStoreError.invalidAzureEndpoint) {
+      try store.configureAzure(endpoint: "https://example.invalid", apiKey: "key")
+    }
+  }
+}
+
 struct ManifestModelInstallerTests {
   @Test("model store exposes manifest-scoped installation state") @MainActor
   func tracksManifestInstallationState() throws {
@@ -2802,6 +2860,25 @@ private actor TestCustomOCRProviderRequester: CustomOCRProviderRequesting {
     requests.append(request)
     return response
   }
+}
+
+@MainActor
+private final class TestCloudOCRCredentialStore: CloudOCRCredentialStoring {
+  private var values: [String: Data] = [:]
+
+  func data(for account: String) throws -> Data? { values[account] }
+  func set(_ data: Data, for account: String) throws { values[account] = data }
+  func delete(_ account: String) throws { values.removeValue(forKey: account) }
+}
+
+private struct TestCloudOCRProviderTester: CloudOCRProviderTesting {
+  let status: CloudCredentialValidation
+
+  func validate(
+    provider: CloudOCRProvider,
+    endpoint: URL?,
+    apiKey: String
+  ) async -> CloudCredentialValidation { status }
 }
 
 @MainActor
