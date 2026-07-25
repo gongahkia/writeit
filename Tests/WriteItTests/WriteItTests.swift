@@ -81,6 +81,45 @@ struct RegexReplacementRuleTests {
   }
 }
 
+struct ReplacementPreviewModelTests {
+  @Test("preview applies literal rules before regular-expression rules") @MainActor
+  func appliesRulesInCaptureOrder() async throws {
+    let regexReplacer = TestRegexReplacer()
+    let preview = ReplacementPreviewModel(regexReplacer: regexReplacer)
+    preview.updateRules(
+      literal: LiteralReplacementRules(rules: [
+        try LiteralReplacementRule(find: "teh", replacement: "the"),
+      ]),
+      regex: try RegexReplacementRules(rules: [
+        try RegexReplacementRule(pattern: "the (cloud)", replacement: "WriteIt $1"),
+      ])
+    )
+    preview.sampleText = "teh cloud"
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(preview.previewText == "WriteIt cloud")
+    #expect(preview.errorMessage == nil)
+  }
+
+  @Test("preview reports bounded regex failures") @MainActor
+  func reportsRegexFailure() async throws {
+    let regexReplacer = TestRegexReplacer()
+    regexReplacer.failure = .timedOut
+    let preview = ReplacementPreviewModel(regexReplacer: regexReplacer)
+    preview.updateRules(
+      literal: LiteralReplacementRules(),
+      regex: try RegexReplacementRules(rules: [
+        try RegexReplacementRule(pattern: "text", replacement: "result"),
+      ])
+    )
+    preview.sampleText = "sample text"
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(preview.previewText == "sample text")
+    #expect(preview.errorMessage == "Regular-expression processing exceeded the time limit.")
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {
