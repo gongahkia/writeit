@@ -23,6 +23,7 @@ private enum MainSection: String, CaseIterable, Identifiable {
 struct ContentView: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
+  @ObservedObject var onboarding: OnboardingStore
   @ObservedObject var history: HistoryStore
   @ObservedObject var models: ModelStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
@@ -36,6 +37,14 @@ struct ContentView: View {
   @State private var section: MainSection = .capture
 
   var body: some View {
+    if onboarding.isActive {
+      OnboardingView(onboarding: onboarding)
+    } else {
+      mainContent
+    }
+  }
+
+  private var mainContent: some View {
     NavigationSplitView {
       List(selection: $section) {
         ForEach(MainSection.allCases) { item in

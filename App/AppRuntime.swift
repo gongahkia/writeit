@@ -6,6 +6,7 @@ final class AppRuntime {
   let history: HistoryStore
   let models: ModelStore
   let dataDeletion: LocalDataDeletionController
+  let onboarding: OnboardingStore
   let diagnostics: DiagnosticEventStore
   let metrics: AnonymousMetricsQueue
   let configurationImport: ConfigurationImportController
@@ -19,6 +20,7 @@ final class AppRuntime {
 
   init(defaults: UserDefaults = .standard) {
     preferences = Preferences(defaults: defaults)
+    onboarding = OnboardingStore(defaults: defaults)
     let historyStore = HistoryStore()
     let modelStore = ModelStore()
     let diagnosticStore = DiagnosticEventStore(retainsLocalLogs: preferences.retainsLocalLogs)

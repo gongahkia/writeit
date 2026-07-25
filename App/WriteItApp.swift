@@ -27,6 +27,7 @@ struct WriteItApp: App {
       ContentView(
         capture: appDelegate.runtime.capture,
         preferences: appDelegate.runtime.preferences,
+        onboarding: appDelegate.runtime.onboarding,
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
         dataDeletion: appDelegate.runtime.dataDeletion,

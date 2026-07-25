@@ -664,6 +664,27 @@ struct PrivacyStateRegressionTests {
   }
 }
 
+struct OnboardingStoreTests {
+  @Test("advances through the first-run steps and persists completion") @MainActor
+  func completesFirstRun() {
+    let defaults = makeDefaults()
+    let onboarding = OnboardingStore(defaults: defaults)
+
+    #expect(onboarding.isActive)
+    #expect(onboarding.currentStep == .accessibility)
+    #expect(onboarding.canGoBack == false)
+    onboarding.advance()
+    #expect(onboarding.currentStep == .shortcut)
+    #expect(onboarding.canGoBack)
+    onboarding.goBack()
+    #expect(onboarding.currentStep == .accessibility)
+    for _ in OnboardingStep.allCases { onboarding.advance() }
+
+    #expect(onboarding.isComplete)
+    #expect(OnboardingStore(defaults: defaults).isActive == false)
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {
