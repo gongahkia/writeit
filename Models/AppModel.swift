@@ -176,7 +176,9 @@ final class CaptureCoordinator: ObservableObject {
     cancelCaptureTask()
     cancelDeliveryTask()
     guard session.transition(to: .recognizing) else { return }
-    recognitionStartedAt = .now
+    let recognitionStartedAt = Date.now
+    self.recognitionStartedAt = recognitionStartedAt
+    session.clearRecognitionMetadata()
     let strokes = session.strokes
     let target = session.target
     let recognitionRequest = RecognitionRequest(
@@ -202,6 +204,12 @@ final class CaptureCoordinator: ObservableObject {
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID) else { return }
         guard !candidate.text.isEmpty else { throw RecognitionError.noText }
+        let metadata = RecognitionCaptureMetadata(
+          source: candidate.backendID,
+          confidence: candidate.confidence,
+          duration: max(0, Date.now.timeIntervalSince(recognitionStartedAt))
+        )
+        self.session.recordRecognitionMetadata(metadata)
         AppLog.recognition.info(
           "recognition_completed backend=\(candidate.backendID, privacy: .public)"
         )
@@ -244,6 +252,7 @@ final class CaptureCoordinator: ObservableObject {
             source: candidate.backendID,
             target: target,
             strokes: strokes,
+            metadata: metadata,
             notice: notice.isEmpty ? nil : notice
           )
         }
@@ -265,9 +274,11 @@ final class CaptureCoordinator: ObservableObject {
 
   func insertReviewedText() {
     guard session.phase == .reviewing, !session.recognizedText.isEmpty else { return }
+    let metadata = session.recognitionMetadata
     finish(
-      text: session.recognizedText, source: "Reviewed", target: session.target,
+      text: session.recognizedText, source: metadata?.source ?? "Reviewed", target: session.target,
       strokes: session.strokes,
+      metadata: metadata,
       notice: nil)
   }
 
@@ -352,6 +363,7 @@ final class CaptureCoordinator: ObservableObject {
     source: String,
     target: TargetReference?,
     strokes: [InkStroke],
+    metadata: RecognitionCaptureMetadata?,
     notice: String?
   ) {
     guard session.transition(to: .delivering) else { return }
@@ -374,7 +386,14 @@ final class CaptureCoordinator: ObservableObject {
       guard self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       self.session.recordDeliveryOutcome(outcome)
       self.error = AppErrorPresentation.delivery(outcome)
-      self.history.append(text: text, strokes: strokes, mode: self.preferences.historyMode, source: source)
+      self.history.append(
+        text: text,
+        strokes: strokes,
+        mode: self.preferences.historyMode,
+        source: source,
+        confidence: metadata?.confidence,
+        recognitionDuration: metadata?.duration
+      )
       let message = [outcome.message, notice].compactMap { $0 }.joined(separator: " ")
       guard self.session.transition(to: .delivered(message)) else { return }
       self.statusMessage = message

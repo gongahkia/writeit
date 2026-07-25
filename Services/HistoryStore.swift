@@ -69,9 +69,23 @@ final class HistoryStore: ObservableObject {
     }
   }
 
-  func append(text: String, strokes: [InkStroke], mode: HistoryMode, source: String) {
+  func append(
+    text: String,
+    strokes: [InkStroke],
+    mode: HistoryMode,
+    source: String,
+    confidence: Float? = nil,
+    recognitionDuration: TimeInterval? = nil
+  ) {
     guard mode != .off else { return }
-    append(HistoryEntry(text: text, strokes: mode == .full ? strokes : nil, source: source))
+    append(
+      HistoryEntry(
+        text: text,
+        strokes: mode == .full ? strokes : nil,
+        source: source,
+        confidence: confidence,
+        recognitionDuration: recognitionDuration
+      ))
   }
 
   func append(_ entry: HistoryEntry) {

@@ -1595,6 +1595,29 @@ struct HistoryStoreTests {
     #expect(archive.entries == legacyEntries)
   }
 
+  @Test("persists candidate confidence, source, and recognition duration") @MainActor
+  func persistsRecognitionMetadata() {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let history = HistoryStore(fileURL: fileURL, key: key)
+    history.append(
+      text: "recognized",
+      strokes: [],
+      mode: .textOnly,
+      source: "Apple Vision",
+      confidence: 0.92,
+      recognitionDuration: 0.18
+    )
+
+    let reloaded = HistoryStore(fileURL: fileURL, key: key)
+    let entry = reloaded.entries.first
+    #expect(entry?.source == "Apple Vision")
+    #expect(entry?.confidence == 0.92)
+    #expect(entry?.recognitionDuration == 0.18)
+  }
+
   @Test("surfaces history directory setup failures") @MainActor
   func surfacesDirectorySetupFailure() throws {
     let blockedPath = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -1731,6 +1754,28 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(capture.session.phase == .reviewing)
     capture.execute(.cancel)
     #expect(capture.session.phase == .idle)
+  }
+
+  @Test("reviewed captures retain candidate metadata in history") @MainActor
+  func retainsCandidateMetadataAfterReview() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.resultMode = .review
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+    #expect(capture.session.phase == .reviewing)
+    capture.insertReviewedText()
+    for _ in 0..<8 { await Task.yield() }
+
+    let entry = try #require(dependencies.history.entries.first)
+    #expect(entry.source == "successful-test")
+    #expect(entry.confidence == 1)
+    #expect(entry.recognitionDuration != nil)
   }
 
   @Test("failed recognition preserves ink for an explicit retry") @MainActor

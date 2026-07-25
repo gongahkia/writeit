@@ -8,6 +8,7 @@ final class CaptureSession: ObservableObject {
   @Published var recognizedText = ""
   @Published var canvasSize = CGSize(width: 760, height: 250)
   @Published private(set) var deliveryOutcome: DeliveryOutcome?
+  private(set) var recognitionMetadata: RecognitionCaptureMetadata?
 
   var target: TargetReference?
   var onStrokeFinished: (() -> Void)?
@@ -23,6 +24,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     deliveryOutcome = nil
+    recognitionMetadata = nil
     captureActivatedAt = clock.now
     hasAcceptedFirstStroke = false
     return true
@@ -40,6 +42,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     deliveryOutcome = nil
+    recognitionMetadata = nil
     target = nil
     captureActivatedAt = nil
     hasAcceptedFirstStroke = false
@@ -79,6 +82,14 @@ final class CaptureSession: ObservableObject {
 
   func recordDeliveryOutcome(_ outcome: DeliveryOutcome) {
     deliveryOutcome = outcome
+  }
+
+  func recordRecognitionMetadata(_ metadata: RecognitionCaptureMetadata) {
+    recognitionMetadata = metadata
+  }
+
+  func clearRecognitionMetadata() {
+    recognitionMetadata = nil
   }
 
   func inputValidationMessage() -> String? {

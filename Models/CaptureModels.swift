@@ -365,4 +365,12 @@ struct HistoryEntry: Identifiable, Codable, Hashable {
   var text: String
   var strokes: [InkStroke]?
   var source: String
+  var confidence: Float? = nil
+  var recognitionDuration: TimeInterval? = nil
+}
+
+struct RecognitionCaptureMetadata: Hashable {
+  let source: String
+  let confidence: Float
+  let duration: TimeInterval
 }
