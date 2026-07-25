@@ -243,6 +243,8 @@ final class CaptureCoordinator: ObservableObject {
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID) else { return }
         guard !candidate.text.isEmpty else { throw RecognitionError.noText }
+        let replacedText = self.preferences.literalReplacementRules.applying(to: candidate.text)
+        guard replacedText.isEmpty == false else { throw RecognitionError.noText }
         let metadata = RecognitionCaptureMetadata(
           source: candidate.backendID,
           confidence: candidate.confidence,
@@ -261,7 +263,7 @@ final class CaptureCoordinator: ObservableObject {
         do {
           result = try await enhancer.clean(
             TextEnhancementRequest(
-              text: candidate.text,
+              text: replacedText,
               enabled: enhancementRequest.enabled,
               baseURL: enhancementRequest.baseURL,
               model: enhancementRequest.model
@@ -270,7 +272,7 @@ final class CaptureCoordinator: ObservableObject {
           return
         } catch {
           guard self.ownsCaptureTask(taskID) else { return }
-          result = candidate.text
+          result = replacedText
           if error is KeychainError {
             let presentation = AppErrorPresentation.security(error)
             self.error = presentation

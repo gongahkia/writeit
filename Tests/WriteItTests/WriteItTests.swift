@@ -12,6 +12,26 @@ struct TextSanitizerTests {
   }
 }
 
+struct LiteralReplacementRuleTests {
+  @Test("applies literal replacements sequentially in stored order")
+  func appliesRulesInOrder() throws {
+    let rules = LiteralReplacementRules(rules: [
+      try LiteralReplacementRule(find: "teh", replacement: "the"),
+      try LiteralReplacementRule(find: "the cloud", replacement: "WriteIt"),
+    ])
+    #expect(rules.applying(to: "teh cloud") == "WriteIt")
+  }
+
+  @Test("permits literal deletion and rejects an empty find value")
+  func validatesRules() throws {
+    let deletion = try LiteralReplacementRule(find: "-draft", replacement: "")
+    #expect(deletion.applying(to: "writeit-draft") == "writeit")
+    #expect(throws: LiteralReplacementRuleError.emptyFindText) {
+      try LiteralReplacementRule(find: "", replacement: "replacement")
+    }
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {
@@ -1973,6 +1993,18 @@ struct PreferencesTests {
     ))
   }
 
+  @Test("persists ordered literal replacement rules")
+  func persistsLiteralReplacementRules() throws {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.literalReplacementRules = LiteralReplacementRules(rules: [
+      try LiteralReplacementRule(find: "teh", replacement: "the"),
+      try LiteralReplacementRule(find: "Write It", replacement: "WriteIt"),
+    ])
+    #expect(Preferences(defaults: defaults).literalReplacementRules.applying(to: "teh Write It")
+      == "the WriteIt")
+  }
+
   @Test("persists the selected stroke smoothing")
   func persistsStrokeSmoothing() {
     let defaults = makeDefaults()
@@ -2565,6 +2597,26 @@ struct CaptureCoordinatorLifecycleTests {
 
     let request = try #require(await recognition.requests.first)
     #expect(request.customWords == CustomWordList(words: ["ProfileTerm"]))
+  }
+
+  @Test("capture applies literal replacements before optional cleanup") @MainActor
+  func appliesLiteralReplacementsBeforeCleanup() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.aiEnabled = true
+    dependencies.preferences.literalReplacementRules = LiteralReplacementRules(rules: [
+      try LiteralReplacementRule(find: "recognized", replacement: "corrected"),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.enhancer.requests.first?.text == "corrected")
+    #expect(dependencies.delivery.deliveredRequests.first?.text == "corrected")
   }
 
   @Test("capture resolves a profile backend before the global default") @MainActor

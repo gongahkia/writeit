@@ -77,6 +77,9 @@ struct CaptureSettingsView: View {
         }
         InkStylePreview(style: preferences.inkStyle)
       }
+      Section("Recognition replacements") {
+        LiteralReplacementRulesSettingsView(preferences: preferences)
+      }
       Section("Permissions") {
         LabeledContent(
           "Accessibility", value: capture.accessibilityGranted ? "Enabled" : "Required")
