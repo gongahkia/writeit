@@ -62,4 +62,4 @@ The active implementation plan is tracked in this repository’s GitHub issues. 
 
 ## License
 
-The intended license is MIT; the license file has not yet been added.
+WriteIt is licensed under the [MIT License](LICENSE). Copyright © 2026 Gabriel Ong Zhe Mian.
