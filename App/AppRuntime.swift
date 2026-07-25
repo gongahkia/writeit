@@ -5,6 +5,7 @@ final class AppRuntime {
   let preferences: Preferences
   let history: HistoryStore
   let models: ModelStore
+  let profiles: AppProfileStore
   let session: CaptureSession
   let recognition: RecognitionService
   let capture: CaptureCoordinator
@@ -13,6 +14,7 @@ final class AppRuntime {
     preferences = Preferences(defaults: defaults)
     history = HistoryStore()
     models = ModelStore()
+    profiles = AppProfileStore(defaults: defaults)
     session = CaptureSession()
     recognition = RecognitionService()
     capture = CaptureCoordinator(

@@ -1862,6 +1862,58 @@ struct PreferencesTests {
   }
 }
 
+struct AppProfileStoreTests {
+  @Test("persists app profiles with canonical bundle identifiers") @MainActor
+  func persistsProfiles() throws {
+    let defaults = makeDefaults()
+    let profile = try AppProfile(
+      id: UUID(uuidString: "56AB413F-9E9F-425A-AEC4-39B45A5B7AB3")!,
+      bundleIdentifier: "COM.Example.Editor"
+    )
+    let store = AppProfileStore(defaults: defaults)
+
+    try store.replaceProfiles([profile])
+    let restored = AppProfileStore(defaults: defaults)
+
+    #expect(restored.profiles == [
+      try AppProfile(
+        id: UUID(uuidString: "56AB413F-9E9F-425A-AEC4-39B45A5B7AB3")!,
+        bundleIdentifier: "com.example.editor"
+      ),
+    ])
+    #expect(defaults.integer(forKey: AppProfileStore.schemaVersionDefaultsKey)
+      == AppProfileStore.currentSchemaVersion)
+  }
+
+  @Test("migrates a profile store without prior profile data") @MainActor
+  func migratesEmptyProfileStore() {
+    let defaults = makeDefaults()
+    defaults.set(0, forKey: AppProfileStore.schemaVersionDefaultsKey)
+
+    let store = AppProfileStore(defaults: defaults)
+
+    #expect(store.profiles.isEmpty)
+    #expect(store.error == nil)
+    #expect(defaults.integer(forKey: AppProfileStore.schemaVersionDefaultsKey)
+      == AppProfileStore.currentSchemaVersion)
+  }
+
+  @Test("preserves unreadable profile archives and rejects invalid identifiers") @MainActor
+  func rejectsInvalidProfileStorage() throws {
+    let defaults = makeDefaults()
+    let original = Data("not-json".utf8)
+    defaults.set(original, forKey: AppProfileStore.archiveDefaultsKey)
+    let store = AppProfileStore(defaults: defaults)
+
+    #expect(store.profiles.isEmpty)
+    #expect(store.error == .unreadableArchive)
+    #expect(defaults.data(forKey: AppProfileStore.archiveDefaultsKey) == original)
+    #expect(throws: AppProfileError.invalidBundleIdentifier) {
+      try AppProfile(bundleIdentifier: "com.example editor")
+    }
+  }
+}
+
 struct HistoryStoreTests {
   @Test("removes only entries older than the cutoff") @MainActor
   func removesOnlyEntriesOlderThanCutoff() {
