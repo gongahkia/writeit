@@ -1913,6 +1913,32 @@ struct AppProfileStoreTests {
     }
   }
 
+  @Test("migrates profiles to sparse overrides and resolves global fallback") @MainActor
+  func migratesProfilesAndResolvesGlobalFallback() throws {
+    let defaults = makeDefaults()
+    let legacyData = Data(
+      """
+      {"schema_version":1,"profiles":[{"id":"56AB413F-9E9F-425A-AEC4-39B45A5B7AB3","bundleIdentifier":"COM.Example.Editor"}]}
+      """.utf8
+    )
+    defaults.set(1, forKey: AppProfileStore.schemaVersionDefaultsKey)
+    defaults.set(legacyData, forKey: AppProfileStore.archiveDefaultsKey)
+
+    let store = AppProfileStore(defaults: defaults)
+    let profile = try #require(store.profile(matching: "com.example.editor"))
+    let archived = try #require(defaults.data(forKey: AppProfileStore.archiveDefaultsKey))
+    let archive = try #require(
+      try JSONSerialization.jsonObject(with: archived) as? [String: Any]
+    )
+
+    #expect(profile.overrides == .init())
+    #expect(archive["schema_version"] as? Int == AppProfileStore.currentSchemaVersion)
+    #expect(AppProfileOverrideResolution.value(profileOverride: "profile", global: "global") == "profile")
+    #expect(AppProfileOverrideResolution.value(profileOverride: Optional<String>.none, global: "global")
+      == "global")
+    #expect(store.profile(matching: "not a bundle ID") == nil)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()

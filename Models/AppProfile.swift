@@ -14,25 +14,48 @@ enum AppProfileError: LocalizedError, Equatable {
 struct AppProfile: Codable, Sendable, Equatable, Identifiable {
   let id: UUID
   let bundleIdentifier: String
+  let overrides: AppProfileOverrides
 
-  init(id: UUID = UUID(), bundleIdentifier: String) throws {
+  init(
+    id: UUID = UUID(),
+    bundleIdentifier: String,
+    overrides: AppProfileOverrides = .init()
+  ) throws {
     guard Self.isValid(bundleIdentifier) else { throw AppProfileError.invalidBundleIdentifier }
     self.id = id
     self.bundleIdentifier = bundleIdentifier.lowercased()
+    self.overrides = overrides
   }
 
   init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     try self.init(
       id: container.decode(UUID.self, forKey: .id),
-      bundleIdentifier: container.decode(String.self, forKey: .bundleIdentifier)
+      bundleIdentifier: container.decode(String.self, forKey: .bundleIdentifier),
+      overrides: container.decodeIfPresent(AppProfileOverrides.self, forKey: .overrides) ?? .init()
     )
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case bundleIdentifier
+    case overrides
   }
 
   private static func isValid(_ value: String) -> Bool {
     guard value.isEmpty == false else { return false }
     let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-"))
     return value.unicodeScalars.allSatisfy(allowed.contains)
+  }
+}
+
+struct AppProfileOverrides: Codable, Sendable, Equatable {
+  init() {}
+}
+
+enum AppProfileOverrideResolution {
+  static func value<Value>(profileOverride: Value?, global: Value) -> Value {
+    profileOverride ?? global
   }
 }
 
@@ -50,7 +73,7 @@ enum AppProfileStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class AppProfileStore: ObservableObject {
-  nonisolated static let currentSchemaVersion = 1
+  nonisolated static let currentSchemaVersion = 2
   nonisolated static let archiveDefaultsKey = "appProfiles.archive"
   nonisolated static let schemaVersionDefaultsKey = "appProfiles.schemaVersion"
 
@@ -76,6 +99,12 @@ final class AppProfileStore: ObservableObject {
 
   func clearError() { error = nil }
 
+  func profile(matching bundleIdentifier: String?) -> AppProfile? {
+    guard let bundleIdentifier, let profile = try? AppProfile(bundleIdentifier: bundleIdentifier)
+    else { return nil }
+    return profiles.first { $0.bundleIdentifier == profile.bundleIdentifier }
+  }
+
   private static func load(from defaults: UserDefaults) -> (profiles: [AppProfile], error: AppProfileStoreError?) {
     let storedSchemaVersion = defaults.integer(forKey: schemaVersionDefaultsKey)
     guard storedSchemaVersion <= currentSchemaVersion else {
@@ -87,6 +116,12 @@ final class AppProfileStore: ObservableObject {
     }
     do {
       let archive = try JSONDecoder().decode(AppProfileArchive.self, from: data)
+      if archive.requiresMigration {
+        defaults.set(
+          try JSONEncoder().encode(AppProfileArchive(profiles: archive.profiles)),
+          forKey: archiveDefaultsKey
+        )
+      }
       defaults.set(currentSchemaVersion, forKey: schemaVersionDefaultsKey)
       return (archive.profiles, nil)
     } catch let error as AppProfileStoreError {
@@ -109,7 +144,7 @@ private struct AppProfileArchive: Codable {
   init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
-    guard schemaVersion == AppProfileStore.currentSchemaVersion else {
+    guard (1...AppProfileStore.currentSchemaVersion).contains(schemaVersion) else {
       throw AppProfileStoreError.unsupportedSchema
     }
     self.schemaVersion = schemaVersion
@@ -120,4 +155,6 @@ private struct AppProfileArchive: Codable {
     case schemaVersion = "schema_version"
     case profiles
   }
+
+  var requiresMigration: Bool { schemaVersion < AppProfileStore.currentSchemaVersion }
 }
