@@ -1,0 +1,8 @@
+{
+  "response": {
+    "error": {
+      "code": "InvalidImageUrl",
+      "message": "image cannot be analyzed"
+    }
+  }
+}

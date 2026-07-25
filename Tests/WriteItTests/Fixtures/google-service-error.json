@@ -1,0 +1,12 @@
+{
+  "response": {
+    "responses": [
+      {
+        "error": {
+          "code": 3,
+          "message": "image cannot be analyzed"
+        }
+      }
+    ]
+  }
+}

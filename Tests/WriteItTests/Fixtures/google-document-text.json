@@ -1,0 +1,34 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/v1/images:annotate",
+    "contentType": "application/json; charset=utf-8",
+    "feature": "DOCUMENT_TEXT_DETECTION",
+    "language": "fr-FR"
+  },
+  "response": {
+    "responses": [
+      {
+        "fullTextAnnotation": {
+          "text": "  hello\nworld  ",
+          "pages": [
+            {
+              "blocks": [
+                {
+                  "paragraphs": [
+                    {
+                      "words": [
+                        { "confidence": 0.8 },
+                        { "confidence": 0.6 }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

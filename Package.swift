@@ -15,7 +15,12 @@ let package = Package(
       ],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),
-    .testTarget(name: "WriteItTests", dependencies: ["WriteIt"], path: "Tests/WriteItTests"),
+    .testTarget(
+      name: "WriteItTests",
+      dependencies: ["WriteIt"],
+      path: "Tests/WriteItTests",
+      resources: [.process("Fixtures")]
+    ),
   ],
   swiftLanguageModes: [.v6]
 )

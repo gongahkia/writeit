@@ -1081,18 +1081,10 @@ struct RecognitionContractTests {
 
   @Test("Google Vision sends a document handwriting request and normalizes its result")
   func googleVisionRecognizesDocumentText() async throws {
+    let fixture = try CloudAdapterFixture.load("google-document-text")
     let requester = TestGoogleVisionRequester(
       response: GoogleVisionHTTPResponse(
-        data: try JSONSerialization.data(withJSONObject: [
-          "responses": [[
-            "fullTextAnnotation": [
-              "text": "  hello\nworld  ",
-              "pages": [["blocks": [["paragraphs": [["words": [
-                ["confidence": 0.8], ["confidence": 0.6],
-              ]]]]]]],
-            ],
-          ]],
-        ]),
+        data: try CloudAdapterFixture.response(fixture),
         statusCode: 200
       ))
     let service = GoogleVisionRecognitionService(apiKey: "test-api-key", requester: requester)
@@ -1108,6 +1100,10 @@ struct RecognitionContractTests {
     #expect(result.languageResolution == .identity(.french))
     let sent = try #require(await requester.requests.first)
     #expect(sent.timeoutInterval == CloudRequestPolicy.timeoutInterval)
+    let expectedRequest = try CloudAdapterFixture.request(fixture)
+    #expect(sent.httpMethod == expectedRequest["method"] as? String)
+    #expect(try #require(sent.url).path == expectedRequest["path"] as? String)
+    #expect(sent.value(forHTTPHeaderField: "Content-Type") == expectedRequest["contentType"] as? String)
     #expect(URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
       .queryItems?.first(where: { $0.name == "key" })?.value == "test-api-key")
     let body = try #require(sent.httpBody)
@@ -1117,10 +1113,37 @@ struct RecognitionContractTests {
     let image = try #require(request["image"] as? [String: Any])
     #expect(image["content"] as? String == encodedImage.data.base64EncodedString())
     let features = try #require(request["features"] as? [[String: Any]])
-    #expect(features.first?["type"] as? String == "DOCUMENT_TEXT_DETECTION")
+    #expect(features.first?["type"] as? String == expectedRequest["feature"] as? String)
     let context = try #require(request["imageContext"] as? [String: Any])
-    #expect(context["languageHints"] as? [String] == ["fr-FR"])
+    let expectedLanguage = try #require(expectedRequest["language"] as? String)
+    #expect(context["languageHints"] as? [String] == [expectedLanguage])
     #expect(context["customWords"] == nil)
+  }
+
+  @Test("Google Vision rejects an error response fixture")
+  func googleVisionRejectsErrorFixture() async throws {
+    let fixture = try CloudAdapterFixture.load("google-service-error")
+    let service = GoogleVisionRecognitionService(
+      apiKey: "test-api-key",
+      requester: TestGoogleVisionRequester(
+        response: GoogleVisionHTTPResponse(data: try CloudAdapterFixture.response(fixture), statusCode: 200)
+      )
+    )
+
+    do {
+      _ = try await service.recognize(
+        RecognitionRequest(
+          imageData: CloudCredentialValidationProbe.imageData,
+          language: .english,
+          allowsCloudOCR: true
+        )
+      )
+      Issue.record("expected Google Vision error fixture to fail")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Google Cloud Vision could not analyze this capture.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
   }
 
   @Test("Google Vision refuses an empty API key without sending ink")
@@ -1143,16 +1166,10 @@ struct RecognitionContractTests {
 
   @Test("Azure Vision sends image bytes to the Read endpoint and maps confidence")
   func azureVisionRecognizesHandwriting() async throws {
+    let fixture = try CloudAdapterFixture.load("azure-read")
     let requester = TestAzureVisionRequester(
       response: AzureVisionHTTPResponse(
-        data: try JSONSerialization.data(withJSONObject: [
-          "readResult": [
-            "content": "  hello\nazure  ",
-            "blocks": [["lines": [["text": "hello azure", "words": [
-              ["confidence": 0.9], ["confidence": 0.7],
-            ]]]]],
-          ],
-        ]),
+        data: try CloudAdapterFixture.response(fixture),
         statusCode: 200
       ))
     let service = AzureVisionRecognitionService(
@@ -1171,14 +1188,46 @@ struct RecognitionContractTests {
     #expect(result.backendID == "azure-ai-vision-read")
     let sent = try #require(await requester.requests.first)
     #expect(sent.timeoutInterval == CloudRequestPolicy.timeoutInterval)
+    let expectedRequest = try CloudAdapterFixture.request(fixture)
+    #expect(sent.httpMethod == expectedRequest["method"] as? String)
+    #expect(try #require(sent.url).path == expectedRequest["path"] as? String)
     #expect(sent.httpBody == encodedImage.data)
-    #expect(sent.value(forHTTPHeaderField: "Content-Type") == "image/jpeg")
+    #expect(sent.value(forHTTPHeaderField: "Content-Type") == expectedRequest["contentType"] as? String)
     #expect(sent.value(forHTTPHeaderField: "Ocp-Apim-Subscription-Key") == "test-subscription-key")
     let queryItems = URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
       .queryItems ?? []
     #expect(Dictionary(uniqueKeysWithValues: queryItems.map { ($0.name, $0.value) }) == [
-      "api-version": "2024-02-01", "features": "read", "language": "it",
+      "api-version": expectedRequest["apiVersion"] as? String,
+      "features": expectedRequest["features"] as? String,
+      "language": expectedRequest["language"] as? String,
     ])
+  }
+
+  @Test("Azure Vision rejects an error response fixture")
+  func azureVisionRejectsErrorFixture() async throws {
+    let fixture = try CloudAdapterFixture.load("azure-service-error")
+    let service = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://writeit.cognitiveservices.azure.com")!,
+      apiKey: "test-subscription-key",
+      requester: TestAzureVisionRequester(
+        response: AzureVisionHTTPResponse(data: try CloudAdapterFixture.response(fixture), statusCode: 200)
+      )
+    )
+
+    do {
+      _ = try await service.recognize(
+        RecognitionRequest(
+          imageData: CloudCredentialValidationProbe.imageData,
+          language: .english,
+          allowsCloudOCR: true
+        )
+      )
+      Issue.record("expected Azure Vision error fixture to fail")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Azure AI Vision could not analyze this capture.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
   }
 
   @Test("Azure Vision refuses an invalid endpoint without sending ink")
@@ -4291,6 +4340,32 @@ private func handwritingImageData() throws -> Data {
     throw RecognitionError.invalidImage
   }
   return data
+}
+
+private enum CloudAdapterFixture {
+  enum FixtureError: Error {
+    case unavailable
+    case malformed
+  }
+
+  static func load(_ name: String) throws -> [String: Any] {
+    guard let url = Bundle.module.url(forResource: name, withExtension: "json") else {
+      throw FixtureError.unavailable
+    }
+    let object = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
+    guard let fixture = object as? [String: Any] else { throw FixtureError.malformed }
+    return fixture
+  }
+
+  static func request(_ fixture: [String: Any]) throws -> [String: Any] {
+    guard let request = fixture["request"] as? [String: Any] else { throw FixtureError.malformed }
+    return request
+  }
+
+  static func response(_ fixture: [String: Any]) throws -> Data {
+    guard let response = fixture["response"] else { throw FixtureError.malformed }
+    return try JSONSerialization.data(withJSONObject: response)
+  }
 }
 
 private actor TestGitHubReleaseRequester: GitHubReleaseRequesting {
