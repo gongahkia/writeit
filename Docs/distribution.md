@@ -1,0 +1,130 @@
+# Distribution
+
+## Local App Bundle
+
+Build and ad-hoc sign:
+
+```sh
+Scripts/build_app.sh
+```
+
+Developer ID sign:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" Scripts/build_app.sh
+```
+
+The script writes `.dist/cerberus.app`, signs the app bundle, then verifies it. The vision-only app bundle does not embed an XPC shell service.
+
+## Demo Recording
+
+Record a local demo video:
+
+```sh
+Scripts/record_demo.sh
+```
+
+The script builds `.dist/cerberus.app` if needed, opens it, and writes `.dist/demo/cerberus-demo.mov`.
+
+Use `Docs/demo-script.md` for the trigger, speech, read-only tool, confirmation-gated tool, and audit-review sequence.
+
+Preflight without starting screen recording:
+
+```sh
+Scripts/record_demo.sh --check
+```
+
+For a timed full-display capture:
+
+```sh
+DEMO_CAPTURE_MODE=display DEMO_SECONDS=30 Scripts/record_demo.sh
+```
+
+If `screencapture` video mode is unavailable, render a deterministic local demo:
+
+```sh
+DEMO_CAPTURE_MODE=rendered DEMO_SECONDS=36 Scripts/record_demo.sh
+```
+
+## Notarization
+
+Create a notarytool profile once:
+
+```sh
+xcrun notarytool store-credentials cerberus-notary
+```
+
+Submit and staple:
+
+```sh
+NOTARY_PROFILE=cerberus-notary Scripts/notarize_app.sh
+```
+
+For CI or temporary keychains:
+
+```sh
+NOTARY_PROFILE=cerberus-ci-notary \
+NOTARY_KEYCHAIN=/path/to/cerberus-signing.keychain-db \
+Scripts/notarize_app.sh
+```
+
+Notarization requires a Developer ID signature. Ad-hoc signed bundles are only for local bundle validation.
+
+## Release Package
+
+Build, notarize, zip, and checksum:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/package_release.sh
+```
+
+The script writes `.dist/release/cerberus.zip` and `.dist/release/cerberus.zip.sha256`.
+
+For local package smoke tests without Developer ID or notarization:
+
+```sh
+ALLOW_ADHOC=1 SKIP_NOTARIZE=1 Scripts/package_release.sh
+```
+
+## Release Smoke
+
+Run build, package, checksum, Gatekeeper, demo, and open-source gates with one command:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/release_smoke.sh
+```
+
+## Release Readiness
+
+Run the full pre-release gate:
+
+```sh
+CODESIGN_IDENTITY="Developer ID Application: Team Name (TEAMID)" \
+NOTARY_PROFILE=cerberus-notary \
+Scripts/release_check.sh
+```
+
+The script fails fast unless all release requirements are true:
+
+- `.dist/cerberus.app` is signed with an installed Developer ID Application identity and passes Gatekeeper assessment
+- `NOTARY_PROFILE` points to a usable `notarytool` keychain profile and the bundle has a stapled ticket
+- `.dist/demo/cerberus-demo.mov` exists and is a video file, either recorded or rendered
+- the repository passes `Scripts/open_source_check.sh`, including license, visibility, worktree, artifact, local secret, and GitHub security checks
+
+Target one gate while preparing release:
+
+```sh
+Scripts/release_check.sh dev-id
+Scripts/release_check.sh notary
+Scripts/release_check.sh demo
+Scripts/release_check.sh oss
+```
+
+See `Docs/open-source.md` for the public repository handoff.
+See `Docs/release-signing-secrets.md` for the optional GitHub Actions signing secret policy.
+See `Docs/release-notes.md` for the first tagged build notes.
+See `Docs/rollback.md` for local rollback and removal steps.

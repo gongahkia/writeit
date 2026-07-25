@@ -1,0 +1,52 @@
+import SwiftUI
+import cerberusCore
+
+@main
+struct CerberusApp: App {
+    @StateObject private var model = CerberusAppModel()
+
+    var body: some Scene {
+        MenuBarExtra {
+            StatusPanel(model: model)
+                .frame(width: 340)
+                .padding(14)
+        } label: {
+            MenuBarStatusIcon(model: model)
+        }
+        .menuBarExtraStyle(.window)
+        .commands {
+            CommandMenu("Cerberus") {
+                Button("Listen") {
+                    model.startListening()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+
+                Button("Cancel") {
+                    model.cancel()
+                }
+                .keyboardShortcut(".", modifiers: [.command])
+
+                Button("Refresh Permissions") {
+                    model.refreshPermissions()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+
+                Button("Open Settings") {
+                    model.selectedPanelSection = .settings
+                }
+                .keyboardShortcut(",", modifiers: [.command])
+            }
+        }
+    }
+}
+
+private struct MenuBarStatusIcon: View {
+    @ObservedObject var model: CerberusAppModel
+
+    var body: some View {
+        Image(nsImage: MascotSprite(state: model.state).menuBarImage)
+            .renderingMode(.template)
+            .foregroundStyle(model.menuBarStatusTint == .red ? .red : .primary)
+            .accessibilityLabel("cerberus \(model.state.displayName)")
+    }
+}

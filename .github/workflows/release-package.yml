@@ -1,0 +1,131 @@
+name: Release Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Build Developer ID signed and notarized package with release-signing secrets
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  ad-hoc-package:
+    name: ad-hoc package smoke
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Package ad-hoc build
+        shell: zsh --login --errexit --pipefail {0}
+        run: |
+          ALLOW_ADHOC=1 SKIP_NOTARIZE=1 Scripts/package_release.sh
+          shasum -a 256 -c .dist/release/cerberus.zip.sha256
+
+      - name: Upload ad-hoc package
+        uses: actions/upload-artifact@v6
+        with:
+          name: cerberus-ad-hoc-package
+          path: |
+            .dist/release/cerberus.zip
+            .dist/release/cerberus.zip.sha256
+          if-no-files-found: error
+
+  signed-package:
+    name: developer-id package
+    if: ${{ inputs.signed }}
+    runs-on: macos-26
+    environment: release-signing
+    timeout-minutes: 75
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Validate release signing inputs
+        shell: zsh --login --errexit --pipefail {0}
+        env:
+          CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
+          DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64 }}
+          DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_APP_SPECIFIC_PASSWORD: ${{ secrets.NOTARY_APP_SPECIFIC_PASSWORD }}
+        run: |
+          missing=()
+          [[ -n "$CODESIGN_IDENTITY" ]] || missing+=(CODESIGN_IDENTITY)
+          [[ -n "$DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64" ]] || missing+=(DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64)
+          [[ -n "$DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD" ]] || missing+=(DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD)
+          [[ -n "$KEYCHAIN_PASSWORD" ]] || missing+=(KEYCHAIN_PASSWORD)
+          [[ -n "$NOTARY_APPLE_ID" ]] || missing+=(NOTARY_APPLE_ID)
+          [[ -n "$NOTARY_TEAM_ID" ]] || missing+=(NOTARY_TEAM_ID)
+          [[ -n "$NOTARY_APP_SPECIFIC_PASSWORD" ]] || missing+=(NOTARY_APP_SPECIFIC_PASSWORD)
+          if (( ${#missing[@]} > 0 )); then
+            print -u2 "Missing release-signing inputs: ${missing[*]}"
+            exit 64
+          fi
+
+      - name: Import Developer ID certificate
+        shell: zsh --login --errexit --pipefail {0}
+        env:
+          DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64 }}
+          DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_APP_SPECIFIC_PASSWORD: ${{ secrets.NOTARY_APP_SPECIFIC_PASSWORD }}
+        run: |
+          keychain_path="$RUNNER_TEMP/cerberus-signing.keychain-db"
+          cert_path="$RUNNER_TEMP/developer-id-application.p12"
+          print "CERBERUS_SIGNING_KEYCHAIN=$keychain_path" >> "$GITHUB_ENV"
+          print "CERBERUS_NOTARY_PROFILE=cerberus-ci-notary" >> "$GITHUB_ENV"
+          print -n "$DEVELOPER_ID_APPLICATION_CERTIFICATE_BASE64" | base64 --decode > "$cert_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$cert_path" \
+            -k "$keychain_path" \
+            -f pkcs12 \
+            -P "$DEVELOPER_ID_APPLICATION_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security \
+            -T /usr/bin/xcrun
+          security list-keychains -d user -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+          xcrun notarytool store-credentials cerberus-ci-notary \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --password "$NOTARY_APP_SPECIFIC_PASSWORD" \
+            --keychain "$keychain_path"
+
+      - name: Package signed and notarized build
+        shell: zsh --login --errexit --pipefail {0}
+        env:
+          CODESIGN_IDENTITY: ${{ vars.CODESIGN_IDENTITY }}
+        run: |
+          export NOTARY_PROFILE="$CERBERUS_NOTARY_PROFILE"
+          export NOTARY_KEYCHAIN=${CERBERUS_SIGNING_KEYCHAIN}
+          Scripts/package_release.sh
+          shasum -a 256 -c .dist/release/cerberus.zip.sha256
+
+      - name: Delete temporary keychain
+        if: always()
+        shell: zsh --login --errexit --pipefail {0}
+        run: |
+          if [[ -n "${CERBERUS_SIGNING_KEYCHAIN:-}" && -f "$CERBERUS_SIGNING_KEYCHAIN" ]]; then
+            security delete-keychain "$CERBERUS_SIGNING_KEYCHAIN"
+          fi
+
+      - name: Upload signed package
+        uses: actions/upload-artifact@v6
+        with:
+          name: cerberus-signed-package
+          path: |
+            .dist/release/cerberus.zip
+            .dist/release/cerberus.zip.sha256
+          if-no-files-found: error
