@@ -347,6 +347,84 @@ struct RecognitionContractTests {
     #expect(validatedLocalProvider == localProvider)
   }
 
+  @Test("custom OCR test request validates the provider contract without capture ink")
+  func testsCustomOCRProviderRequest() async throws {
+    let requester = TestCustomOCRProviderRequester(
+      response: CustomOCRProviderHTTPResponse(
+        data: try JSONEncoder().encode(
+          CustomOCRProviderResponse(text: "probe accepted", confidence: 0.91)),
+        statusCode: 200
+      ))
+    let configuration = CustomOCRProviderConfiguration(
+      id: "custom.example",
+      displayName: "Example OCR",
+      endpoint: URL(string: "https://ocr.example.com/v1/recognize")!,
+      authentication: .bearerToken,
+      supportedLanguages: [.english]
+    )
+    let service = CustomOCRProviderTestService(
+      configuration: configuration,
+      bearerToken: "test-token",
+      requester: requester
+    )
+
+    #expect(await service.testRequest() == .valid)
+    let sent = try #require(await requester.requests.first)
+    #expect(sent.httpMethod == "POST")
+    #expect(sent.timeoutInterval == CloudRequestPolicy.timeoutInterval)
+    #expect(sent.value(forHTTPHeaderField: "Authorization") == "Bearer test-token")
+    let body = try #require(sent.httpBody)
+    let request = try JSONDecoder().decode(CustomOCRProviderRequest.self, from: body)
+    #expect(request.language == .english)
+    let encodedProbe = try CloudImageRequestEncoder.encode(CloudCredentialValidationProbe.imageData)
+    #expect(request.imageBase64 == encodedProbe.data.base64EncodedString())
+  }
+
+  @Test("custom OCR test request reports missing and rejected credentials")
+  func rejectsInvalidCustomOCRProviderTestCredentials() async {
+    let configuration = CustomOCRProviderConfiguration(
+      id: "custom.example",
+      displayName: "Example OCR",
+      endpoint: URL(string: "https://ocr.example.com/v1/recognize")!,
+      authentication: .bearerToken,
+      supportedLanguages: [.english]
+    )
+    let missingRequester = TestCustomOCRProviderRequester(
+      response: CustomOCRProviderHTTPResponse(data: Data(), statusCode: 200))
+    let missingService = CustomOCRProviderTestService(
+      configuration: configuration,
+      requester: missingRequester
+    )
+    let rejectedService = CustomOCRProviderTestService(
+      configuration: configuration,
+      bearerToken: "test-token",
+      requester: TestCustomOCRProviderRequester(
+        response: CustomOCRProviderHTTPResponse(data: Data(), statusCode: 401))
+    )
+
+    #expect(await missingService.testRequest() == .notConfigured)
+    #expect(await missingRequester.requests.isEmpty)
+    #expect(await rejectedService.testRequest() == .invalidCredentials)
+  }
+
+  @Test("custom OCR test request rejects malformed success responses")
+  func rejectsMalformedCustomOCRProviderTestResponse() async {
+    let configuration = CustomOCRProviderConfiguration(
+      id: "custom.example",
+      displayName: "Example OCR",
+      endpoint: URL(string: "https://ocr.example.com/v1/recognize")!,
+      authentication: .none,
+      supportedLanguages: [.english]
+    )
+    let service = CustomOCRProviderTestService(
+      configuration: configuration,
+      requester: TestCustomOCRProviderRequester(
+        response: CustomOCRProviderHTTPResponse(data: Data("{}".utf8), statusCode: 200))
+    )
+
+    #expect(await service.testRequest() == .invalidResponse)
+  }
+
   @Test("recognition failures map to a shared user-facing error")
   func failuresMapToPresentation() {
     let error = AppErrorPresentation.recognition(RecognitionError.noText)
@@ -2210,6 +2288,20 @@ private actor TestAzureVisionRequester: AzureVisionRequesting {
   }
 
   func data(for request: URLRequest) async throws -> AzureVisionHTTPResponse {
+    requests.append(request)
+    return response
+  }
+}
+
+private actor TestCustomOCRProviderRequester: CustomOCRProviderRequesting {
+  let response: CustomOCRProviderHTTPResponse
+  private(set) var requests: [URLRequest] = []
+
+  init(response: CustomOCRProviderHTTPResponse) {
+    self.response = response
+  }
+
+  func data(for request: URLRequest) async throws -> CustomOCRProviderHTTPResponse {
     requests.append(request)
     return response
   }
