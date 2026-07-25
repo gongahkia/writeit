@@ -2768,6 +2768,27 @@ struct HistoryStoreTests {
     #expect(archive.entries == legacyEntries)
   }
 
+  @Test("fails closed for encrypted archives from a future version") @MainActor
+  func rejectsFutureArchiveVersion() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let archive = HistoryArchive(
+      version: HistoryArchive.currentVersion + 1,
+      entries: [HistoryEntry(text: "future", strokes: nil, source: "Vision")]
+    )
+    let clear = try JSONEncoder().encode(archive)
+    let sealed = try #require(AES.GCM.seal(clear, using: key).combined)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try sealed.write(to: fileURL, options: .atomic)
+
+    let history = HistoryStore(fileURL: fileURL, key: key)
+    #expect(history.entries.isEmpty)
+    #expect(history.error?.message == "Saved history uses an unsupported format.")
+    #expect(try Data(contentsOf: fileURL) == sealed)
+  }
+
   @Test("persists candidate confidence, source, and recognition duration") @MainActor
   func persistsRecognitionMetadata() {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
