@@ -32,7 +32,8 @@ actor RecognitionService: TextRecognizing {
     let vision = try runVision(
       image,
       languageIdentifier: languageIdentifier,
-      languageResolution: languageResolution
+      languageResolution: languageResolution,
+      customWords: request.customWords.words
     )
     try Task.checkCancellation()
     if let local = try await enhanced.recognize(imageData: request.imageData) {
@@ -44,7 +45,8 @@ actor RecognitionService: TextRecognizing {
   private func runVision(
     _ image: CGImage,
     languageIdentifier: String,
-    languageResolution: RecognitionLanguageResolution
+    languageResolution: RecognitionLanguageResolution,
+    customWords: [String]
   ) throws
     -> RecognitionResult
   {
@@ -52,6 +54,7 @@ actor RecognitionService: TextRecognizing {
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = true
     request.recognitionLanguages = [languageIdentifier]
+    request.customWords = customWords
     request.minimumTextHeight = 0.012
     let handler = VNImageRequestHandler(cgImage: image)
     do {

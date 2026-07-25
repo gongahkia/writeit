@@ -201,6 +201,11 @@ final class CaptureCoordinator: ObservableObject {
       ),
       allowsCloudOCR: profileOverrideResolver.allowsCloudOCR(
         for: session.foregroundBundleIdentifier
+      ),
+      customWords: profileOverrideResolver.value(
+        for: session.foregroundBundleIdentifier,
+        override: \.customWords,
+        global: preferences.customWords
       )
     )
     let selectedBackendID = profileOverrideResolver.value(

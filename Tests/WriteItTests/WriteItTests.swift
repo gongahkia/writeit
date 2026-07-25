@@ -66,6 +66,7 @@ struct RecognitionContractTests {
     #expect(request.language == .french)
     #expect(request.language.displayName == "French")
     #expect(request.allowsCloudOCR == false)
+    #expect(request.customWords == CustomWordList(words: []))
   }
 
   @Test("recognition errors provide a user-facing explanation")
@@ -192,6 +193,7 @@ struct RecognitionContractTests {
     #expect(features.first?["type"] as? String == "DOCUMENT_TEXT_DETECTION")
     let context = try #require(request["imageContext"] as? [String: Any])
     #expect(context["languageHints"] as? [String] == ["fr-FR"])
+    #expect(context["customWords"] == nil)
   }
 
   @Test("Google Vision refuses an empty API key without sending ink")
@@ -2538,6 +2540,31 @@ struct CaptureCoordinatorLifecycleTests {
     let request = try #require(await recognition.requests.first)
     #expect(request.language == .french)
     #expect(request.allowsCloudOCR == false)
+  }
+
+  @Test("capture uses the matching profile custom words") @MainActor
+  func usesProfileCustomWordsForRecognition() async throws {
+    let recognition = RecordingRecognition()
+    let dependencies = TestDependencies(trusted: true, recognition: recognition)
+    dependencies.preferences.customWords = CustomWordList(words: ["GlobalTerm"])
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(customWords: CustomWordList(words: ["ProfileTerm", "profileterm"]))
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    let request = try #require(await recognition.requests.first)
+    #expect(request.customWords == CustomWordList(words: ["ProfileTerm"]))
   }
 
   @Test("capture resolves a profile backend before the global default") @MainActor

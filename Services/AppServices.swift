@@ -26,11 +26,18 @@ struct RecognitionRequest: Sendable {
   let imageData: Data
   let language: RecognitionLanguage
   let allowsCloudOCR: Bool
+  let customWords: CustomWordList
 
-  init(imageData: Data, language: RecognitionLanguage, allowsCloudOCR: Bool = false) {
+  init(
+    imageData: Data,
+    language: RecognitionLanguage,
+    allowsCloudOCR: Bool = false,
+    customWords: CustomWordList = CustomWordList(words: [])
+  ) {
     self.imageData = imageData
     self.language = language
     self.allowsCloudOCR = allowsCloudOCR
+    self.customWords = customWords
   }
 }
 
