@@ -2810,6 +2810,7 @@ struct HistoryStoreTests {
     #expect(entry?.source == "Apple Vision")
     #expect(entry?.confidence == 0.92)
     #expect(entry?.recognitionDuration == 0.18)
+    #expect(entry?.strokes == nil)
   }
 
   @Test("surfaces history directory setup failures") @MainActor
