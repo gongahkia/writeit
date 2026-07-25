@@ -232,6 +232,45 @@ struct RecognitionContractTests {
     #expect(await requester.requests.isEmpty)
   }
 
+  @Test("Google credential validation maps authentication failures without sending capture ink")
+  func validatesGoogleCredentials() async throws {
+    let requester = TestGoogleVisionRequester(
+      response: GoogleVisionHTTPResponse(data: Data(), statusCode: 403))
+    let service = GoogleVisionRecognitionService(apiKey: "test-api-key", requester: requester)
+
+    #expect(await service.validateCredentials() == .invalidCredentials)
+    let sent = await requester.requests
+    #expect(sent.count == 1)
+    let body = try #require(sent.first?.httpBody)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    let requests = try #require(json["requests"] as? [[String: Any]])
+    let image = try #require(requests.first?["image"] as? [String: Any])
+    #expect(image["content"] as? String == CloudCredentialValidationProbe.imageData.base64EncodedString())
+  }
+
+  @Test("Azure credential validation accepts a successful probe and rejects invalid configuration")
+  func validatesAzureCredentials() async {
+    let validRequester = TestAzureVisionRequester(
+      response: AzureVisionHTTPResponse(data: Data(), statusCode: 200))
+    let validService = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://writeit.cognitiveservices.azure.com")!,
+      apiKey: "test-subscription-key",
+      requester: validRequester
+    )
+    let invalidService = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://example.invalid")!,
+      apiKey: "test-subscription-key",
+      requester: TestAzureVisionRequester(
+        response: AzureVisionHTTPResponse(data: Data(), statusCode: 200))
+    )
+
+    #expect(await validService.validateCredentials() == .valid)
+    #expect(await invalidService.validateCredentials() == .notConfigured)
+    let sent = await validRequester.requests
+    #expect(sent.count == 1)
+    #expect(sent.first?.httpBody == CloudCredentialValidationProbe.imageData)
+  }
+
   @Test("recognition failures map to a shared user-facing error")
   func failuresMapToPresentation() {
     let error = AppErrorPresentation.recognition(RecognitionError.noText)

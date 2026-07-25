@@ -17,7 +17,7 @@ struct URLSessionGoogleVisionRequester: GoogleVisionRequesting {
   }
 }
 
-actor GoogleVisionRecognitionService: TextRecognizing {
+actor GoogleVisionRecognitionService: TextRecognizing, CloudCredentialValidating {
   static let endpoint = URL(string: "https://vision.googleapis.com/v1/images:annotate")!
 
   nonisolated let capabilities = RecognitionBackendCapabilities(
@@ -82,6 +82,25 @@ actor GoogleVisionRecognitionService: TextRecognizing {
       backendID: capabilities.identifier,
       languageResolution: .identity(request.language)
     )
+  }
+
+  func validateCredentials() async -> CloudCredentialValidation {
+    guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      return .notConfigured
+    }
+    do {
+      let response = try await send(
+        RecognitionRequest(imageData: CloudCredentialValidationProbe.imageData, language: .english))
+      switch response.statusCode {
+      case 200...299: return .valid
+      case 401, 403: return .invalidCredentials
+      default: return .unavailable
+      }
+    } catch is CancellationError {
+      return .cancelled
+    } catch {
+      return .unavailable
+    }
   }
 
   private func send(_ request: RecognitionRequest) async throws -> GoogleVisionHTTPResponse {

@@ -17,7 +17,7 @@ struct URLSessionAzureVisionRequester: AzureVisionRequesting {
   }
 }
 
-actor AzureVisionRecognitionService: TextRecognizing {
+actor AzureVisionRecognitionService: TextRecognizing, CloudCredentialValidating {
   nonisolated let capabilities = RecognitionBackendCapabilities(
     identifier: "azure-ai-vision-read",
     displayName: "Azure AI Vision Read",
@@ -79,6 +79,27 @@ actor AzureVisionRecognitionService: TextRecognizing {
       backendID: capabilities.identifier,
       languageResolution: .identity(request.language)
     )
+  }
+
+  func validateCredentials() async -> CloudCredentialValidation {
+    guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      Self.isAzureEndpoint(endpoint)
+    else {
+      return .notConfigured
+    }
+    do {
+      let response = try await send(
+        RecognitionRequest(imageData: CloudCredentialValidationProbe.imageData, language: .english))
+      switch response.statusCode {
+      case 200...299: return .valid
+      case 401, 403: return .invalidCredentials
+      default: return .unavailable
+      }
+    } catch is CancellationError {
+      return .cancelled
+    } catch {
+      return .unavailable
+    }
   }
 
   private func send(_ request: RecognitionRequest) async throws -> AzureVisionHTTPResponse {

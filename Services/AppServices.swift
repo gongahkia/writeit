@@ -250,6 +250,18 @@ protocol RecognitionBackend: Sendable {
 
 typealias TextRecognizing = RecognitionBackend
 
+enum CloudCredentialValidation: Sendable, Equatable {
+  case valid
+  case invalidCredentials
+  case notConfigured
+  case unavailable
+  case cancelled
+}
+
+protocol CloudCredentialValidating: Sendable {
+  func validateCredentials() async -> CloudCredentialValidation
+}
+
 @MainActor
 protocol TextEnhancing: AnyObject {
   func clean(_ request: TextEnhancementRequest) async throws -> String
