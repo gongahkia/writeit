@@ -482,6 +482,75 @@ struct ConfigurationArchiveTests {
     #expect(try destinationCredentials.data(for: CloudOCRProvider.azureVision.credentialAccount) == nil)
   }
 
+  @Test("exports then imports a configuration file without transferring credentials") @MainActor
+  func exportsAndImportsConfigurationFile() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fileURL = directory.appendingPathComponent("WriteItConfiguration.json")
+
+    let sourceDefaults = makeDefaults()
+    let sourcePreferences = Preferences(defaults: sourceDefaults)
+    sourcePreferences.captureMode = .penUpDelay
+    sourcePreferences.recognitionLanguage = .french
+    sourcePreferences.customWords = CustomWordList(words: ["SourceWord"])
+    let sourceProfiles = AppProfileStore(defaults: sourceDefaults)
+    try sourceProfiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.source",
+        overrides: .init(recognitionLanguage: .spanish, cloudOCRConsent: .init())
+      ),
+    ])
+    let sourceCredentials = TestCloudOCRCredentialStore()
+    let sourceProviders = CloudOCRProviderStore(
+      defaults: sourceDefaults,
+      credentials: sourceCredentials
+    )
+    try sourceProviders.configureAzure(
+      endpoint: "https://source.cognitiveservices.azure.com",
+      apiKey: "source-secret"
+    )
+    let sourceArchive = ConfigurationArchive(
+      preferences: sourcePreferences,
+      profiles: sourceProfiles.profiles,
+      cloudOCRProviders: sourceProviders.configurations
+    )
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try ConfigurationArchiveFileStore.write(
+      ConfigurationArchiveCodec.encode(sourceArchive),
+      to: fileURL
+    )
+
+    let destinationDefaults = makeDefaults()
+    let destinationPreferences = Preferences(defaults: destinationDefaults)
+    destinationPreferences.captureMode = .holdToCapture
+    let destinationProfiles = AppProfileStore(defaults: destinationDefaults)
+    let destinationCredentials = TestCloudOCRCredentialStore()
+    let destinationProviders = CloudOCRProviderStore(
+      defaults: destinationDefaults,
+      credentials: destinationCredentials
+    )
+    try destinationProviders.configureGoogle(apiKey: "destination-secret")
+    let state = ConfigurationStateStore(
+      preferences: destinationPreferences,
+      profiles: destinationProfiles,
+      cloudProviders: destinationProviders
+    )
+    let controller = ConfigurationImportController(state: state)
+
+    controller.previewFile(at: fileURL)
+    #expect(controller.preview == sourceArchive)
+    controller.applyPreview()
+
+    #expect(controller.preview == nil)
+    #expect(controller.status == "Configuration imported.")
+    #expect(controller.error == nil)
+    #expect(state.snapshot().archive == sourceArchive)
+    #expect(try destinationCredentials.data(for: CloudOCRProvider.azureVision.credentialAccount) == nil)
+    #expect(try destinationCredentials.data(for: CloudOCRProvider.googleVision.credentialAccount)
+      == Data("destination-secret".utf8))
+  }
+
   @Test("rolls back a partially applied configuration") @MainActor
   func rollsBackFailedImport() throws {
     let original = configurationArchive(captureMode: .toggle)
