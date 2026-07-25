@@ -212,6 +212,8 @@ struct PrivacySettingsView: View {
         Text("Turning this on immediately deletes local diagnostic events and prevents new events from being saved.")
           .font(.caption)
           .foregroundStyle(.secondary)
+        Divider()
+        DiagnosticExportView(diagnostics: diagnostics)
       }
       Section("Anonymous metrics") {
         Toggle("Share anonymous metrics", isOn: $preferences.allowsAnonymousMetrics)

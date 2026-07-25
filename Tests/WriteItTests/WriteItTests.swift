@@ -592,6 +592,34 @@ struct DiagnosticEventStoreTests {
   }
 }
 
+struct DiagnosticExportTests {
+  @Test("exports diagnostic codes and timestamps without identifiers or content")
+  func redactsDiagnosticExport() throws {
+    let identifier = UUID(uuidString: "00000000-0000-0000-0000-000000000123")!
+    let archive = DiagnosticExportArchive(
+      events: [
+        DiagnosticEvent(
+          id: identifier,
+          occurredAt: Date(timeIntervalSinceReferenceDate: 1_000_000),
+          kind: .runtimeStarted),
+      ],
+      generatedAt: Date(timeIntervalSinceReferenceDate: 1_000_010)
+    )
+    let data = try DiagnosticExportCodec.encode(archive)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let events = try #require(object["events"] as? [[String: Any]])
+    let text = String(decoding: data, as: UTF8.self)
+
+    #expect(Set(object.keys) == Set(["schema_version", "generated_at", "events"]))
+    #expect(events.allSatisfy { Set($0.keys) == Set(["occurred_at", "kind"]) })
+    #expect(text.contains(identifier.uuidString) == false)
+    #expect(text.contains("recognized_text") == false)
+    #expect(text.contains("ink") == false)
+    #expect(text.contains("screenshot") == false)
+    #expect(text.contains("credential") == false)
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {
