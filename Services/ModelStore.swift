@@ -108,6 +108,22 @@ final class ModelStore: ObservableObject {
     }
   }
 
+  func eraseAll() throws {
+    do {
+      if FileManager.default.fileExists(atPath: modelsDirectory.path) {
+        try FileManager.default.removeItem(at: modelsDirectory)
+      }
+      try FileManager.default.createDirectory(at: modelsDirectory, withIntermediateDirectories: true)
+      installationStates = [:]
+      downloadCheckpoints = [:]
+      activeModelID = Self.appleVisionModelID
+      error = nil
+    } catch {
+      record(ModelStoreError.removalFailed)
+      throw ModelStoreError.removalFailed
+    }
+  }
+
   func reveal(manifest: ModelManifest) {
     guard let installed = ManifestModelInstaller.installedAssetURL(for: manifest, in: modelsDirectory) else {
       return

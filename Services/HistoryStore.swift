@@ -35,10 +35,13 @@ enum HistoryStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class HistoryStore: ObservableObject {
+  static let keychainAccount = "history-key"
+
   @Published private(set) var entries: [HistoryEntry]
   @Published private(set) var error: AppErrorPresentation?
 
   private let fileURL: URL
+  private let usesKeychainKey: Bool
   private var key: SymmetricKey?
   private var storageAvailable: Bool
 
@@ -47,6 +50,7 @@ final class HistoryStore: ObservableObject {
       .appendingPathComponent("WriteIt", isDirectory: true)
     let resolvedFileURL = fileURL ?? base.appendingPathComponent("history.sealed")
     self.fileURL = resolvedFileURL
+    self.usesKeychainKey = key == nil
     self.key = nil
     self.storageAvailable = false
     self.entries = []
@@ -106,6 +110,28 @@ final class HistoryStore: ObservableObject {
     replaceEntries([])
   }
 
+  func erase() throws {
+    guard storageAvailable else {
+      if error == nil { record(HistoryStoreError.storageUnavailable) }
+      throw HistoryStoreError.storageUnavailable
+    }
+    do {
+      if FileManager.default.fileExists(atPath: fileURL.path) {
+        try FileManager.default.removeItem(at: fileURL)
+      }
+      if usesKeychainKey {
+        try KeychainStore.delete(Self.keychainAccount)
+        key = nil
+        key = try Self.loadKey()
+      }
+      entries = []
+      error = nil
+    } catch {
+      record(error)
+      throw error
+    }
+  }
+
   func removeEntries(olderThan date: Date) {
     let retainedEntries = entries.filter { $0.createdAt >= date }
     if retainedEntries.count != entries.count { replaceEntries(retainedEntries) }
@@ -156,10 +182,10 @@ final class HistoryStore: ObservableObject {
   }
 
   private static func loadKey() throws -> SymmetricKey {
-    if let data = try KeychainStore.data(for: "history-key") { return SymmetricKey(data: data) }
+    if let data = try KeychainStore.data(for: keychainAccount) { return SymmetricKey(data: data) }
     let key = SymmetricKey(size: .bits256)
     let data = key.withUnsafeBytes { Data($0) }
-    try KeychainStore.set(data, for: "history-key")
+    try KeychainStore.set(data, for: keychainAccount)
     return key
   }
 

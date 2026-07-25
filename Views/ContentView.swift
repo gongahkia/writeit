@@ -25,6 +25,7 @@ struct ContentView: View {
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
   @ObservedObject var models: ModelStore
+  @ObservedObject var dataDeletion: LocalDataDeletionController
   @ObservedObject var cloudProviders: CloudOCRProviderStore
   @ObservedObject var profiles: AppProfileStore
   let profileCreator: CurrentAppProfileCreator
@@ -58,7 +59,8 @@ struct ContentView: View {
       case .cleanup:
         CleanupSettingsView(capture: capture, preferences: preferences)
       case .privacy:
-        PrivacySettingsView(capture: capture, preferences: preferences, history: history)
+        PrivacySettingsView(
+          capture: capture, preferences: preferences, history: history, dataDeletion: dataDeletion)
       }
     }
   }

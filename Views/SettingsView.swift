@@ -154,6 +154,12 @@ struct PrivacySettingsView: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
+  @ObservedObject var dataDeletion: LocalDataDeletionController
+  @State private var deleteHistory = false
+  @State private var deleteModels = false
+  @State private var deleteDiagnostics = false
+  @State private var deleteCredentials = false
+  @State private var showsDeletionConfirmation = false
 
   var body: some View {
     Form {
@@ -175,7 +181,49 @@ struct PrivacySettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
-        Button("Delete all history", role: .destructive, action: history.clear)
+      }
+      Section("Delete local data") {
+        Toggle(isOn: $deleteHistory) {
+          VStack(alignment: .leading) {
+            Text(LocalDataCategory.history.title)
+            Text(LocalDataCategory.history.detail).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Toggle(isOn: $deleteModels) {
+          VStack(alignment: .leading) {
+            Text(LocalDataCategory.models.title)
+            Text(LocalDataCategory.models.detail).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Toggle(isOn: $deleteDiagnostics) {
+          VStack(alignment: .leading) {
+            Text(LocalDataCategory.diagnostics.title)
+            Text(LocalDataCategory.diagnostics.detail).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Toggle(isOn: $deleteCredentials) {
+          VStack(alignment: .leading) {
+            Text(LocalDataCategory.credentials.title)
+            Text(LocalDataCategory.credentials.detail).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Button("Delete selected data", role: .destructive, action: requestDeletion)
+          .disabled(selectedDeletionCategories.isEmpty)
+          .confirmationDialog(
+            "Permanently delete selected local data?", isPresented: $showsDeletionConfirmation,
+            titleVisibility: .visible
+          ) {
+            Button("Delete selected data", role: .destructive, action: deleteSelectedData)
+          } message: {
+            Text("This cannot be undone. Selected data never leaves this Mac during deletion.")
+          }
+        if dataDeletion.deletedCategories.isEmpty == false {
+          Text("Deleted: \(dataDeletion.deletedCategories.map(\.title).joined(separator: ", ")).")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+        if let error = dataDeletion.error {
+          CaptureErrorBanner(error: error, dismiss: dataDeletion.clearError)
+        }
       }
       Section("App") {
         Toggle("Launch at login", isOn: $preferences.launchAtLogin)
@@ -184,6 +232,31 @@ struct PrivacySettingsView: View {
     }
     .padding(20)
     .navigationTitle("Privacy")
+  }
+
+  private var selectedDeletionCategories: Set<LocalDataCategory> {
+    var categories: Set<LocalDataCategory> = []
+    if deleteHistory { categories.insert(.history) }
+    if deleteModels { categories.insert(.models) }
+    if deleteDiagnostics { categories.insert(.diagnostics) }
+    if deleteCredentials { categories.insert(.credentials) }
+    return categories
+  }
+
+  private func requestDeletion() { showsDeletionConfirmation = true }
+
+  private func deleteSelectedData() {
+    dataDeletion.delete(selectedDeletionCategories)
+    for category in dataDeletion.deletedCategories { setSelected(false, for: category) }
+  }
+
+  private func setSelected(_ value: Bool, for category: LocalDataCategory) {
+    switch category {
+    case .history: deleteHistory = value
+    case .models: deleteModels = value
+    case .diagnostics: deleteDiagnostics = value
+    case .credentials: deleteCredentials = value
+    }
   }
 }
 

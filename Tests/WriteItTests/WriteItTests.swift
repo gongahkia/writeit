@@ -2737,6 +2737,53 @@ struct AppProfileStoreTests {
   }
 }
 
+struct LocalDataDeletionTests {
+  @Test("deletes each selected local data category") @MainActor
+  func deletesSelectedCategories() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let historyURL = directory.appendingPathComponent("history.sealed")
+    let modelsDirectory = directory.appendingPathComponent("Models", isDirectory: true)
+    let diagnosticsDirectory = directory.appendingPathComponent("Diagnostics", isDirectory: true)
+    let history = HistoryStore(fileURL: historyURL, key: SymmetricKey(size: .bits256))
+    history.append(HistoryEntry(text: "private history", strokes: nil, source: "Vision"))
+    let models = ModelStore(modelsDirectory: modelsDirectory)
+    try Data("model".utf8).write(to: modelsDirectory.appendingPathComponent("staged.asset"))
+    try FileManager.default.createDirectory(at: diagnosticsDirectory, withIntermediateDirectories: true)
+    try Data("diagnostic".utf8).write(to: diagnosticsDirectory.appendingPathComponent("events.json"))
+    let credentials = TestCredentialDataEraser()
+    let controller = LocalDataDeletionController(
+      eraser: LocalDataEraser(
+        history: history,
+        models: models,
+        diagnosticDirectory: diagnosticsDirectory,
+        credentials: credentials
+      ))
+
+    controller.delete(Set(LocalDataCategory.allCases))
+
+    #expect(history.entries.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: historyURL.path) == false)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: modelsDirectory.path).isEmpty)
+    #expect(FileManager.default.fileExists(atPath: diagnosticsDirectory.path) == false)
+    #expect(credentials.excludedAccounts == [Set([HistoryStore.keychainAccount])])
+    #expect(controller.deletedCategories == LocalDataCategory.allCases)
+    #expect(controller.error == nil)
+  }
+
+  @Test("retains successful deletion state when a later category fails") @MainActor
+  func reportsPartialDeletionFailure() {
+    let eraser = TestLocalDataEraser(failingCategory: .models)
+    let controller = LocalDataDeletionController(eraser: eraser)
+
+    controller.delete([.history, .models, .credentials])
+
+    #expect(eraser.erasedCategories == [.history])
+    #expect(controller.deletedCategories == [.history])
+    #expect(controller.error?.message == "WriteIt could not delete downloaded models.")
+  }
+}
+
 struct HistoryStoreTests {
   @Test("retains ink only when full history is selected") @MainActor
   func retainsInkOnlyForFullHistory() throws {
@@ -3600,6 +3647,28 @@ private final class TestCloudOCRCredentialStore: CloudOCRCredentialStoring {
   func data(for account: String) throws -> Data? { values[account] }
   func set(_ data: Data, for account: String) throws { values[account] = data }
   func delete(_ account: String) throws { values.removeValue(forKey: account) }
+}
+
+@MainActor
+private final class TestCredentialDataEraser: CredentialDataErasing {
+  private(set) var excludedAccounts: [Set<String>] = []
+
+  func eraseAll(excluding accounts: Set<String>) throws { excludedAccounts.append(accounts) }
+}
+
+@MainActor
+private final class TestLocalDataEraser: LocalDataErasing {
+  private(set) var erasedCategories: [LocalDataCategory] = []
+  private let failingCategory: LocalDataCategory?
+
+  init(failingCategory: LocalDataCategory? = nil) {
+    self.failingCategory = failingCategory
+  }
+
+  func erase(_ category: LocalDataCategory) throws {
+    if category == failingCategory { throw LocalDataDeletionError.failed(category) }
+    erasedCategories.append(category)
+  }
 }
 
 private struct TestCloudOCRProviderTester: CloudOCRProviderTesting {

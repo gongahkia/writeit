@@ -5,6 +5,7 @@ final class AppRuntime {
   let preferences: Preferences
   let history: HistoryStore
   let models: ModelStore
+  let dataDeletion: LocalDataDeletionController
   let cloudProviders: CloudOCRProviderStore
   let recognitionRegistry: RecognitionBackendRegistry
   let profiles: AppProfileStore
@@ -15,8 +16,12 @@ final class AppRuntime {
 
   init(defaults: UserDefaults = .standard) {
     preferences = Preferences(defaults: defaults)
-    history = HistoryStore()
-    models = ModelStore()
+    let historyStore = HistoryStore()
+    let modelStore = ModelStore()
+    history = historyStore
+    models = modelStore
+    dataDeletion = LocalDataDeletionController(
+      eraser: LocalDataEraser(history: historyStore, models: modelStore))
     let recognitionService = RecognitionService()
     let cloudProviderStore = CloudOCRProviderStore(defaults: defaults)
     let backendRegistry = RecognitionBackendRegistry(

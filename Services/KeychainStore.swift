@@ -4,6 +4,21 @@ import Security
 enum KeychainStore {
   static let service = "com.gongahkia.writeit"
 
+  static func accounts() throws -> [String] {
+    let query: [CFString: Any] = [
+      kSecClass: kSecClassGenericPassword,
+      kSecAttrService: service,
+      kSecReturnAttributes: true,
+      kSecMatchLimit: kSecMatchLimitAll,
+    ]
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    if status == errSecItemNotFound { return [] }
+    guard status == errSecSuccess else { throw KeychainError.status(status) }
+    guard let attributes = result as? [[String: Any]] else { throw KeychainError.invalidResult }
+    return attributes.compactMap { $0[kSecAttrAccount as String] as? String }
+  }
+
   static func data(for account: String) throws -> Data? {
     let query: [CFString: Any] = [
       kSecClass: kSecClassGenericPassword,

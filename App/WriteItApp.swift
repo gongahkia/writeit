@@ -29,6 +29,7 @@ struct WriteItApp: App {
         preferences: appDelegate.runtime.preferences,
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
+        dataDeletion: appDelegate.runtime.dataDeletion,
         cloudProviders: appDelegate.runtime.cloudProviders,
         profiles: appDelegate.runtime.profiles,
         profileCreator: appDelegate.runtime.profileCreator,
