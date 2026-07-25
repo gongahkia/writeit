@@ -620,6 +620,50 @@ struct DiagnosticExportTests {
   }
 }
 
+struct PrivacyStateRegressionTests {
+  @Test("default and opted-out privacy states retain no extra local content") @MainActor
+  func protectsDefaultAndOptedOutStates() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-privacy-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let preferences = Preferences(defaults: makeDefaults())
+    let strokes = [InkStroke(points: [
+      InkPoint(x: 13, y: 37, pressure: 0.8, timestamp: 0, inputSource: .stylus),
+    ])]
+    let history = HistoryStore(
+      fileURL: directory.appendingPathComponent("history.sealed"), key: SymmetricKey(size: .bits256))
+
+    #expect(preferences.historyMode == .textOnly)
+    #expect(preferences.historyRetentionDays == 7)
+    #expect(preferences.allowsAnonymousMetrics == false)
+    history.append(text: "private recognized text", strokes: strokes, mode: preferences.historyMode, source: "Vision")
+    #expect(history.entries.first?.strokes == nil)
+
+    let diagnosticsDirectory = directory.appendingPathComponent("Diagnostics", isDirectory: true)
+    let diagnostics = DiagnosticEventStore(directory: diagnosticsDirectory)
+    diagnostics.record(.runtimeStarted)
+    #expect(FileManager.default.fileExists(atPath: diagnosticsDirectory.path))
+    preferences.retainsLocalLogs = false
+    diagnostics.setRetainsLocalLogs(preferences.retainsLocalLogs)
+    #expect(FileManager.default.fileExists(atPath: diagnosticsDirectory.path) == false)
+
+    let metricsDirectory = directory.appendingPathComponent("Metrics", isDirectory: true)
+    let metrics = AnonymousMetricsQueue(
+      directory: metricsDirectory, hasConsent: preferences.allowsAnonymousMetrics)
+    metrics.enqueue(.runtimeStarted)
+    #expect(FileManager.default.fileExists(atPath: metricsDirectory.path) == false)
+
+    let configuration = try String(
+      decoding: ConfigurationArchiveCodec.encode(
+        ConfigurationArchive(preferences: preferences, profiles: [], cloudOCRProviders: [])),
+      as: UTF8.self
+    )
+    #expect(configuration.contains("private recognized text") == false)
+    #expect(configuration.contains("retainsLocalLogs") == false)
+    #expect(configuration.contains("allowsAnonymousMetrics") == false)
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {
