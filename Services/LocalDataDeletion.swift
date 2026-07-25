@@ -41,17 +41,20 @@ final class LocalDataEraser: LocalDataErasing {
   private let history: HistoryStore
   private let models: ModelStore
   private let diagnosticDirectory: URL
+  private let diagnostics: DiagnosticEventStore?
   private let credentials: any CredentialDataErasing
 
   init(
     history: HistoryStore,
     models: ModelStore,
     diagnosticDirectory: URL = DiagnosticLogStore.defaultDirectory,
+    diagnostics: DiagnosticEventStore? = nil,
     credentials: any CredentialDataErasing = KeychainCredentialDataEraser()
   ) {
     self.history = history
     self.models = models
     self.diagnosticDirectory = diagnosticDirectory
+    self.diagnostics = diagnostics
     self.credentials = credentials
   }
 
@@ -59,7 +62,9 @@ final class LocalDataEraser: LocalDataErasing {
     switch category {
     case .history: try history.erase()
     case .models: try models.eraseAll()
-    case .diagnostics: try DiagnosticLogStore.erase(at: diagnosticDirectory)
+    case .diagnostics:
+      if let diagnostics { try diagnostics.erase() }
+      else { try DiagnosticLogStore.erase(at: diagnosticDirectory) }
     case .credentials: try credentials.eraseAll(excluding: [HistoryStore.keychainAccount])
     }
   }

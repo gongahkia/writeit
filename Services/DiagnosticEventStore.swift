@@ -21,7 +21,19 @@ struct DiagnosticEvent: Codable, Equatable, Identifiable, Sendable {
     self.kind = kind
   }
 
-  private enum CodingKeys: String, CodingKey {
+  init(from decoder: any Decoder) throws {
+    let allKeys = try decoder.container(keyedBy: DiagnosticCodingKey.self).allKeys
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    guard Set(allKeys.map(\.stringValue)).isSubset(of: Set(CodingKeys.allCases.map(\.stringValue))) else {
+      throw DiagnosticEventStoreError.invalidArchive
+    }
+    id = try container.decode(UUID.self, forKey: .id)
+    schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+    occurredAt = try container.decode(Date.self, forKey: .occurredAt)
+    kind = try container.decode(DiagnosticEventKind.self, forKey: .kind)
+  }
+
+  private enum CodingKeys: String, CodingKey, CaseIterable {
     case id
     case schemaVersion = "schema_version"
     case occurredAt = "occurred_at"
@@ -72,6 +84,7 @@ final class DiagnosticEventStore: ObservableObject {
   private let fileURL: URL
   private let retentionPolicy: DiagnosticEventRetentionPolicy
   private let now: () -> Date
+  private var storageAvailable: Bool
 
   init(
     directory: URL = DiagnosticLogStore.defaultDirectory,
@@ -81,6 +94,7 @@ final class DiagnosticEventStore: ObservableObject {
     fileURL = directory.appendingPathComponent("events.json")
     self.retentionPolicy = retentionPolicy
     self.now = now
+    storageAvailable = false
     events = []
     error = nil
     do {
@@ -88,12 +102,14 @@ final class DiagnosticEventStore: ObservableObject {
       let retained = retentionPolicy.retained(loaded, at: now())
       events = retained
       if retained != loaded { try persist(retained) }
+      storageAvailable = true
     } catch {
       self.error = .persistence(error)
     }
   }
 
   func record(_ kind: DiagnosticEventKind, at occurredAt: Date? = nil) {
+    guard storageAvailable else { return }
     let updated = retentionPolicy.retained(
       events + [DiagnosticEvent(occurredAt: occurredAt ?? now(), kind: kind)], at: now())
     do {
@@ -102,6 +118,18 @@ final class DiagnosticEventStore: ObservableObject {
       error = nil
     } catch {
       self.error = .persistence(error)
+    }
+  }
+
+  func erase() throws {
+    do {
+      try DiagnosticLogStore.erase(at: fileURL.deletingLastPathComponent())
+      events = []
+      error = nil
+      storageAvailable = true
+    } catch {
+      self.error = .persistence(error)
+      throw error
     }
   }
 
@@ -146,8 +174,33 @@ private struct DiagnosticEventArchive: Codable {
     self.events = events
   }
 
-  private enum CodingKeys: String, CodingKey {
+  init(from decoder: any Decoder) throws {
+    let allKeys = try decoder.container(keyedBy: DiagnosticCodingKey.self).allKeys
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    guard Set(allKeys.map(\.stringValue)).isSubset(of: Set(CodingKeys.allCases.map(\.stringValue))) else {
+      throw DiagnosticEventStoreError.invalidArchive
+    }
+    schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+    events = try container.decode([DiagnosticEvent].self, forKey: .events)
+  }
+
+  private enum CodingKeys: String, CodingKey, CaseIterable {
     case schemaVersion = "schema_version"
     case events
+  }
+}
+
+private struct DiagnosticCodingKey: CodingKey {
+  let stringValue: String
+  let intValue: Int?
+
+  init?(stringValue: String) {
+    self.stringValue = stringValue
+    intValue = nil
+  }
+
+  init?(intValue: Int) {
+    stringValue = "\(intValue)"
+    self.intValue = intValue
   }
 }

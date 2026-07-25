@@ -20,11 +20,16 @@ final class AppRuntime {
     preferences = Preferences(defaults: defaults)
     let historyStore = HistoryStore()
     let modelStore = ModelStore()
+    let diagnosticStore = DiagnosticEventStore()
     history = historyStore
     models = modelStore
     dataDeletion = LocalDataDeletionController(
-      eraser: LocalDataEraser(history: historyStore, models: modelStore))
-    diagnostics = DiagnosticEventStore()
+      eraser: LocalDataEraser(
+        history: historyStore,
+        models: modelStore,
+        diagnostics: diagnosticStore
+      ))
+    diagnostics = diagnosticStore
     let recognitionService = RecognitionService()
     let cloudProviderStore = CloudOCRProviderStore(defaults: defaults)
     let backendRegistry = RecognitionBackendRegistry(

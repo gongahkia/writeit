@@ -549,21 +549,34 @@ struct DiagnosticEventStoreTests {
     #expect(encodedEvents.allSatisfy {
       Set($0.keys) == Set(["id", "schema_version", "occurred_at", "kind"])
     })
+    try restored.erase()
+    #expect(FileManager.default.fileExists(atPath: directory.path) == false)
+    restored.record(.runtimeStopped, at: now)
+    #expect(restored.events.map(\.kind) == [.runtimeStopped])
   }
 
-  @Test("fails closed for malformed diagnostic archives") @MainActor
+  @Test("fails closed for malformed or unmodeled diagnostic archives") @MainActor
   func rejectsMalformedArchive() throws {
     let directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("writeit-diagnostics-\(UUID().uuidString)", isDirectory: true)
     defer { try? FileManager.default.removeItem(at: directory) }
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    try Data("{\"schema_version\":2,\"events\":[]}".utf8)
-      .write(to: directory.appendingPathComponent("events.json"))
+    let writer = DiagnosticEventStore(directory: directory)
+    writer.record(.runtimeStarted)
+    let fileURL = directory.appendingPathComponent("events.json")
+    var archive = try #require(
+      JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any])
+    var events = try #require(archive["events"] as? [[String: Any]])
+    events[0]["recognized_text"] = "must-not-persist"
+    archive["events"] = events
+    try JSONSerialization.data(withJSONObject: archive).write(to: fileURL)
 
     let store = DiagnosticEventStore(directory: directory)
+    store.record(.runtimeStopped)
+    let preserved = String(decoding: try Data(contentsOf: fileURL), as: UTF8.self)
 
     #expect(store.events.isEmpty)
     #expect(store.error?.message == "Saved diagnostic events could not be read.")
+    #expect(preserved.contains("must-not-persist"))
   }
 }
 
