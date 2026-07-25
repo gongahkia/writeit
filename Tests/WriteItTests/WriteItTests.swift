@@ -3506,6 +3506,39 @@ struct HistoryStoreTests {
     #expect(archive.entries == legacyEntries)
   }
 
+  @Test("migrates encrypted legacy history and retains it across a cutoff reload") @MainActor
+  func migratesAndRetainsEncryptedHistoryAcrossReload() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let now = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    let cutoff = now.addingTimeInterval(-86_400)
+    let expired = HistoryEntry(
+      createdAt: cutoff.addingTimeInterval(-1), text: "expired", strokes: nil, source: "Vision")
+    let retained = HistoryEntry(createdAt: cutoff, text: "retained", strokes: nil, source: "Vision")
+    let sealed = try #require(AES.GCM.seal(
+      JSONEncoder().encode([expired, retained]),
+      using: key
+    ).combined)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try sealed.write(to: fileURL, options: .atomic)
+
+    let migrated = HistoryStore(fileURL: fileURL, key: key)
+    #expect(migrated.entries == [expired, retained])
+    migrated.removeEntries(olderThan: cutoff)
+
+    let reloaded = HistoryStore(fileURL: fileURL, key: key)
+    #expect(reloaded.entries == [retained])
+    let ciphertext = try Data(contentsOf: fileURL)
+    #expect(ciphertext.range(of: Data("retained".utf8)) == nil)
+    let decrypted = try AES.GCM.open(AES.GCM.SealedBox(combined: ciphertext), using: key)
+    let archive = try JSONDecoder().decode(HistoryArchive.self, from: decrypted)
+    #expect(archive.version == HistoryArchive.currentVersion)
+    #expect(archive.entries == [retained])
+  }
+
   @Test("fails closed for encrypted archives from a future version") @MainActor
   func rejectsFutureArchiveVersion() throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
