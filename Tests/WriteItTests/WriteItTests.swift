@@ -2005,6 +2005,29 @@ struct AppProfileStoreTests {
     ) == ModelStore.appleVisionModelID)
   }
 
+  @Test("resolves an output strategy override only for its matching profile") @MainActor
+  func resolvesProfileOutputStrategyOverride() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(outputStrategy: .accessibility)
+      ),
+    ])
+    let resolver = AppProfileOverrideResolver(profiles: store)
+
+    #expect(resolver.value(
+      for: "com.example.editor",
+      override: \.outputStrategy,
+      global: .paste
+    ) == .accessibility)
+    #expect(resolver.value(
+      for: "com.example.other",
+      override: \.outputStrategy,
+      global: .paste
+    ) == .paste)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()
@@ -2248,6 +2271,51 @@ struct CaptureCoordinatorLifecycleTests {
 
     let request = try #require(await recognition.requests.first)
     #expect(request.language == .french)
+  }
+
+  @Test("capture uses the matching profile output strategy") @MainActor
+  func usesProfileOutputStrategyForDelivery() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(outputStrategy: .clipboard)
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveredRequests.first?.strategy == .clipboard)
+  }
+
+  @Test("explicit clipboard result mode overrides a profile output strategy") @MainActor
+  func preservesExplicitClipboardResultMode() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.resultMode = .clipboard
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(outputStrategy: .accessibility)
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveredRequests.first?.strategy == .clipboard)
   }
 
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
@@ -2679,6 +2747,7 @@ private final class TestDelivery: AccessibilityDelivering {
   private(set) var captureTargetRequests = 0
   private(set) var clearCapturedTargetRequests = 0
   private(set) var deliveryRequests = 0
+  private(set) var deliveredRequests: [DeliveryRequest] = []
   var outcome: DeliveryOutcome = .clipboard
   var isTrusted: Bool { trusted }
 
@@ -2693,6 +2762,7 @@ private final class TestDelivery: AccessibilityDelivering {
   }
   func deliver(_ request: DeliveryRequest) async -> DeliveryOutcome {
     deliveryRequests += 1
+    deliveredRequests.append(request)
     return outcome
   }
   func undo() {}

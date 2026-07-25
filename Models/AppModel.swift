@@ -383,13 +383,20 @@ final class CaptureCoordinator: ObservableObject {
   ) {
     guard session.transition(to: .delivering) else { return }
     cancelDeliveryTask()
+    let foregroundBundleIdentifier = session.foregroundBundleIdentifier
     let taskID = UUID()
     deliveryTaskID = taskID
     deliveryTask = Task { [weak self, delivery] in
       defer { self?.completeDeliveryTask(id: taskID) }
       guard let self, self.ownsDeliveryTask(taskID), self.session.phase == .delivering else { return }
       let strategy: OutputStrategy =
-        self.preferences.resultMode == .clipboard ? .clipboard : self.preferences.outputStrategy
+        self.preferences.resultMode == .clipboard
+        ? .clipboard
+        : self.profileOverrideResolver.value(
+          for: foregroundBundleIdentifier,
+          override: \.outputStrategy,
+          global: self.preferences.outputStrategy
+        )
       let outcome = await delivery.deliver(
         DeliveryRequest(
           text: text,
