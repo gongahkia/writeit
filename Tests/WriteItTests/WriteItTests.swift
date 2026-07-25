@@ -174,6 +174,64 @@ struct RecognitionContractTests {
     #expect(await requester.requests.isEmpty)
   }
 
+  @Test("Azure Vision sends image bytes to the Read endpoint and maps confidence")
+  func azureVisionRecognizesHandwriting() async throws {
+    let requester = TestAzureVisionRequester(
+      response: AzureVisionHTTPResponse(
+        data: try JSONSerialization.data(withJSONObject: [
+          "readResult": [
+            "content": "  hello\nazure  ",
+            "blocks": [["lines": [["text": "hello azure", "words": [
+              ["confidence": 0.9], ["confidence": 0.7],
+            ]]]]],
+          ],
+        ]),
+        statusCode: 200
+      ))
+    let service = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://writeit.cognitiveservices.azure.com")!,
+      apiKey: "test-subscription-key",
+      requester: requester
+    )
+
+    let result = try await service.recognize(
+      RecognitionRequest(imageData: Data([4, 5, 6]), language: .italian))
+
+    #expect(result.text == "hello azure")
+    #expect(abs(result.confidence - 0.8) < 0.001)
+    #expect(result.backendID == "azure-ai-vision-read")
+    let sent = try #require(await requester.requests.first)
+    #expect(sent.httpBody == Data([4, 5, 6]))
+    #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/octet-stream")
+    #expect(sent.value(forHTTPHeaderField: "Ocp-Apim-Subscription-Key") == "test-subscription-key")
+    let queryItems = URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
+      .queryItems ?? []
+    #expect(Dictionary(uniqueKeysWithValues: queryItems.map { ($0.name, $0.value) }) == [
+      "api-version": "2024-02-01", "features": "read", "language": "it",
+    ])
+  }
+
+  @Test("Azure Vision refuses an invalid endpoint without sending ink")
+  func azureVisionRequiresAzureHTTPSResource() async {
+    let requester = TestAzureVisionRequester(
+      response: AzureVisionHTTPResponse(data: Data(), statusCode: 200))
+    let service = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://example.invalid")!,
+      apiKey: "test-subscription-key",
+      requester: requester
+    )
+
+    do {
+      _ = try await service.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      Issue.record("a non-Azure endpoint must be rejected")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Azure AI Vision is not configured.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
+    #expect(await requester.requests.isEmpty)
+  }
+
   @Test("recognition failures map to a shared user-facing error")
   func failuresMapToPresentation() {
     let error = AppErrorPresentation.recognition(RecognitionError.noText)
@@ -2023,6 +2081,20 @@ private actor TestGoogleVisionRequester: GoogleVisionRequesting {
   }
 
   func data(for request: URLRequest) async throws -> GoogleVisionHTTPResponse {
+    requests.append(request)
+    return response
+  }
+}
+
+private actor TestAzureVisionRequester: AzureVisionRequesting {
+  let response: AzureVisionHTTPResponse
+  private(set) var requests: [URLRequest] = []
+
+  init(response: AzureVisionHTTPResponse) {
+    self.response = response
+  }
+
+  func data(for request: URLRequest) async throws -> AzureVisionHTTPResponse {
     requests.append(request)
     return response
   }
