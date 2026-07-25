@@ -8,6 +8,7 @@ final class CaptureSession: ObservableObject {
   @Published var recognizedText = ""
   @Published var canvasSize = CGSize(width: 760, height: 250)
   @Published private(set) var deliveryOutcome: DeliveryOutcome?
+  private(set) var foregroundBundleIdentifier: String?
   private(set) var recognitionMetadata: RecognitionCaptureMetadata?
 
   var target: TargetReference?
@@ -18,12 +19,14 @@ final class CaptureSession: ObservableObject {
   private var hasAcceptedFirstStroke = false
 
   @discardableResult
-  func begin(target: TargetReference?) -> Bool {
+  func begin(target: TargetReference?, foregroundBundleIdentifier: String? = nil) -> Bool {
     guard transition(to: .opening) else { return false }
     self.target = target
+    self.foregroundBundleIdentifier = foregroundBundleIdentifier
     strokes = []
     recognizedText = ""
     deliveryOutcome = nil
+    foregroundBundleIdentifier = nil
     recognitionMetadata = nil
     captureActivatedAt = clock.now
     hasAcceptedFirstStroke = false

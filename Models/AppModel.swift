@@ -18,6 +18,7 @@ final class CaptureCoordinator: ObservableObject {
   private let enhancer: any TextEnhancing
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
+  private let foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving
   private var penUpTask: Task<Void, Never>?
   private var penUpTaskID: UUID?
   private var captureTask: Task<Void, Never>?
@@ -37,7 +38,9 @@ final class CaptureCoordinator: ObservableObject {
     recognition: any TextRecognizing,
     enhancer: any TextEnhancing,
     overlay: any CaptureOverlayPresenting,
-    loginItem: any LoginItemManaging
+    loginItem: any LoginItemManaging,
+    foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving =
+      ForegroundApplicationBundleIdentifierResolver()
   ) {
     self.preferences = preferences
     self.history = history
@@ -48,6 +51,7 @@ final class CaptureCoordinator: ObservableObject {
     self.enhancer = enhancer
     self.overlay = overlay
     self.loginItem = loginItem
+    self.foregroundApplicationResolver = foregroundApplicationResolver
     accessibilityGranted = delivery.isTrusted
     session.onStrokeFinished = { [weak self] in self?.schedulePenUpSubmit() }
   }
@@ -106,7 +110,11 @@ final class CaptureCoordinator: ObservableObject {
     clearError()
     refreshAccessibility()
     if accessibilityGranted == false { delivery.requestTrust() }
-    guard session.begin(target: delivery.captureTarget()) else { return }
+    let foregroundBundleIdentifier = foregroundApplicationResolver.resolve()
+    let target = delivery.captureTarget()
+    guard session.begin(target: target, foregroundBundleIdentifier: foregroundBundleIdentifier) else {
+      return
+    }
     overlay.present(session: session, coordinator: self, preferences: preferences)
     guard session.transition(to: .drawing) else {
       dismissPanel()

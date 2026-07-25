@@ -1981,6 +1981,16 @@ struct KeychainStoreTests {
   }
 }
 
+struct ForegroundApplicationBundleIdentifierResolverTests {
+  @Test("resolves only a nonempty frontmost bundle identifier") @MainActor
+  func resolvesFrontmostBundleIdentifier() {
+    #expect(ForegroundApplicationBundleIdentifierResolver { "com.example.editor" }.resolve()
+      == "com.example.editor")
+    #expect(ForegroundApplicationBundleIdentifierResolver { nil }.resolve() == nil)
+    #expect(ForegroundApplicationBundleIdentifierResolver { "" }.resolve() == nil)
+  }
+}
+
 struct CaptureCoordinatorLifecycleTests {
   @Test("clipboard fallback remains visible as delivery recovery") @MainActor
   func surfacesClipboardRecovery() async {
@@ -2026,6 +2036,18 @@ struct CaptureCoordinatorLifecycleTests {
 
     #expect(capture.session.target == nil)
     #expect(dependencies.delivery.clearCapturedTargetRequests == 2)
+  }
+
+  @Test("capture start retains the foreground app bundle identifier") @MainActor
+  func retainsForegroundBundleIdentifierAtCaptureStart() {
+    let dependencies = TestDependencies(trusted: true)
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    let capture = dependencies.makeCaptureCoordinator()
+
+    capture.beginCapture()
+
+    #expect(capture.session.foregroundBundleIdentifier == "com.example.editor")
+    #expect(dependencies.foregroundApplicationResolver.resolveRequests == 1)
   }
 
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
@@ -2316,6 +2338,7 @@ private final class TestDependencies {
   let enhancer = TestEnhancer()
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
+  let foregroundApplicationResolver = TestForegroundApplicationBundleIdentifierResolver()
   let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
     UUID().uuidString, isDirectory: true)
   let preferences: Preferences
@@ -2341,7 +2364,8 @@ private final class TestDependencies {
       recognition: recognition,
       enhancer: enhancer,
       overlay: overlay,
-      loginItem: loginItem
+      loginItem: loginItem,
+      foregroundApplicationResolver: foregroundApplicationResolver
     )
   }
 }
@@ -2352,6 +2376,19 @@ private final class TestShortcutMonitor: GlobalShortcutMonitoring {
 
   func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) { starts += 1 }
   func stop() { stops += 1 }
+}
+
+@MainActor
+private final class TestForegroundApplicationBundleIdentifierResolver:
+  ForegroundApplicationBundleIdentifierResolving
+{
+  var bundleIdentifier: String?
+  private(set) var resolveRequests = 0
+
+  func resolve() -> String? {
+    resolveRequests += 1
+    return bundleIdentifier
+  }
 }
 
 @MainActor
