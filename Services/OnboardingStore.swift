@@ -82,8 +82,18 @@ final class OnboardingStore: ObservableObject {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
-    isComplete = defaults.bool(forKey: Self.completedDefaultsKey)
-    currentStep = .accessibility
+    let isComplete = defaults.bool(forKey: Self.completedDefaultsKey)
+    let savedStep = Self.savedStep(in: defaults)
+    self.isComplete = isComplete
+    currentStep = isComplete ? .accessibility : savedStep ?? .accessibility
+    hasAcknowledgedCloudPrivacy =
+      isComplete || savedStep == nil
+      ? false
+      : defaults.bool(forKey: Self.cloudPrivacyAcknowledgedDefaultsKey)
+    if isComplete || savedStep == nil {
+      defaults.removeObject(forKey: Self.currentStepDefaultsKey)
+      defaults.removeObject(forKey: Self.cloudPrivacyAcknowledgedDefaultsKey)
+    }
   }
 
   var isActive: Bool { isComplete == false }
@@ -99,21 +109,42 @@ final class OnboardingStore: ObservableObject {
       return
     }
     currentStep = next
+    persistProgress()
   }
 
   func goBack() {
     guard let previous = OnboardingStep(rawValue: currentStep.rawValue - 1) else { return }
     currentStep = previous
+    persistProgress()
   }
 
   func acknowledgeCloudPrivacy() {
     hasAcknowledgedCloudPrivacy = true
+    persistProgress()
   }
 
   private func complete() {
     isComplete = true
     defaults.set(true, forKey: Self.completedDefaultsKey)
+    clearProgress()
   }
 
   private static let completedDefaultsKey = "onboarding.completed"
+  private static let currentStepDefaultsKey = "onboarding.currentStep"
+  private static let cloudPrivacyAcknowledgedDefaultsKey = "onboarding.cloudPrivacyAcknowledged"
+
+  private static func savedStep(in defaults: UserDefaults) -> OnboardingStep? {
+    guard let rawValue = defaults.object(forKey: currentStepDefaultsKey) as? Int else { return nil }
+    return OnboardingStep(rawValue: rawValue)
+  }
+
+  private func persistProgress() {
+    defaults.set(currentStep.rawValue, forKey: Self.currentStepDefaultsKey)
+    defaults.set(hasAcknowledgedCloudPrivacy, forKey: Self.cloudPrivacyAcknowledgedDefaultsKey)
+  }
+
+  private func clearProgress() {
+    defaults.removeObject(forKey: Self.currentStepDefaultsKey)
+    defaults.removeObject(forKey: Self.cloudPrivacyAcknowledgedDefaultsKey)
+  }
 }

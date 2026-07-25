@@ -691,6 +691,34 @@ struct OnboardingStoreTests {
     #expect(onboarding.isComplete)
     #expect(OnboardingStore(defaults: defaults).isActive == false)
   }
+
+  @Test("resumes incomplete progress and cloud privacy acknowledgement") @MainActor
+  func resumesIncompleteProgress() {
+    let defaults = makeDefaults()
+    let onboarding = OnboardingStore(defaults: defaults)
+
+    for _ in 0..<4 { onboarding.advance() }
+    #expect(onboarding.currentStep == .cloudConsent)
+    onboarding.acknowledgeCloudPrivacy()
+
+    let resumed = OnboardingStore(defaults: defaults)
+    #expect(resumed.isActive)
+    #expect(resumed.currentStep == .cloudConsent)
+    #expect(resumed.hasAcknowledgedCloudPrivacy)
+    #expect(resumed.canAdvance)
+  }
+
+  @Test("resets invalid saved onboarding progress") @MainActor
+  func resetsInvalidProgress() {
+    let defaults = makeDefaults()
+    defaults.set(999, forKey: "onboarding.currentStep")
+    defaults.set(true, forKey: "onboarding.cloudPrivacyAcknowledged")
+
+    let onboarding = OnboardingStore(defaults: defaults)
+
+    #expect(onboarding.currentStep == .accessibility)
+    #expect(onboarding.hasAcknowledgedCloudPrivacy == false)
+  }
 }
 
 struct OnboardingRecognitionSelectionTests {
