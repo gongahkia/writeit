@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 9
+  static let currentSchemaVersion = 10
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -42,6 +42,9 @@ final class Preferences: ObservableObject {
   }
   @Published var regexReplacementRules: RegexReplacementRules {
     didSet { save(regexReplacementRules, key: .regexReplacementRules) }
+  }
+  @Published var mathematicalNotationFormat: MathematicalNotationFormat {
+    didSet { save(mathematicalNotationFormat, key: .mathematicalNotationFormat) }
   }
   @Published var historyMode: HistoryMode { didSet { save(historyMode, key: .historyMode) } }
   @Published var historyAutoDelete: Bool {
@@ -113,6 +116,8 @@ final class Preferences: ObservableObject {
       .literalReplacementRules, from: defaults, fallback: LiteralReplacementRules())
     let regexReplacementRulesResult = Self.load(
       .regexReplacementRules, from: defaults, fallback: RegexReplacementRules())
+    let mathematicalNotationFormatResult = Self.load(
+      .mathematicalNotationFormat, from: defaults, fallback: MathematicalNotationFormat.plainText)
     let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
     shortcut = shortcutResult.value
     captureMode = captureModeResult.value
@@ -125,6 +130,7 @@ final class Preferences: ObservableObject {
     customWords = customWordsResult.value
     literalReplacementRules = literalReplacementRulesResult.value
     regexReplacementRules = regexReplacementRulesResult.value
+    mathematicalNotationFormat = mathematicalNotationFormatResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
@@ -151,6 +157,7 @@ final class Preferences: ObservableObject {
       customWordsResult.error,
       literalReplacementRulesResult.error,
       regexReplacementRulesResult.error,
+      mathematicalNotationFormatResult.error,
       historyModeResult.error,
     ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
   }
@@ -176,6 +183,7 @@ final class Preferences: ObservableObject {
     case customWords
     case literalReplacementRules
     case regexReplacementRules
+    case mathematicalNotationFormat
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
@@ -308,6 +316,7 @@ final class Preferences: ObservableObject {
     customWords = configuration.customWords
     literalReplacementRules = configuration.literalReplacementRules
     regexReplacementRules = configuration.regexReplacementRules
+    mathematicalNotationFormat = configuration.mathematicalNotationFormat
     historyMode = configuration.historyMode
     historyAutoDelete = configuration.historyAutoDelete
     historyRetentionDays = configuration.historyRetentionDays

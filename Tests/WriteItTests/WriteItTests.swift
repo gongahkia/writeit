@@ -12,6 +12,25 @@ struct TextSanitizerTests {
   }
 }
 
+struct MathematicalNotationFormatterTests {
+  @Test("formats supported written mathematics as LaTeX and MathJax")
+  func formatsWrittenMathematics() {
+    let source = "one over two plus x squared equals square root of nine"
+
+    #expect(
+      MathematicalNotationFormatter.format(source, as: .latex)
+        == #"\frac{1}{2} + x^{2} = \sqrt{9}"#
+    )
+    #expect(
+      MathematicalNotationFormatter.format(source, as: .mathJax)
+        == #"\(\frac{1}{2} + x^{2} = \sqrt{9}\)"#
+    )
+    #expect(
+      MathematicalNotationFormatter.format("ordinary prose", as: .mathJax) == "ordinary prose"
+    )
+  }
+}
+
 struct HistorySearchTests {
   @Test("matches history using locale-aware case and diacritic comparison")
   func matchesLocaleAwareText() {
@@ -381,6 +400,7 @@ struct ConfigurationArchiveTests {
     let preferences = Preferences(defaults: defaults)
     preferences.captureMode = .penUpDelay
     preferences.recognitionLanguage = .french
+    preferences.mathematicalNotationFormat = .mathJax
     preferences.customWords = CustomWordList(words: ["WriteIt", "Café"])
     preferences.historyMode = .full
     preferences.retainsLocalLogs = false
@@ -417,6 +437,7 @@ struct ConfigurationArchiveTests {
 
     #expect(decoded == archive)
     #expect(decoded.preferences.customWords.words == ["WriteIt", "Café"])
+    #expect(decoded.preferences.mathematicalNotationFormat == .mathJax)
     #expect(decoded.profiles.first?.overrides.aiCleanupConsent?.allowsAICleanup == true)
     #expect(decoded.cloudOCRProviders == [
       ConfigurationCloudOCRProvider(configuration: cloudProviders.configurations[0]),
@@ -432,11 +453,29 @@ struct ConfigurationArchiveTests {
 
   @Test("rejects unsupported configuration schema versions")
   func rejectsUnsupportedVersion() {
-    let data = Data("{\"schema_version\":2}".utf8)
+    let data = Data("{\"schema_version\":3}".utf8)
 
     #expect(throws: ConfigurationArchiveError.unsupportedVersion) {
       try JSONDecoder().decode(ConfigurationArchive.self, from: data)
     }
+  }
+
+  @Test("imports v1 configurations with plain-text mathematics output") @MainActor
+  func importsLegacyConfiguration() throws {
+    let archive = ConfigurationArchive(
+      preferences: Preferences(defaults: makeDefaults()), profiles: [], cloudOCRProviders: [])
+    var object = try #require(
+      JSONSerialization.jsonObject(with: ConfigurationArchiveCodec.encode(archive)) as? [String: Any])
+    object["schema_version"] = 1
+    var preferences = try #require(object["preferences"] as? [String: Any])
+    preferences.removeValue(forKey: "mathematicalNotationFormat")
+    object["preferences"] = preferences
+
+    let decoded = try ConfigurationArchiveCodec.decode(
+      JSONSerialization.data(withJSONObject: object))
+
+    #expect(decoded.schemaVersion == 1)
+    #expect(decoded.preferences.mathematicalNotationFormat == .plainText)
   }
 
   @Test("imports a validated configuration without importing provider credentials") @MainActor
@@ -3017,6 +3056,7 @@ struct PreferencesTests {
     #expect(preferences.verifyPasteDelivery == false)
     #expect(preferences.customWords == CustomWordList(words: []))
     #expect(preferences.recognitionBackendID == "apple-vision")
+    #expect(preferences.mathematicalNotationFormat == .plainText)
     #expect(preferences.penUpDelay == 1.2)
     #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
@@ -3086,6 +3126,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.recognitionBackendID = "google-cloud-vision"
     #expect(Preferences(defaults: defaults).recognitionBackendID == "google-cloud-vision")
+  }
+
+  @Test("persists selected mathematics output")
+  func persistsMathematicalNotationFormat() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.mathematicalNotationFormat = .mathJax
+    #expect(Preferences(defaults: defaults).mathematicalNotationFormat == .mathJax)
   }
 
   @Test("persists normalized global custom words")
@@ -4000,6 +4048,25 @@ struct CaptureCoordinatorLifecycleTests {
 
     #expect(dependencies.enhancer.requests.first?.text == "regex-ed")
     #expect(dependencies.delivery.deliveredRequests.first?.text == "regex-ed")
+  }
+
+  @Test("capture formats selected mathematical output after cleanup") @MainActor
+  func formatsSelectedMathematicalOutput() async {
+    let dependencies = TestDependencies(
+      trusted: true,
+      recognition: SuccessfulRecognition(text: "one over two plus x squared")
+    )
+    dependencies.preferences.mathematicalNotationFormat = .mathJax
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveredRequests.first?.text == #"\(\frac{1}{2} + x^{2}\)"#)
   }
 
   @Test("cleanup failure delivers unchanged recognized text with a notice") @MainActor
@@ -4946,9 +5013,14 @@ private actor SuccessfulRecognition: TextRecognizing {
     supportsStreaming: false,
     availability: .available
   )
+  private let text: String
+
+  init(text: String = "recognized") {
+    self.text = text
+  }
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
-    RecognitionResult(text: "recognized", confidence: 1, backendID: "successful-test")
+    RecognitionResult(text: text, confidence: 1, backendID: "successful-test")
   }
 }
 

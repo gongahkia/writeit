@@ -52,6 +52,15 @@ struct CaptureSettingsView: View {
         Picker("Recognition language", selection: $preferences.recognitionLanguage) {
           ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
         }
+        Picker("Mathematics output", selection: $preferences.mathematicalNotationFormat) {
+          ForEach(MathematicalNotationFormat.allCases) { Text($0.title).tag($0) }
+        }
+        Text("LaTeX uses raw TeX; MathJax uses inline \\(...\\) delimiters when recognized text contains mathematical notation.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Text("Converts supported English fractions, roots, powers, operators, numerals, and Greek names locally. Other text is unchanged.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       Section {
         InputTuningPanel(preferences: preferences)

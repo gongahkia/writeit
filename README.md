@@ -15,6 +15,7 @@ WriteIt is currently distributed as a source-first beta for Apple Silicon. It is
 - Editable review, retry, cancellation, undo, and no-ink feedback
 - Encrypted local history; new installs retain text only for seven days
 - Optional OpenAI-compatible text cleanup; only recognized text is sent
+- Optional local LaTeX or MathJax formatting for supported written mathematical phrases
 
 ## Privacy
 

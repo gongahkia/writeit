@@ -32,6 +32,7 @@ struct ConfigurationPreferences: Codable, Equatable {
   let customWords: CustomWordList
   let literalReplacementRules: LiteralReplacementRules
   let regexReplacementRules: RegexReplacementRules
+  let mathematicalNotationFormat: MathematicalNotationFormat
   let historyMode: HistoryMode
   let historyAutoDelete: Bool
   let historyRetentionDays: Int
@@ -56,6 +57,7 @@ struct ConfigurationPreferences: Codable, Equatable {
     customWords = preferences.customWords
     literalReplacementRules = preferences.literalReplacementRules
     regexReplacementRules = preferences.regexReplacementRules
+    mathematicalNotationFormat = preferences.mathematicalNotationFormat
     historyMode = preferences.historyMode
     historyAutoDelete = preferences.historyAutoDelete
     historyRetentionDays = preferences.historyRetentionDays
@@ -78,6 +80,62 @@ struct ConfigurationPreferences: Codable, Equatable {
       (0...1).contains(pressureSensitivity),
       (0...1).contains(strokeSmoothing)
     else { throw ConfigurationArchiveError.invalidConfiguration }
+  }
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    shortcut = try container.decode(Shortcut.self, forKey: .shortcut)
+    captureMode = try container.decode(CaptureMode.self, forKey: .captureMode)
+    resultMode = try container.decode(ResultMode.self, forKey: .resultMode)
+    outputStrategy = try container.decode(OutputStrategy.self, forKey: .outputStrategy)
+    clipboardHandling = try container.decode(ClipboardHandling.self, forKey: .clipboardHandling)
+    verifyPasteDelivery = try container.decode(Bool.self, forKey: .verifyPasteDelivery)
+    recognitionLanguage = try container.decode(RecognitionLanguage.self, forKey: .recognitionLanguage)
+    recognitionBackendID = try container.decode(String.self, forKey: .recognitionBackendID)
+    customWords = try container.decode(CustomWordList.self, forKey: .customWords)
+    literalReplacementRules = try container.decode(
+      LiteralReplacementRules.self, forKey: .literalReplacementRules)
+    regexReplacementRules = try container.decode(
+      RegexReplacementRules.self, forKey: .regexReplacementRules)
+    mathematicalNotationFormat = try container.decodeIfPresent(
+      MathematicalNotationFormat.self, forKey: .mathematicalNotationFormat) ?? .plainText
+    historyMode = try container.decode(HistoryMode.self, forKey: .historyMode)
+    historyAutoDelete = try container.decode(Bool.self, forKey: .historyAutoDelete)
+    historyRetentionDays = try container.decode(Int.self, forKey: .historyRetentionDays)
+    aiEnabled = try container.decode(Bool.self, forKey: .aiEnabled)
+    aiBaseURL = try container.decode(String.self, forKey: .aiBaseURL)
+    aiModel = try container.decode(String.self, forKey: .aiModel)
+    launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
+    penUpDelay = try container.decode(Double.self, forKey: .penUpDelay)
+    strokeWidth = try container.decode(Double.self, forKey: .strokeWidth)
+    pressureSensitivity = try container.decode(Double.self, forKey: .pressureSensitivity)
+    strokeSmoothing = try container.decode(Double.self, forKey: .strokeSmoothing)
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case shortcut
+    case captureMode
+    case resultMode
+    case outputStrategy
+    case clipboardHandling
+    case verifyPasteDelivery
+    case recognitionLanguage
+    case recognitionBackendID
+    case customWords
+    case literalReplacementRules
+    case regexReplacementRules
+    case mathematicalNotationFormat
+    case historyMode
+    case historyAutoDelete
+    case historyRetentionDays
+    case aiEnabled
+    case aiBaseURL
+    case aiModel
+    case launchAtLogin
+    case penUpDelay
+    case strokeWidth
+    case pressureSensitivity
+    case strokeSmoothing
   }
 }
 
@@ -103,7 +161,7 @@ struct ConfigurationCloudOCRProvider: Codable, Equatable {
 }
 
 struct ConfigurationArchive: Codable, Equatable {
-  static let currentSchemaVersion = 1
+  static let currentSchemaVersion = 2
 
   let schemaVersion: Int
   let preferences: ConfigurationPreferences
@@ -126,7 +184,7 @@ struct ConfigurationArchive: Codable, Equatable {
     guard Set(container.allKeys).isSubset(of: Set(CodingKeys.allCases))
     else { throw ConfigurationArchiveError.invalidArchive }
     let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
-    guard schemaVersion == Self.currentSchemaVersion
+    guard (1...Self.currentSchemaVersion).contains(schemaVersion)
     else { throw ConfigurationArchiveError.unsupportedVersion }
     self.schemaVersion = schemaVersion
     preferences = try container.decode(ConfigurationPreferences.self, forKey: .preferences)

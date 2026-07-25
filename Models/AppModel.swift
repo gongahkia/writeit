@@ -258,6 +258,7 @@ final class CaptureCoordinator: ObservableObject {
     )
     let literalReplacementRules = preferences.literalReplacementRules
     let regexReplacementRules = preferences.regexReplacementRules
+    let mathematicalNotationFormat = preferences.mathematicalNotationFormat
     let selectedRecognizer: any TextRecognizing
     do {
       selectedRecognizer = try recognitionRegistry.recognizer(for: selectedBackendID)
@@ -331,15 +332,16 @@ final class CaptureCoordinator: ObservableObject {
         }
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
+        let formattedResult = MathematicalNotationFormatter.format(result, as: mathematicalNotationFormat)
         self.recognitionStartedAt = nil
-        self.session.recognizedText = result
+        self.session.recognizedText = formattedResult
         if self.preferences.resultMode == .review {
           guard self.session.transition(to: .reviewing) else { return }
           self.statusMessage = "Review before inserting"
         } else {
           let notice = notices.joined(separator: " ")
           self.finish(
-            text: result,
+            text: formattedResult,
             source: candidate.backendID,
             target: target,
             strokes: strokes,
