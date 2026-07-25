@@ -18,7 +18,9 @@ enum ModelStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class ModelStore: ObservableObject {
+  static let appleVisionModelID = "apple-vision"
   @Published private(set) var installationStates: [String: ModelInstallationState]
+  @Published private(set) var activeModelID: String
   @Published private(set) var error: AppErrorPresentation?
 
   private let modelsDirectory: URL
@@ -35,6 +37,7 @@ final class ModelStore: ObservableObject {
       fileURL: downloadCheckpointURL ?? base.appendingPathComponent("downloads.json"))
     self.error = nil
     self.installationStates = [:]
+    self.activeModelID = Self.appleVisionModelID
     self.downloadCheckpoints = [:]
     do {
       try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
@@ -95,6 +98,9 @@ final class ModelStore: ObservableObject {
     do {
       try ManifestModelInstaller.remove(manifest: manifest, in: modelsDirectory)
       installationStates[installationKey(for: manifest)] = .notInstalled
+      if activeModelID == installationKey(for: manifest) {
+        activeModelID = Self.appleVisionModelID
+      }
       error = nil
       AppLog.models.info("local_model_removed")
     } catch {
@@ -110,6 +116,11 @@ final class ModelStore: ObservableObject {
   }
 
   func clearError() { error = nil }
+
+  func activate(manifest: ModelManifest) {
+    guard case .installed = installationState(for: manifest) else { return }
+    activeModelID = installationKey(for: manifest)
+  }
 
   func downloadCheckpoint(for manifest: ModelManifest) -> ModelDownloadCheckpoint? {
     downloadCheckpoints[installationKey(for: manifest)]

@@ -206,8 +206,11 @@ struct ManifestModelInstallerTests {
       Issue.record("Expected installed manifest state")
       return
     }
+    store.activate(manifest: manifest)
+    #expect(store.activeModelID == "fixture@1.0.0")
     store.remove(manifest: manifest)
     #expect(store.installationState(for: manifest) == .notInstalled)
+    #expect(store.activeModelID == ModelStore.appleVisionModelID)
   }
 
   @Test("installs and resolves a model only through its manifest identity")
