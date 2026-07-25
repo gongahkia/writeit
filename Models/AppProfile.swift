@@ -14,17 +14,22 @@ enum AppProfileError: LocalizedError, Equatable {
 struct AppProfile: Codable, Sendable, Equatable, Identifiable {
   let id: UUID
   let bundleIdentifier: String
+  let isEnabled: Bool
   let overrides: AppProfileOverrides
 
   init(
     id: UUID = UUID(),
     bundleIdentifier: String,
+    isEnabled: Bool = true,
     overrides: AppProfileOverrides = .init()
   ) throws {
     guard Self.isValid(bundleIdentifier) else { throw AppProfileError.invalidBundleIdentifier }
-    self.id = id
-    self.bundleIdentifier = bundleIdentifier.lowercased()
-    self.overrides = overrides
+    self.init(
+      id: id,
+      canonicalBundleIdentifier: bundleIdentifier.lowercased(),
+      isEnabled: isEnabled,
+      overrides: overrides
+    )
   }
 
   init(from decoder: any Decoder) throws {
@@ -32,14 +37,37 @@ struct AppProfile: Codable, Sendable, Equatable, Identifiable {
     try self.init(
       id: container.decode(UUID.self, forKey: .id),
       bundleIdentifier: container.decode(String.self, forKey: .bundleIdentifier),
+      isEnabled: container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true,
       overrides: container.decodeIfPresent(AppProfileOverrides.self, forKey: .overrides) ?? .init()
+    )
+  }
+
+  func settingEnabled(_ isEnabled: Bool) -> Self {
+    Self(
+      id: id,
+      canonicalBundleIdentifier: bundleIdentifier,
+      isEnabled: isEnabled,
+      overrides: overrides
     )
   }
 
   private enum CodingKeys: String, CodingKey {
     case id
     case bundleIdentifier
+    case isEnabled
     case overrides
+  }
+
+  private init(
+    id: UUID,
+    canonicalBundleIdentifier: String,
+    isEnabled: Bool,
+    overrides: AppProfileOverrides
+  ) {
+    self.id = id
+    self.bundleIdentifier = canonicalBundleIdentifier
+    self.isEnabled = isEnabled
+    self.overrides = overrides
   }
 
   private static func isValid(_ value: String) -> Bool {
@@ -111,7 +139,7 @@ enum AppProfileStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class AppProfileStore: ObservableObject {
-  nonisolated static let currentSchemaVersion = 2
+  nonisolated static let currentSchemaVersion = 3
   nonisolated static let archiveDefaultsKey = "appProfiles.archive"
   nonisolated static let schemaVersionDefaultsKey = "appProfiles.schemaVersion"
 
@@ -128,19 +156,28 @@ final class AppProfileStore: ObservableObject {
   }
 
   func replaceProfiles(_ profiles: [AppProfile]) throws {
-    let data = try JSONEncoder().encode(AppProfileArchive(profiles: profiles))
+    let normalizedProfiles = Self.normalizedProfiles(profiles)
+    let data = try JSONEncoder().encode(AppProfileArchive(profiles: normalizedProfiles))
     defaults.set(data, forKey: Self.archiveDefaultsKey)
     defaults.set(Self.currentSchemaVersion, forKey: Self.schemaVersionDefaultsKey)
-    self.profiles = profiles
+    self.profiles = normalizedProfiles
     error = nil
   }
 
   func clearError() { error = nil }
 
-  func profile(matching bundleIdentifier: String?) -> AppProfile? {
+  func setEnabled(_ isEnabled: Bool, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID ? $0.settingEnabled(isEnabled) : $0
+    })
+  }
+
+  func profile(matching bundleIdentifier: String?, includingDisabled: Bool = false) -> AppProfile? {
     guard let bundleIdentifier, let profile = try? AppProfile(bundleIdentifier: bundleIdentifier)
     else { return nil }
-    return profiles.first { $0.bundleIdentifier == profile.bundleIdentifier }
+    return profiles.first {
+      $0.bundleIdentifier == profile.bundleIdentifier && (includingDisabled || $0.isEnabled)
+    }
   }
 
   private static func load(from defaults: UserDefaults) -> (profiles: [AppProfile], error: AppProfileStoreError?) {
@@ -154,18 +191,30 @@ final class AppProfileStore: ObservableObject {
     }
     do {
       let archive = try JSONDecoder().decode(AppProfileArchive.self, from: data)
-      if archive.requiresMigration {
+      let normalizedProfiles = normalizedProfiles(archive.profiles)
+      if archive.requiresMigration || normalizedProfiles != archive.profiles {
         defaults.set(
-          try JSONEncoder().encode(AppProfileArchive(profiles: archive.profiles)),
+          try JSONEncoder().encode(AppProfileArchive(profiles: normalizedProfiles)),
           forKey: archiveDefaultsKey
         )
       }
       defaults.set(currentSchemaVersion, forKey: schemaVersionDefaultsKey)
-      return (archive.profiles, nil)
+      return (normalizedProfiles, nil)
     } catch let error as AppProfileStoreError {
       return ([], error)
     } catch {
       return ([], .unreadableArchive)
+    }
+  }
+
+  private static func normalizedProfiles(_ profiles: [AppProfile]) -> [AppProfile] {
+    var activeBundleIdentifiers: Set<String> = []
+    return profiles.map { profile in
+      guard profile.isEnabled else { return profile }
+      guard activeBundleIdentifiers.insert(profile.bundleIdentifier).inserted else {
+        return profile.settingEnabled(false)
+      }
+      return profile
     }
   }
 }

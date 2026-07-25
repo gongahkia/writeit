@@ -27,6 +27,9 @@ final class CurrentAppProfileCreator {
     guard let bundleIdentifier = foregroundApplicationResolver.resolve() else {
       throw AppProfileCreationError.foregroundApplicationUnavailable
     }
+    if let existing = profiles.profile(matching: bundleIdentifier, includingDisabled: true) {
+      return existing
+    }
     let profile = try AppProfile(bundleIdentifier: bundleIdentifier)
     try profiles.replaceProfiles(profiles.profiles + [profile])
     return profile

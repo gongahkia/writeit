@@ -1932,6 +1932,7 @@ struct AppProfileStoreTests {
     )
 
     #expect(profile.overrides == .init())
+    #expect(profile.isEnabled)
     #expect(archive["schema_version"] as? Int == AppProfileStore.currentSchemaVersion)
     #expect(AppProfileOverrideResolution.value(profileOverride: "profile", global: "global") == "profile")
     #expect(AppProfileOverrideResolution.value(profileOverride: Optional<String>.none, global: "global")
@@ -2068,6 +2069,44 @@ struct AppProfileStoreTests {
     #expect(store.profiles == [profile])
     #expect(resolver.resolveRequests == 1)
     #expect(AppProfileStore(defaults: defaults).profiles == [profile])
+  }
+
+  @Test("disables duplicate active profiles without discarding them") @MainActor
+  func handlesEnabledProfilesAndDuplicates() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    let first = try AppProfile(
+      id: UUID(uuidString: "56AB413F-9E9F-425A-AEC4-39B45A5B7AB3")!,
+      bundleIdentifier: "com.example.editor"
+    )
+    let duplicate = try AppProfile(
+      id: UUID(uuidString: "AEC439B4-56AB-413F-9E9F-425AA5B7C3D4")!,
+      bundleIdentifier: "COM.Example.Editor"
+    )
+
+    try store.replaceProfiles([first, duplicate])
+
+    #expect(store.profiles == [first, duplicate.settingEnabled(false)])
+    #expect(store.profile(matching: "com.example.editor") == first)
+    try store.setEnabled(false, for: first.id)
+    try store.setEnabled(true, for: duplicate.id)
+    #expect(store.profile(matching: "com.example.editor") == duplicate)
+  }
+
+  @Test("creating a profile for an existing app is idempotent") @MainActor
+  func preventsDuplicateCurrentAppProfiles() throws {
+    let defaults = makeDefaults()
+    let store = AppProfileStore(defaults: defaults)
+    let existing = try AppProfile(bundleIdentifier: "com.example.editor")
+    try store.replaceProfiles([existing])
+    let resolver = TestForegroundApplicationBundleIdentifierResolver()
+    resolver.bundleIdentifier = "com.example.editor"
+    let creator = CurrentAppProfileCreator(
+      profiles: store,
+      foregroundApplicationResolver: resolver
+    )
+
+    #expect(try creator.create() == existing)
+    #expect(store.profiles == [existing])
   }
 
   @Test("refuses profile creation when no foreground app is available") @MainActor
