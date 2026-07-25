@@ -1455,6 +1455,17 @@ struct CloudOCRProviderStoreTests {
   }
 }
 
+struct ProviderConfigurationStatusTests {
+  @Test("maps provider configuration readiness to a visible status")
+  func mapsConfigurationStatus() {
+    #expect(ProviderConfigurationStatus(isConfigured: false, isSelectable: false) == .notConfigured)
+    #expect(ProviderConfigurationStatus(isConfigured: true, isSelectable: false) == .requiresValidation)
+    #expect(ProviderConfigurationStatus(isConfigured: true, isSelectable: true) == .selectable)
+    #expect(ProviderConfigurationStatus.selectable.title == "Ready")
+    #expect(ProviderConfigurationStatus.requiresValidation.symbol == "exclamationmark.triangle")
+  }
+}
+
 struct RecognitionBackendRegistryTests {
   @Test("exposes only locally available and validated cloud recognizers") @MainActor
   func exposesValidatedBackends() async throws {
