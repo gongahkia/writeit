@@ -12,6 +12,50 @@ struct TextSanitizerTests {
   }
 }
 
+struct AICleanupContractTests {
+  @Test("encodes one deterministic two-message cleanup request")
+  func encodesConstrainedRequest() throws {
+    let request = try AICleanupChatRequest(model: "  cleanup-model ", text: "recognized text")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+    let messages = object?["messages"] as? [[String: String]]
+
+    #expect(request.model == "cleanup-model")
+    #expect(object?["temperature"] as? Double == 0)
+    #expect(object?["n"] as? Int == 1)
+    #expect(object?["stream"] as? Bool == false)
+    #expect(messages?.count == 2)
+    #expect(messages?.first?["role"] == "system")
+    #expect(messages?.first?["content"] == AICleanupChatRequest.systemInstruction)
+    #expect(messages?.last == ["role": "user", "content": "recognized text"])
+    #expect(object?["tools"] == nil)
+  }
+
+  @Test("rejects invalid cleanup input and response payloads")
+  func rejectsInvalidInputAndResponse() throws {
+    #expect(throws: AICleanupContractError.invalidModel) {
+      try AICleanupChatRequest(model: "\n", text: "recognized text")
+    }
+    #expect(throws: AICleanupContractError.emptyInput) {
+      try AICleanupChatRequest(model: "model", text: "  ")
+    }
+    let empty = try JSONDecoder().decode(
+      AICleanupChatResponse.self,
+      from: Data("{\"choices\":[]}".utf8))
+    #expect(throws: AICleanupContractError.invalidResponse) {
+      try empty.cleanedText()
+    }
+  }
+
+  @Test("normalizes the first nonempty cleanup response")
+  func normalizesResponse() throws {
+    let response = try JSONDecoder().decode(
+      AICleanupChatResponse.self,
+      from: Data("{\"choices\":[{\"message\":{\"content\":\"  corrected\\n text  \"}}]}".utf8))
+
+    #expect(try response.cleanedText() == "corrected text")
+  }
+}
+
 struct LiteralReplacementRuleTests {
   @Test("applies literal replacements sequentially in stored order")
   func appliesRulesInOrder() throws {
