@@ -2854,6 +2854,27 @@ struct HistoryStoreTests {
   }
 }
 
+struct HistoryRetentionSchedulerTests {
+  @Test("retention runs periodically without app activation") @MainActor
+  func schedulesPeriodicCleanup() {
+    let dependencies = TestDependencies(trusted: true)
+    let old = HistoryEntry(
+      createdAt: Date(timeIntervalSinceNow: -86_400 * 8), text: "old", strokes: nil, source: "Vision")
+    let current = HistoryEntry(createdAt: .now, text: "current", strokes: nil, source: "Vision")
+    dependencies.history.append(old)
+    dependencies.history.append(current)
+    let capture = dependencies.makeCaptureCoordinator()
+
+    capture.start()
+    dependencies.historyRetentionScheduler.fire()
+
+    #expect(dependencies.history.entries.map(\.text) == ["current"])
+    #expect(dependencies.historyRetentionScheduler.startCount == 1)
+    capture.stop()
+    #expect(dependencies.historyRetentionScheduler.stopCount == 1)
+  }
+}
+
 struct KeychainStoreTests {
   @Test("reads, updates, and removes keychain values")
   func roundTripsValue() throws {
@@ -3508,6 +3529,7 @@ private final class TestDependencies {
   let enhancer = TestEnhancer()
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
+  let historyRetentionScheduler = TestHistoryRetentionScheduler()
   let foregroundApplicationResolver = TestForegroundApplicationBundleIdentifierResolver()
   let profiles: AppProfileStore
   let profileOverrideResolver: AppProfileOverrideResolver
@@ -3542,6 +3564,7 @@ private final class TestDependencies {
       enhancer: enhancer,
       overlay: overlay,
       loginItem: loginItem,
+      historyRetentionScheduler: historyRetentionScheduler,
       foregroundApplicationResolver: foregroundApplicationResolver,
       profileOverrideResolver: profileOverrideResolver
     )
@@ -3900,4 +3923,23 @@ private final class TestOverlay: CaptureOverlayPresenting {
 @MainActor
 private final class TestLoginItem: LoginItemManaging {
   func update(enabled: Bool) {}
+}
+
+@MainActor
+private final class TestHistoryRetentionScheduler: HistoryRetentionScheduling {
+  private var action: (() -> Void)?
+  private(set) var startCount = 0
+  private(set) var stopCount = 0
+
+  func start(_ action: @escaping @MainActor @Sendable () -> Void) {
+    startCount += 1
+    self.action = action
+  }
+
+  func stop() {
+    stopCount += 1
+    action = nil
+  }
+
+  func fire() { action?() }
 }

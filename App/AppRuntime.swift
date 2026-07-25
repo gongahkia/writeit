@@ -46,6 +46,7 @@ final class AppRuntime {
       enhancer: AIEnhancer(),
       overlay: CaptureOverlayController.shared,
       loginItem: LoginItemService(),
+      historyRetentionScheduler: HistoryRetentionScheduler(),
       foregroundApplicationResolver: foregroundApplicationResolver,
       profileOverrideResolver: profileOverrideResolver
     )

@@ -21,6 +21,7 @@ final class CaptureCoordinator: ObservableObject {
   private let loginItem: any LoginItemManaging
   private let foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving
   private let profileOverrideResolver: AppProfileOverrideResolver
+  private let historyRetentionScheduler: any HistoryRetentionScheduling
   private var penUpTask: Task<Void, Never>?
   private var penUpTaskID: UUID?
   private var captureTask: Task<Void, Never>?
@@ -42,6 +43,7 @@ final class CaptureCoordinator: ObservableObject {
     enhancer: any TextEnhancing,
     overlay: any CaptureOverlayPresenting,
     loginItem: any LoginItemManaging,
+    historyRetentionScheduler: any HistoryRetentionScheduling = HistoryRetentionScheduler(),
     foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving =
       ForegroundApplicationBundleIdentifierResolver(),
     profileOverrideResolver: AppProfileOverrideResolver
@@ -56,6 +58,7 @@ final class CaptureCoordinator: ObservableObject {
     self.enhancer = enhancer
     self.overlay = overlay
     self.loginItem = loginItem
+    self.historyRetentionScheduler = historyRetentionScheduler
     self.foregroundApplicationResolver = foregroundApplicationResolver
     self.profileOverrideResolver = profileOverrideResolver
     accessibilityGranted = delivery.isTrusted
@@ -66,6 +69,7 @@ final class CaptureCoordinator: ObservableObject {
     refreshAccessibility(force: true)
     updateLaunchAtLogin()
     cleanupHistory()
+    historyRetentionScheduler.start { [weak self] in self?.cleanupHistory() }
     accessibilityTimer?.invalidate()
     accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
       Task { @MainActor in self?.refreshAccessibility() }
@@ -77,6 +81,7 @@ final class CaptureCoordinator: ObservableObject {
     recognitionStartedAt = nil
     accessibilityTimer?.invalidate()
     accessibilityTimer = nil
+    historyRetentionScheduler.stop()
     shortcutMonitor.stop()
     dismissPanel()
   }
