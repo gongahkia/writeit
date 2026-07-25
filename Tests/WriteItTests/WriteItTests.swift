@@ -785,6 +785,48 @@ struct CaptureReadinessTests {
   }
 }
 
+struct HistoryEntryPresentationTests {
+  @Test("surfaces metadata and retained-ink retry eligibility")
+  func surfacesMetadataAndRetryEligibility() {
+    let stroke = InkStroke(points: [
+      InkPoint(x: 0, y: 0, pressure: 1, timestamp: 0),
+      InkPoint(x: 1, y: 1, pressure: 1, timestamp: 1),
+    ])
+    let retained = HistoryEntryPresentation(entry: HistoryEntry(
+      text: "text",
+      strokes: [stroke],
+      source: "Apple Vision",
+      model: "apple-vision",
+      language: .english,
+      delivery: HistoryDeliveryMetadata(.pasted(.restorePrevious, .verified)),
+      confidence: 0.84,
+      recognitionDuration: 0.42
+    ))
+    let textOnly = HistoryEntryPresentation(entry: HistoryEntry(
+      text: "text", strokes: nil, source: "Apple Vision"
+    ))
+
+    #expect(retained.hasRetainedInk)
+    #expect(retained.retryUnavailableDetail == nil)
+    #expect(retained.metadata.map(\.title) == [
+      "Source", "Model", "Language", "Delivery", "Confidence", "Recognition",
+    ])
+    #expect(textOnly.hasRetainedInk == false)
+    #expect(textOnly.retryUnavailableDetail != nil)
+  }
+
+  @Test("describes active history privacy retention")
+  func describesHistoryPrivacyRetention() {
+    let textOnly = HistoryPrivacyPresentation(mode: .textOnly, autoDelete: true, retentionDays: 7)
+    let disabled = HistoryPrivacyPresentation(mode: .off, autoDelete: false, retentionDays: 7)
+
+    #expect(textOnly.title == "Text-only history")
+    #expect(textOnly.detail.contains("without raw ink"))
+    #expect(textOnly.detail.contains("7 days"))
+    #expect(disabled.detail == "New captures are not retained.")
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {

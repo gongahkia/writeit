@@ -25,6 +25,7 @@ struct CaptureHistoryView: View {
           .buttonStyle(.bordered).help("History settings")
       }
       .padding(20)
+      historyPrivacySummary
       if let error = history.error {
         CaptureErrorBanner(error: error, dismiss: history.clearError)
           .padding(.horizontal, 20)
@@ -60,6 +61,24 @@ struct CaptureHistoryView: View {
         history: history, preferences: preferences, onCleanup: onCleanup, isPresented: $showSettings
       )
     }
+  }
+
+  private var historyPrivacySummary: some View {
+    let privacy = HistoryPrivacyPresentation(
+      mode: preferences.historyMode,
+      autoDelete: preferences.historyAutoDelete,
+      retentionDays: preferences.historyRetentionDays
+    )
+    return HStack(alignment: .top, spacing: 8) {
+      Image(systemName: "lock.shield").foregroundStyle(.secondary)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(privacy.title).font(.caption.weight(.semibold))
+        Text(privacy.detail).font(.caption).foregroundStyle(.secondary)
+      }
+      Spacer()
+    }
+    .padding(.horizontal, 20)
+    .padding(.bottom, 12)
   }
 }
 
@@ -111,25 +130,36 @@ private struct HistoryEntryCard: View {
     if let strokes = entry.strokes, !strokes.isEmpty {
       HistoryInkPreview(strokes: strokes).frame(height: 72)
     }
+    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+      ForEach(presentation.metadata) { item in
+        GridRow {
+          Text(item.title).foregroundStyle(.secondary)
+          Label(item.value, systemImage: item.symbol)
+        }
+      }
+    }
+    .font(.caption)
+    Label(
+      presentation.privacyDetail,
+      systemImage: presentation.hasRetainedInk ? "lock.fill" : "lock.slash"
+    )
+    .font(.caption)
+    .foregroundStyle(.secondary)
+    if let retryUnavailableDetail = presentation.retryUnavailableDetail {
+      Text(retryUnavailableDetail).font(.caption).foregroundStyle(.secondary)
+    }
     HStack {
-      Label(entry.source, systemImage: "text.viewfinder").font(.caption).foregroundStyle(.secondary)
-      if let model = entry.model {
-        Label(model, systemImage: "cpu").font(.caption).foregroundStyle(.secondary)
-      }
-      if let language = entry.language {
-        Label(language.displayName, systemImage: "globe").font(.caption).foregroundStyle(.secondary)
-      }
-      if let delivery = entry.delivery {
-        Label(delivery.method, systemImage: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
-      }
       Spacer()
-      if hasRetainedInk { Button("Retry capture", action: onRetryCapture).buttonStyle(.bordered) }
+      if presentation.hasRetainedInk {
+        Button("Retry capture", action: onRetryCapture).buttonStyle(.bordered)
+      }
       Button("Copy", action: copy).buttonStyle(.bordered)
       Button("Delete", role: .destructive, action: onDelete).buttonStyle(.bordered)
     }
   }
 
-  private var hasRetainedInk: Bool { entry.strokes?.contains(where: { $0.points.count > 1 }) == true }
+  private var hasRetainedInk: Bool { presentation.hasRetainedInk }
+  private var presentation: HistoryEntryPresentation { HistoryEntryPresentation(entry: entry) }
 
   private func copy() {
     NSPasteboard.general.clearContents()
@@ -178,6 +208,10 @@ private struct HistorySettingsSheet: View {
       }
       GroupBox("Capture History") {
         VStack(alignment: .leading, spacing: 14) {
+          Picker("Retain captures", selection: $preferences.historyMode) {
+            ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }
+          }
+          Text(privacy.detail).font(.caption).foregroundStyle(.secondary)
           Toggle("Auto-delete capture history", isOn: $preferences.historyAutoDelete)
           if preferences.historyAutoDelete {
             Stepper(value: $preferences.historyRetentionDays, in: 1...365) {
@@ -191,6 +225,14 @@ private struct HistorySettingsSheet: View {
       Spacer()
     }
     .padding(24)
-    .frame(width: 480, height: 300)
+    .frame(width: 480, height: 340)
+  }
+
+  private var privacy: HistoryPrivacyPresentation {
+    HistoryPrivacyPresentation(
+      mode: preferences.historyMode,
+      autoDelete: preferences.historyAutoDelete,
+      retentionDays: preferences.historyRetentionDays
+    )
   }
 }
