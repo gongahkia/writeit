@@ -689,6 +689,58 @@ struct DiagnosticExportTests {
   }
 }
 
+struct InkExportTests {
+  @Test("exports transparent PNG, vector SVG, and vector PDF from captured ink") @MainActor
+  func exportsCapturedInkInSupportedFormats() throws {
+    let session = CaptureSession()
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    session.canvasSize = CGSize(width: 300, height: 120)
+    session.beginStroke(at: InkPoint(x: 40, y: 30, pressure: 0.5, timestamp: 0))
+    session.append(
+      point: InkPoint(x: 240, y: 90, pressure: 1, timestamp: 0.2),
+      style: InkStyle(baseWidth: 4, pressureSensitivity: 0.6, smoothing: 0)
+    )
+
+    let png = try session.exportedInkData(format: .png)
+    let image = try #require(NSBitmapImageRep(data: png))
+    let corner = try #require(image.colorAt(x: 0, y: 0))
+    #expect(image.pixelsWide == InkRasterLayout.pixelSize(for: session.canvasSize).width)
+    #expect(image.pixelsHigh == InkRasterLayout.pixelSize(for: session.canvasSize).height)
+    #expect(corner.alphaComponent == 0)
+
+    let svg = try session.exportedInkData(format: .svg)
+    let svgText = String(decoding: svg, as: UTF8.self)
+    #expect(svgText.contains("<svg"))
+    #expect(svgText.contains("stroke=\"#000000\""))
+    #expect(svgText.contains("fill=\"none\""))
+
+    let pdf = try session.exportedInkData(format: .pdf)
+    let provider = try #require(CGDataProvider(data: pdf as CFData))
+    let document = try #require(CGPDFDocument(provider))
+    #expect(document.numberOfPages == 1)
+  }
+
+  @Test("rejects empty ink and writes an exact export file") @MainActor
+  func rejectsEmptyInkAndWritesExportFile() throws {
+    let session = CaptureSession()
+    #expect(session.begin(target: nil))
+    #expect(session.transition(to: .drawing))
+    #expect(throws: InkExportError.invalidInk) {
+      try session.exportedInkData(format: .png)
+    }
+
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-ink-export-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let fileURL = directory.appendingPathComponent("signature.svg")
+    let data = Data("<svg/>".utf8)
+    try InkExportFileStore.write(data, to: fileURL)
+    #expect(try Data(contentsOf: fileURL) == data)
+  }
+}
+
 struct PrivacyStateRegressionTests {
   @Test("describes diagnostics and metrics opt-in states")
   func describesDiagnosticsAndMetricsStates() {

@@ -108,6 +108,18 @@ final class CaptureSession: ObservableObject {
     return renderedImage(style: style)?.tiffRepresentation
   }
 
+  func exportedInkData(
+    format: InkExportFormat,
+    style: InkStyle = .default
+  ) throws -> Data {
+    try InkExportCodec.encode(
+      strokes: strokes,
+      canvasSize: canvasSize,
+      style: style,
+      format: format
+    )
+  }
+
   private func recordFirstStrokeLatency() {
     guard hasAcceptedFirstStroke == false, let captureActivatedAt else { return }
     hasAcceptedFirstStroke = true

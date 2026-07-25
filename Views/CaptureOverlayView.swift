@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CaptureOverlayView: View {
   @ObservedObject var session: CaptureSession
   @ObservedObject var coordinator: CaptureCoordinator
   @ObservedObject var preferences: Preferences
+  @State private var exportMessage: String?
 
   var body: some View {
     GeometryReader { proxy in
@@ -72,6 +74,19 @@ struct CaptureOverlayView: View {
           .white.opacity(0.56))
       }
       Spacer()
+      if canExportInk {
+        Menu {
+          ForEach(InkExportFormat.allCases) { format in
+            Button("Export \(format.title)") { exportInk(format) }
+          }
+        } label: {
+          Label("Export ink", systemImage: "square.and.arrow.up")
+        }
+        .menuStyle(.borderlessButton)
+        .labelStyle(.iconOnly)
+        .foregroundStyle(.white.opacity(0.7))
+        .help("Export ink")
+      }
       if session.phase == .drawing {
         Button(action: { coordinator.execute(.clear) }) { Image(systemName: "trash") }
           .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7)).help("Clear ink (⌘⌫)")
@@ -84,7 +99,7 @@ struct CaptureOverlayView: View {
 
   private var footer: some View {
     HStack {
-      Text("Esc to cancel").font(.caption).foregroundStyle(.white.opacity(0.48))
+      Text(exportMessage ?? "Esc to cancel").font(.caption).foregroundStyle(.white.opacity(0.48))
       Spacer()
       if case .reviewing = session.phase {
         Button("Insert", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
@@ -178,5 +193,37 @@ struct CaptureOverlayView: View {
 
   private var subtitle: String {
     session.target == nil ? "Will copy to clipboard" : "Will insert into the previous text field"
+  }
+
+  private var canExportInk: Bool {
+    guard session.inputValidationMessage() == nil else { return false }
+    return switch session.phase {
+    case .drawing, .reviewing, .delivered, .failed: true
+    case .idle, .opening, .recognizing, .delivering, .dismissing: false
+    }
+  }
+
+  private func exportInk(_ format: InkExportFormat) {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [format.contentType]
+    panel.nameFieldStringValue = "WriteItInk.\(format.fileExtension)"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      try InkExportFileStore.write(
+        session.exportedInkData(format: format, style: preferences.inkStyle), to: url)
+      exportMessage = "Ink exported as \(format.title)."
+    } catch {
+      exportMessage = (error as? LocalizedError)?.errorDescription ?? "Ink export failed."
+    }
+  }
+}
+
+private extension InkExportFormat {
+  var contentType: UTType {
+    switch self {
+    case .png: .png
+    case .svg: UTType(filenameExtension: "svg") ?? .xml
+    case .pdf: .pdf
+    }
   }
 }
