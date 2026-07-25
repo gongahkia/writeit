@@ -1007,6 +1007,45 @@ struct RecognitionContractTests {
     #expect(service.capabilities.isLocal)
   }
 
+  @Test("routes an available selected language through Vision")
+  func routesSelectedLanguageThroughVision() async throws {
+    let service = RecognitionService(
+      capabilities: visionCapabilities([.english, .french]),
+      visionLanguageIdentifiers: [.english: "en-US", .french: "fr-FR"],
+      vision: EchoVisionTextRecognizer()
+    )
+
+    let result = try await service.recognize(
+      RecognitionRequest(
+        imageData: try handwritingImageData(),
+        language: .french,
+        customWords: CustomWordList(words: [" WriteIt "])
+      )
+    )
+
+    #expect(result.text == "fr-FR WriteIt")
+    #expect(result.languageResolution == .identity(.french))
+  }
+
+  @Test("routes unsupported Vision languages through the English fallback")
+  func routesLanguageFallbackThroughVision() async throws {
+    let service = RecognitionService(
+      capabilities: visionCapabilities([.english]),
+      visionLanguageIdentifiers: [.english: "en-US"],
+      vision: EchoVisionTextRecognizer()
+    )
+
+    let result = try await service.recognize(
+      RecognitionRequest(imageData: try handwritingImageData(), language: .italian)
+    )
+
+    #expect(result.text == "en-US")
+    #expect(result.languageResolution == RecognitionLanguageResolution(
+      requested: .italian,
+      resolved: .english
+    ))
+  }
+
   @Test("cloud OCR refuses unconsented captures before sending ink")
   func cloudOCRRequiresConsent() async {
     let googleRequester = TestGoogleVisionRequester(
@@ -4209,6 +4248,50 @@ private func releaseData(assetName: String, assetURL: URL) throws -> Data {
 
     #expect(store.profiles == [second])
   }
+
+private func visionCapabilities(
+  _ supportedLanguages: Set<RecognitionLanguage>
+) -> RecognitionBackendCapabilities {
+  RecognitionBackendCapabilities(
+    identifier: "apple-vision",
+    displayName: "Apple Vision",
+    supportedLanguages: supportedLanguages,
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+}
+
+private struct EchoVisionTextRecognizer: VisionTextRecognizing {
+  func recognize(
+    image: CGImage,
+    languageIdentifier: String,
+    customWords: [String]
+  ) throws -> [VisionTextCandidate] {
+    [VisionTextCandidate(
+      text: ([languageIdentifier] + customWords).joined(separator: " "),
+      confidence: 0.75
+    )]
+  }
+}
+
+private func handwritingImageData() throws -> Data {
+  guard let bitmap = NSBitmapImageRep(
+    bitmapDataPlanes: nil,
+    pixelsWide: 24,
+    pixelsHigh: 12,
+    bitsPerSample: 8,
+    samplesPerPixel: 4,
+    hasAlpha: true,
+    isPlanar: false,
+    colorSpaceName: .deviceRGB,
+    bytesPerRow: 0,
+    bitsPerPixel: 0
+  ), let data = bitmap.representation(using: .png, properties: [:]) else {
+    throw RecognitionError.invalidImage
+  }
+  return data
+}
 
 private actor TestGitHubReleaseRequester: GitHubReleaseRequesting {
   let responses: [URL: GitHubReleaseHTTPResponse]
