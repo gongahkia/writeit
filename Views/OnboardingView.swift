@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
   @ObservedObject var onboarding: OnboardingStore
+  @ObservedObject var capture: CaptureCoordinator
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
@@ -13,9 +14,14 @@ struct OnboardingView: View {
         total: Double(OnboardingStep.allCases.count)
       )
       GroupBox(onboarding.currentStep.title) {
-        Text(onboarding.currentStep.detail)
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(4)
+        VStack(alignment: .leading, spacing: 12) {
+          Text(onboarding.currentStep.detail)
+          if onboarding.currentStep == .accessibility {
+            accessibilityStatus
+          }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(4)
       }
       HStack {
         Button("Back", action: onboarding.goBack).disabled(onboarding.canGoBack == false)
@@ -29,5 +35,23 @@ struct OnboardingView: View {
     }
     .frame(minWidth: 520, minHeight: 320)
     .padding(32)
+    .onAppear { capture.refreshAccessibility(force: true) }
+    .onChange(of: onboarding.currentStep) { _, step in
+      if step == .accessibility { capture.refreshAccessibility(force: true) }
+    }
+  }
+
+  @ViewBuilder
+  private var accessibilityStatus: some View {
+    Label(
+      capture.accessibilityGranted ? "Accessibility enabled" : "Accessibility required",
+      systemImage: capture.accessibilityGranted ? "checkmark.shield.fill" : "exclamationmark.shield.fill"
+    )
+    .foregroundStyle(capture.accessibilityGranted ? .green : .orange)
+    if capture.accessibilityGranted == false {
+      Text("After enabling it in System Settings, this updates automatically.")
+        .foregroundStyle(.secondary)
+      Button("Allow Accessibility", action: capture.requestAccessibility)
+    }
   }
 }

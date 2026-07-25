@@ -3768,6 +3768,21 @@ struct CaptureCoordinatorLifecycleTests {
     model.stop()
   }
 
+  @Test("requests Accessibility and refreshes trust state") @MainActor
+  func requestsAccessibilityAndRefreshesTrust() {
+    let dependencies = TestDependencies(trusted: false)
+    let model = dependencies.makeCaptureCoordinator()
+
+    model.requestAccessibility()
+    #expect(dependencies.delivery.trustRequests == 1)
+    #expect(model.accessibilityGranted == false)
+    dependencies.delivery.trusted = true
+    model.refreshAccessibility()
+
+    #expect(model.accessibilityGranted)
+    #expect(model.statusMessage == "Accessibility enabled")
+  }
+
   @Test("capture commands route shortcut, clear, confirm, and cancel") @MainActor
   func routesCaptureCommands() async {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
@@ -4285,6 +4300,7 @@ private final class TestClipboardRestoreScheduler: ClipboardRestoreScheduling {
 private final class TestDelivery: AccessibilityDelivering {
   var trusted: Bool
   var capturedTarget: TargetReference?
+  private(set) var trustRequests = 0
   private(set) var captureTargetRequests = 0
   private(set) var clearCapturedTargetRequests = 0
   private(set) var deliveryRequests = 0
@@ -4293,7 +4309,7 @@ private final class TestDelivery: AccessibilityDelivering {
   var isTrusted: Bool { trusted }
 
   init(trusted: Bool) { self.trusted = trusted }
-  func requestTrust() {}
+  func requestTrust() { trustRequests += 1 }
   func captureTarget() -> TargetReference? {
     captureTargetRequests += 1
     return capturedTarget

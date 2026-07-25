@@ -38,7 +38,7 @@ struct ContentView: View {
 
   var body: some View {
     if onboarding.isActive {
-      OnboardingView(onboarding: onboarding)
+      OnboardingView(onboarding: onboarding, capture: capture)
     } else {
       mainContent
     }
