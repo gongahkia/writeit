@@ -1939,6 +1939,26 @@ struct AppProfileStoreTests {
     #expect(store.profile(matching: "not a bundle ID") == nil)
   }
 
+  @Test("resolves the first matching profile and prefers its override") @MainActor
+  func resolvesProfilePrecedenceDeterministically() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    let first = try AppProfile(
+      id: UUID(uuidString: "56AB413F-9E9F-425A-AEC4-39B45A5B7AB3")!,
+      bundleIdentifier: "com.example.editor"
+    )
+    let second = try AppProfile(
+      id: UUID(uuidString: "AEC439B4-56AB-413F-9E9F-425AA5B7C3D4")!,
+      bundleIdentifier: "COM.Example.Editor"
+    )
+    try store.replaceProfiles([first, second])
+
+    #expect(store.profile(matching: "com.example.editor") == first)
+    #expect(AppProfileOverrideResolution.value(
+      profileOverride: OutputStrategy.accessibility,
+      global: .paste
+    ) == .accessibility)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()
