@@ -12,7 +12,7 @@ struct CaptureHistoryView: View {
 
   private var entries: [HistoryEntry] {
     guard !query.isEmpty else { return history.entries }
-    return history.entries.filter { $0.text.localizedCaseInsensitiveContains(query) }
+    return history.entries.filter { HistorySearch.matches(text: $0.text, query: query) }
   }
 
   var body: some View {

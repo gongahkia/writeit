@@ -12,6 +12,16 @@ struct TextSanitizerTests {
   }
 }
 
+struct HistorySearchTests {
+  @Test("matches history using locale-aware case and diacritic comparison")
+  func matchesLocaleAwareText() {
+    #expect(HistorySearch.matches(text: "Café résumé", query: "CAFE", locale: .init(identifier: "en_US")))
+    #expect(HistorySearch.matches(text: "Résumé", query: "resume", locale: .init(identifier: "fr_FR")))
+    #expect(HistorySearch.matches(text: "recognition", query: "", locale: .init(identifier: "en_US")))
+    #expect(HistorySearch.matches(text: "recognition", query: "missing", locale: .init(identifier: "en_US")) == false)
+  }
+}
+
 struct AICleanupContractTests {
   @Test("encodes one deterministic two-message cleanup request")
   func encodesConstrainedRequest() throws {
