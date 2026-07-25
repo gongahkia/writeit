@@ -180,6 +180,18 @@ final class CaptureCoordinator: ObservableObject {
     submitCapture()
   }
 
+  func retryCapture(_ entry: HistoryEntry) {
+    guard let strokes = entry.strokes, strokes.contains(where: { $0.points.count > 1 }) else {
+      statusMessage = "This history entry has no ink to retry"
+      return
+    }
+    beginCapture()
+    guard session.phase == .drawing else { return }
+    session.strokes = strokes
+    statusMessage = "Retrying saved capture"
+    submitCapture()
+  }
+
   func submitCapture() {
     guard session.phase == .drawing else { return }
     guard let imageData = session.renderedImageData(style: preferences.inkStyle) else {

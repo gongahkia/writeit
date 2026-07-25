@@ -5,6 +5,7 @@ struct CaptureHistoryView: View {
   @ObservedObject var history: HistoryStore
   @ObservedObject var preferences: Preferences
   var onCleanup: () -> Void
+  var onRetryCapture: (HistoryEntry) -> Void
 
   @State private var query = ""
   @State private var expandedID: HistoryEntry.ID?
@@ -45,7 +46,8 @@ struct CaptureHistoryView: View {
               HistoryEntryCard(
                 entry: entry, isExpanded: expandedID == entry.id,
                 onToggle: { expandedID = expandedID == entry.id ? nil : entry.id },
-                onDelete: { history.delete(entry) })
+                onDelete: { history.delete(entry) },
+                onRetryCapture: { onRetryCapture(entry) })
             }
           }
           .padding(20)
@@ -66,6 +68,7 @@ private struct HistoryEntryCard: View {
   var isExpanded: Bool
   var onToggle: () -> Void
   var onDelete: () -> Void
+  var onRetryCapture: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -96,7 +99,11 @@ private struct HistoryEntryCard: View {
       RoundedRectangle(cornerRadius: WriteItTheme.cardCornerRadius, style: .continuous).stroke(
         WriteItTheme.cardStroke)
     )
-    .contextMenu { Button("Delete", role: .destructive, action: onDelete) }
+    .contextMenu {
+      Button("Copy", action: copy)
+      if hasRetainedInk { Button("Retry capture", action: onRetryCapture) }
+      Button("Delete", role: .destructive, action: onDelete)
+    }
   }
 
   @ViewBuilder private var detail: some View {
@@ -116,12 +123,17 @@ private struct HistoryEntryCard: View {
         Label(delivery.method, systemImage: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
       }
       Spacer()
-      Button("Copy") {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entry.text, forType: .string)
-      }
-      .buttonStyle(.bordered)
+      if hasRetainedInk { Button("Retry capture", action: onRetryCapture).buttonStyle(.bordered) }
+      Button("Copy", action: copy).buttonStyle(.bordered)
+      Button("Delete", role: .destructive, action: onDelete).buttonStyle(.bordered)
     }
+  }
+
+  private var hasRetainedInk: Bool { entry.strokes?.contains(where: { $0.points.count > 1 }) == true }
+
+  private func copy() {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(entry.text, forType: .string)
   }
 }
 

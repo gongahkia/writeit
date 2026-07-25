@@ -2937,6 +2937,38 @@ struct ForegroundApplicationBundleIdentifierResolverTests {
 }
 
 struct CaptureCoordinatorLifecycleTests {
+  @Test("history retry re-recognizes retained ink in a fresh capture") @MainActor
+  func historyRetryRecognizesRetainedInk() async {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.historyMode = .full
+    let capture = dependencies.makeCaptureCoordinator()
+    let strokes = [
+      InkStroke(points: [
+        InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0),
+        InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2),
+      ]),
+    ]
+
+    capture.retryCapture(HistoryEntry(text: "old", strokes: strokes, source: "Apple Vision"))
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.delivery.deliveredRequests.first?.text == "recognized")
+    #expect(dependencies.history.entries.first?.text == "recognized")
+    #expect(dependencies.history.entries.first?.strokes == strokes)
+  }
+
+  @Test("history retry rejects entries without retained ink") @MainActor
+  func historyRetryRequiresRetainedInk() {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    let capture = dependencies.makeCaptureCoordinator()
+
+    capture.retryCapture(HistoryEntry(text: "old", strokes: nil, source: "Apple Vision"))
+
+    #expect(capture.session.phase == .idle)
+    #expect(dependencies.delivery.deliveryRequests == 0)
+    #expect(capture.statusMessage == "This history entry has no ink to retry")
+  }
+
   @Test("clipboard fallback remains visible as delivery recovery") @MainActor
   func surfacesClipboardRecovery() async {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())

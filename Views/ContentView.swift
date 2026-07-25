@@ -45,7 +45,8 @@ struct ContentView: View {
       case .capture: CaptureDashboard(capture: capture, preferences: preferences)
       case .history:
         CaptureHistoryView(
-          history: history, preferences: preferences, onCleanup: capture.cleanupHistory)
+          history: history, preferences: preferences, onCleanup: capture.cleanupHistory,
+          onRetryCapture: capture.retryCapture)
       case .models:
         ModelCatalogView(
           preferences: preferences,
