@@ -3798,6 +3798,25 @@ struct CaptureCoordinatorLifecycleTests {
     model.stop()
   }
 
+  @Test("copies a fixed onboarding delivery test without a target") @MainActor
+  func copiesOnboardingDeliveryTest() async {
+    let dependencies = TestDependencies(trusted: true)
+    let model = dependencies.makeCaptureCoordinator()
+
+    model.runClipboardDeliveryTest()
+    for _ in 0..<8 {
+      if model.deliveryTestOutcome != nil { break }
+      await Task.yield()
+    }
+
+    #expect(model.deliveryTestOutcome == .clipboard)
+    #expect(dependencies.delivery.deliveredRequests.count == 1)
+    #expect(dependencies.delivery.deliveredRequests.first?.text == "WriteIt delivery test")
+    #expect(dependencies.delivery.deliveredRequests.first?.target == nil)
+    #expect(dependencies.delivery.deliveredRequests.first?.strategy == .clipboard)
+    #expect(dependencies.history.entries.isEmpty)
+  }
+
   @Test("capture commands route shortcut, clear, confirm, and cancel") @MainActor
   func routesCaptureCommands() async {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())

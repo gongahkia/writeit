@@ -24,6 +24,9 @@ struct OnboardingView: View {
           if onboarding.currentStep == .shortcut {
             shortcutSetup
           }
+          if onboarding.currentStep == .delivery {
+            deliverySetup
+          }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(4)
@@ -75,6 +78,23 @@ struct OnboardingView: View {
       Text(shortcutValidationMessage).font(.caption).foregroundStyle(.red)
     }
     Text("Press it once to start writing and again to submit.")
+      .foregroundStyle(.secondary)
+  }
+
+  @ViewBuilder
+  private var deliverySetup: some View {
+    Picker("Delivery", selection: $preferences.outputStrategy) {
+      ForEach(OutputStrategy.allCases) { Text($0.title).tag($0) }
+    }
+    Button("Copy delivery test", action: capture.runClipboardDeliveryTest)
+    if let outcome = capture.deliveryTestOutcome {
+      Label(
+        outcome.message,
+        systemImage: outcome.failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+      )
+      .foregroundStyle(outcome.failed ? .orange : .green)
+    }
+    Text("This copies a fixed test phrase without retaining history. Direct delivery is tested during capture.")
       .foregroundStyle(.secondary)
   }
 }

@@ -7,6 +7,7 @@ final class CaptureCoordinator: ObservableObject {
   @Published private(set) var accessibilityGranted: Bool
   @Published private(set) var error: AppErrorPresentation?
   @Published private(set) var recognitionStartedAt: Date?
+  @Published private(set) var deliveryTestOutcome: DeliveryOutcome?
 
   private let preferences: Preferences
   private let history: HistoryStore
@@ -30,6 +31,8 @@ final class CaptureCoordinator: ObservableObject {
   private var deliveryTaskID: UUID?
   private var dismissalTask: Task<Void, Never>?
   private var dismissalTaskID: UUID?
+  private var deliveryTestTask: Task<Void, Never>?
+  private var deliveryTestTaskID: UUID?
   private var accessibilityTimer: Timer?
 
   init(
@@ -99,6 +102,26 @@ final class CaptureCoordinator: ObservableObject {
   func requestAccessibility() {
     delivery.requestTrust()
     refreshAccessibility(force: true)
+  }
+
+  func runClipboardDeliveryTest() {
+    cancelDeliveryTestTask()
+    deliveryTestOutcome = nil
+    let taskID = UUID()
+    deliveryTestTaskID = taskID
+    let request = DeliveryRequest(
+      text: "WriteIt delivery test",
+      target: nil,
+      strategy: .clipboard,
+      clipboardHandling: .leaveRecognizedText,
+      verifyPaste: false
+    )
+    deliveryTestTask = Task { [weak self, delivery] in
+      defer { self?.completeDeliveryTestTask(id: taskID) }
+      let outcome = await delivery.deliver(request)
+      guard let self, ownsDeliveryTestTask(taskID) else { return }
+      deliveryTestOutcome = outcome
+    }
   }
 
   func refreshAccessibility(force: Bool = false) {
@@ -491,6 +514,7 @@ final class CaptureCoordinator: ObservableObject {
     cancelPenUpTask()
     cancelCaptureTask()
     cancelDeliveryTask()
+    cancelDeliveryTestTask()
     cancelDismissalTask()
   }
 
@@ -512,6 +536,12 @@ final class CaptureCoordinator: ObservableObject {
     deliveryTaskID = nil
   }
 
+  private func cancelDeliveryTestTask() {
+    deliveryTestTask?.cancel()
+    deliveryTestTask = nil
+    deliveryTestTaskID = nil
+  }
+
   private func cancelDismissalTask() {
     dismissalTask?.cancel()
     dismissalTask = nil
@@ -524,6 +554,10 @@ final class CaptureCoordinator: ObservableObject {
 
   private func ownsDeliveryTask(_ taskID: UUID) -> Bool {
     deliveryTaskID == taskID && Task.isCancelled == false
+  }
+
+  private func ownsDeliveryTestTask(_ taskID: UUID) -> Bool {
+    deliveryTestTaskID == taskID && Task.isCancelled == false
   }
 
   private func completePenUpTask(id: UUID) {
@@ -542,6 +576,12 @@ final class CaptureCoordinator: ObservableObject {
     guard deliveryTaskID == id else { return }
     deliveryTask = nil
     deliveryTaskID = nil
+  }
+
+  private func completeDeliveryTestTask(id: UUID) {
+    guard deliveryTestTaskID == id else { return }
+    deliveryTestTask = nil
+    deliveryTestTaskID = nil
   }
 
   private func scheduleDismissal() {
