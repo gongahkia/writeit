@@ -32,6 +32,46 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
   }
 }
 
+enum OnboardingRecognitionSelectionState: Equatable {
+  case ready(RecognitionLanguageResolution)
+  case unavailableBackend
+  case unsupportedLanguage(RecognitionLanguage)
+
+  init(
+    backendID: String,
+    language: RecognitionLanguage,
+    backends: [RecognitionBackendCapabilities]
+  ) {
+    guard let backend = backends.first(where: { $0.identifier == backendID }) else {
+      self = .unavailableBackend
+      return
+    }
+    guard let resolution = backend.resolve(language) else {
+      self = .unsupportedLanguage(language)
+      return
+    }
+    self = .ready(resolution)
+  }
+
+  var allowsAdvance: Bool {
+    if case .ready = self { return true }
+    return false
+  }
+
+  var message: String {
+    switch self {
+    case .ready(let resolution) where resolution.usedFallback:
+      "Selected backend uses English for \(resolution.requested.displayName)."
+    case .ready:
+      "Selected backend supports this language."
+    case .unavailableBackend:
+      "Choose an available recognition backend."
+    case .unsupportedLanguage(let language):
+      "Selected backend does not support \(language.displayName) or English fallback."
+    }
+  }
+}
+
 @MainActor
 final class OnboardingStore: ObservableObject {
   @Published private(set) var currentStep: OnboardingStep

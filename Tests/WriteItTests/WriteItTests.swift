@@ -685,6 +685,42 @@ struct OnboardingStoreTests {
   }
 }
 
+struct OnboardingRecognitionSelectionTests {
+  @Test("uses only available backends and shows language fallback")
+  func validatesBackendAndLanguage() {
+    let englishOnly = RecognitionBackendCapabilities(
+      identifier: "local",
+      displayName: "Local",
+      supportedLanguages: [.english],
+      isLocal: true,
+      supportsStreaming: false,
+      availability: .available
+    )
+    let noFallback = RecognitionBackendCapabilities(
+      identifier: "limited",
+      displayName: "Limited",
+      supportedLanguages: [.french],
+      isLocal: true,
+      supportsStreaming: false,
+      availability: .available
+    )
+    let fallback = OnboardingRecognitionSelectionState(
+      backendID: "local", language: .italian, backends: [englishOnly]
+    )
+    let unavailable = OnboardingRecognitionSelectionState(
+      backendID: "missing", language: .english, backends: [englishOnly]
+    )
+    let unsupported = OnboardingRecognitionSelectionState(
+      backendID: "limited", language: .italian, backends: [noFallback]
+    )
+
+    #expect(fallback.allowsAdvance)
+    #expect(fallback.message == "Selected backend uses English for Italian.")
+    #expect(unavailable.allowsAdvance == false)
+    #expect(unsupported.allowsAdvance == false)
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {

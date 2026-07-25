@@ -4,6 +4,7 @@ struct OnboardingView: View {
   @ObservedObject var onboarding: OnboardingStore
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
+  let recognitionRegistry: RecognitionBackendRegistry
   @State private var shortcutValidationMessage: String?
 
   var body: some View {
@@ -27,6 +28,9 @@ struct OnboardingView: View {
           if onboarding.currentStep == .delivery {
             deliverySetup
           }
+          if onboarding.currentStep == .recognition {
+            recognitionSetup
+          }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(4)
@@ -39,6 +43,7 @@ struct OnboardingView: View {
           action: onboarding.advance
         )
         .buttonStyle(.borderedProminent)
+        .disabled(canContinue == false)
       }
     }
     .frame(minWidth: 520, minHeight: 320)
@@ -96,5 +101,34 @@ struct OnboardingView: View {
     }
     Text("This copies a fixed test phrase without retaining history. Direct delivery is tested during capture.")
       .foregroundStyle(.secondary)
+  }
+
+  @ViewBuilder
+  private var recognitionSetup: some View {
+    Picker("Recognition language", selection: $preferences.recognitionLanguage) {
+      ForEach(RecognitionLanguage.allCases) { Text($0.displayName).tag($0) }
+    }
+    RecognitionBackendSelectionPicker(
+      title: "Recognition backend",
+      selection: $preferences.recognitionBackendID,
+      backends: recognitionRegistry.availableBackends
+    )
+    Label(
+      recognitionSelection.message,
+      systemImage: recognitionSelection.allowsAdvance ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+    )
+    .foregroundStyle(recognitionSelection.allowsAdvance ? .green : .orange)
+  }
+
+  private var recognitionSelection: OnboardingRecognitionSelectionState {
+    OnboardingRecognitionSelectionState(
+      backendID: preferences.recognitionBackendID,
+      language: preferences.recognitionLanguage,
+      backends: recognitionRegistry.availableBackends
+    )
+  }
+
+  private var canContinue: Bool {
+    onboarding.currentStep != .recognition || recognitionSelection.allowsAdvance
   }
 }
