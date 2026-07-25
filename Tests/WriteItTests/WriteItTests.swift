@@ -1787,6 +1787,7 @@ struct PreferencesTests {
     #expect(preferences.historyMode == .textOnly)
     #expect(preferences.clipboardHandling == .restorePrevious)
     #expect(preferences.verifyPasteDelivery == false)
+    #expect(preferences.customWords == CustomWordList(words: []))
     #expect(preferences.penUpDelay == 1.2)
     #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
@@ -1832,6 +1833,17 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.recognitionLanguage = .italian
     #expect(Preferences(defaults: defaults).recognitionLanguage == .italian)
+  }
+
+  @Test("persists normalized global custom words")
+  func persistsCustomWords() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.customWords = CustomWordList(words: [" WriteIt ", "writeit", "cafe\u{301}", ""])
+
+    #expect(Preferences(defaults: defaults).customWords == CustomWordList(
+      words: ["WriteIt", "café"]
+    ))
   }
 
   @Test("persists the selected stroke smoothing")
@@ -2050,6 +2062,32 @@ struct AppProfileStoreTests {
       override: \.aiCleanupEnabled,
       global: false
     ) == false)
+  }
+
+  @Test("persists a profile custom-word override with global fallback") @MainActor
+  func persistsProfileCustomWords() throws {
+    let defaults = makeDefaults()
+    let global = CustomWordList(words: ["GlobalTerm"])
+    let store = AppProfileStore(defaults: defaults)
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(customWords: CustomWordList(words: ["ProfileTerm", "profileterm"]))
+      ),
+    ])
+    let restored = AppProfileStore(defaults: defaults)
+    let resolver = AppProfileOverrideResolver(profiles: restored)
+
+    #expect(resolver.value(
+      for: "com.example.editor",
+      override: \.customWords,
+      global: global
+    ) == CustomWordList(words: ["ProfileTerm"]))
+    #expect(resolver.value(
+      for: "com.example.other",
+      override: \.customWords,
+      global: global
+    ) == global)
   }
 
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
