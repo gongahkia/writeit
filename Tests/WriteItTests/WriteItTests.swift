@@ -757,6 +757,34 @@ struct OnboardingRecognitionSelectionTests {
   }
 }
 
+struct CaptureReadinessTests {
+  @Test("separates Accessibility limits from unavailable recognition")
+  func reportsActualBlockers() {
+    let backend = RecognitionBackendCapabilities(
+      identifier: "local",
+      displayName: "Local",
+      supportedLanguages: [.english],
+      isLocal: true,
+      supportsStreaming: false,
+      availability: .available
+    )
+    let restricted = CaptureReadiness(
+      accessibilityGranted: false, selectedBackendID: "local", availableBackends: [backend]
+    )
+    let unavailable = CaptureReadiness(
+      accessibilityGranted: true, selectedBackendID: "missing", availableBackends: [backend]
+    )
+    let ready = CaptureReadiness(
+      accessibilityGranted: true, selectedBackendID: "local", availableBackends: [backend]
+    )
+
+    #expect(restricted.canStartCapture)
+    #expect(restricted.isFullyReady == false)
+    #expect(unavailable.canStartCapture == false)
+    #expect(ready.isFullyReady)
+  }
+}
+
 struct AnonymousMetricsQueueTests {
   @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
   func queuesOnlyWithConsent() throws {

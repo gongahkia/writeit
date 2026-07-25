@@ -60,7 +60,13 @@ struct ContentView: View {
       .navigationTitle("WriteIt")
     } detail: {
       switch section {
-      case .capture: CaptureDashboard(capture: capture, preferences: preferences)
+      case .capture:
+        CaptureDashboard(
+          capture: capture,
+          preferences: preferences,
+          recognitionRegistry: recognitionRegistry,
+          onOpenModels: { section = .models }
+        )
       case .history:
         CaptureHistoryView(
           history: history, preferences: preferences, onCleanup: capture.cleanupHistory,
@@ -95,6 +101,8 @@ struct ContentView: View {
 private struct CaptureDashboard: View {
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
+  let recognitionRegistry: RecognitionBackendRegistry
+  let onOpenModels: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 22) {
@@ -108,25 +116,55 @@ private struct CaptureDashboard: View {
           Label("Start writing", systemImage: "pencil.tip")
         }
         .buttonStyle(.borderedProminent)
+        .disabled(readiness.canStartCapture == false)
         Text(preferences.shortcut.displayName).font(.title3.monospaced()).foregroundStyle(
           .secondary)
       }
       .controlSize(.large)
 
-      GroupBox("Status") {
+      GroupBox("Readiness") {
         VStack(alignment: .leading, spacing: 10) {
-          HStack(spacing: 10) {
-            Image(
-              systemName: capture.accessibilityGranted
-                ? "checkmark.shield.fill" : "exclamationmark.shield.fill"
-            )
-            .foregroundStyle(capture.accessibilityGranted ? .green : .orange)
-            Text(capture.statusMessage)
-            Spacer()
-            if !capture.accessibilityGranted {
+          if readiness.accessibilityGranted {
+            Label("Accessibility enabled", systemImage: "checkmark.shield.fill")
+              .foregroundStyle(.green)
+          } else {
+            HStack {
+              VStack(alignment: .leading, spacing: 2) {
+                Label("Accessibility needed for shortcuts and direct delivery", systemImage: "exclamationmark.shield.fill")
+                  .foregroundStyle(.orange)
+                Text("You can still start a clipboard-only capture from this window.")
+                  .font(.caption)
+                  .foregroundStyle(.secondary)
+              }
+              Spacer()
               Button("Enable Accessibility", action: capture.requestAccessibility)
             }
           }
+          if let backend = readiness.selectedBackend {
+            Label("Recognition ready: \(backend.displayName)", systemImage: "checkmark.circle.fill")
+              .foregroundStyle(.green)
+          } else {
+            HStack {
+              Label(
+                "Selected recognizer is unavailable: \(preferences.recognitionBackendID)",
+                systemImage: "exclamationmark.triangle.fill"
+              )
+              .foregroundStyle(.orange)
+              Spacer()
+              Button("Open Models", action: onOpenModels)
+            }
+          }
+          if readiness.isFullyReady {
+            Label("Ready to capture", systemImage: "checkmark.circle.fill")
+              .foregroundStyle(.green)
+          }
+        }
+        .padding(4)
+      }
+
+      GroupBox("Activity") {
+        VStack(alignment: .leading, spacing: 10) {
+          Text(capture.statusMessage)
           if let error = capture.error {
             CaptureErrorBanner(error: error, dismiss: capture.clearError)
           }
@@ -150,6 +188,14 @@ private struct CaptureDashboard: View {
     }
     .padding(32)
     .navigationTitle("Capture")
+  }
+
+  private var readiness: CaptureReadiness {
+    CaptureReadiness(
+      accessibilityGranted: capture.accessibilityGranted,
+      selectedBackendID: preferences.recognitionBackendID,
+      availableBackends: recognitionRegistry.availableBackends
+    )
   }
 }
 
