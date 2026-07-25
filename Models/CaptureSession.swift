@@ -26,7 +26,6 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     deliveryOutcome = nil
-    foregroundBundleIdentifier = nil
     recognitionMetadata = nil
     captureActivatedAt = clock.now
     hasAcceptedFirstStroke = false
@@ -45,6 +44,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     deliveryOutcome = nil
+    foregroundBundleIdentifier = nil
     recognitionMetadata = nil
     target = nil
     captureActivatedAt = nil
