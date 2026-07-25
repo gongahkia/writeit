@@ -104,6 +104,12 @@ actor GoogleVisionRecognitionService: TextRecognizing, CloudCredentialValidating
   }
 
   private func send(_ request: RecognitionRequest) async throws -> GoogleVisionHTTPResponse {
+    let encodedImage: CloudEncodedImage
+    do {
+      encodedImage = try CloudImageRequestEncoder.encode(request.imageData)
+    } catch let error as CloudImageRequestEncodingError {
+      throw RecognitionError.failed(error.errorDescription ?? "WriteIt could not prepare cloud OCR.")
+    }
     var components = URLComponents(url: Self.endpoint, resolvingAgainstBaseURL: false)!
     components.queryItems = [URLQueryItem(name: "key", value: apiKey)]
     guard let url = components.url else {
@@ -111,13 +117,14 @@ actor GoogleVisionRecognitionService: TextRecognizing, CloudCredentialValidating
     }
     var urlRequest = URLRequest(url: url)
     urlRequest.httpMethod = "POST"
+    urlRequest.timeoutInterval = CloudRequestPolicy.timeoutInterval
     urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
     urlRequest.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
     urlRequest.httpBody = try JSONEncoder().encode(
       GoogleVisionRequest(
         requests: [
           .init(
-            image: .init(content: request.imageData.base64EncodedString()),
+            image: .init(content: encodedImage.data.base64EncodedString()),
             features: [.init(type: "DOCUMENT_TEXT_DETECTION")],
             imageContext: .init(languageHints: [request.language.rawValue])
           ),

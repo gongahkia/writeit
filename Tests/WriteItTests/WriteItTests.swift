@@ -135,14 +135,17 @@ struct RecognitionContractTests {
       ))
     let service = GoogleVisionRecognitionService(apiKey: "test-api-key", requester: requester)
 
+    let imageData = CloudCredentialValidationProbe.imageData
+    let encodedImage = try CloudImageRequestEncoder.encode(imageData)
     let result = try await service.recognize(
-      RecognitionRequest(imageData: Data([1, 2, 3]), language: .french))
+      RecognitionRequest(imageData: imageData, language: .french))
 
     #expect(result.text == "hello world")
     #expect(abs(result.confidence - 0.7) < 0.001)
     #expect(result.backendID == "google-cloud-vision")
     #expect(result.languageResolution == .identity(.french))
     let sent = try #require(await requester.requests.first)
+    #expect(sent.timeoutInterval == CloudRequestPolicy.timeoutInterval)
     #expect(URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
       .queryItems?.first(where: { $0.name == "key" })?.value == "test-api-key")
     let body = try #require(sent.httpBody)
@@ -150,7 +153,7 @@ struct RecognitionContractTests {
     let requests = try #require(json["requests"] as? [[String: Any]])
     let request = try #require(requests.first)
     let image = try #require(request["image"] as? [String: Any])
-    #expect(image["content"] as? String == Data([1, 2, 3]).base64EncodedString())
+    #expect(image["content"] as? String == encodedImage.data.base64EncodedString())
     let features = try #require(request["features"] as? [[String: Any]])
     #expect(features.first?["type"] as? String == "DOCUMENT_TEXT_DETECTION")
     let context = try #require(request["imageContext"] as? [String: Any])
@@ -194,15 +197,18 @@ struct RecognitionContractTests {
       requester: requester
     )
 
+    let imageData = CloudCredentialValidationProbe.imageData
+    let encodedImage = try CloudImageRequestEncoder.encode(imageData)
     let result = try await service.recognize(
-      RecognitionRequest(imageData: Data([4, 5, 6]), language: .italian))
+      RecognitionRequest(imageData: imageData, language: .italian))
 
     #expect(result.text == "hello azure")
     #expect(abs(result.confidence - 0.8) < 0.001)
     #expect(result.backendID == "azure-ai-vision-read")
     let sent = try #require(await requester.requests.first)
-    #expect(sent.httpBody == Data([4, 5, 6]))
-    #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/octet-stream")
+    #expect(sent.timeoutInterval == CloudRequestPolicy.timeoutInterval)
+    #expect(sent.httpBody == encodedImage.data)
+    #expect(sent.value(forHTTPHeaderField: "Content-Type") == "image/jpeg")
     #expect(sent.value(forHTTPHeaderField: "Ocp-Apim-Subscription-Key") == "test-subscription-key")
     let queryItems = URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
       .queryItems ?? []
@@ -245,11 +251,12 @@ struct RecognitionContractTests {
     let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
     let requests = try #require(json["requests"] as? [[String: Any]])
     let image = try #require(requests.first?["image"] as? [String: Any])
-    #expect(image["content"] as? String == CloudCredentialValidationProbe.imageData.base64EncodedString())
+    let encodedProbe = try CloudImageRequestEncoder.encode(CloudCredentialValidationProbe.imageData)
+    #expect(image["content"] as? String == encodedProbe.data.base64EncodedString())
   }
 
   @Test("Azure credential validation accepts a successful probe and rejects invalid configuration")
-  func validatesAzureCredentials() async {
+  func validatesAzureCredentials() async throws {
     let validRequester = TestAzureVisionRequester(
       response: AzureVisionHTTPResponse(data: Data(), statusCode: 200))
     let validService = AzureVisionRecognitionService(
@@ -268,7 +275,21 @@ struct RecognitionContractTests {
     #expect(await invalidService.validateCredentials() == .notConfigured)
     let sent = await validRequester.requests
     #expect(sent.count == 1)
-    #expect(sent.first?.httpBody == CloudCredentialValidationProbe.imageData)
+    let encodedProbe = try CloudImageRequestEncoder.encode(CloudCredentialValidationProbe.imageData)
+    #expect(sent.first?.httpBody == encodedProbe.data)
+  }
+
+  @Test("cloud request encoding produces bounded JPEG and rejects malformed or over-budget input")
+  func encodesCloudRequestImages() throws {
+    let encoded = try CloudImageRequestEncoder.encode(CloudCredentialValidationProbe.imageData)
+    #expect(encoded.contentType == "image/jpeg")
+    #expect(encoded.data.count <= CloudImageRequestEncoder.maximumEncodedBytes)
+    #expect(throws: CloudImageRequestEncodingError.invalidImage) {
+      try CloudImageRequestEncoder.encode(Data([0, 1, 2]))
+    }
+    #expect(throws: CloudImageRequestEncodingError.tooLarge) {
+      try CloudImageRequestEncoder.encode(CloudCredentialValidationProbe.imageData, maximumBytes: 1)
+    }
   }
 
   @Test("recognition failures map to a shared user-facing error")

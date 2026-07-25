@@ -103,12 +103,19 @@ actor AzureVisionRecognitionService: TextRecognizing, CloudCredentialValidating 
   }
 
   private func send(_ request: RecognitionRequest) async throws -> AzureVisionHTTPResponse {
+    let encodedImage: CloudEncodedImage
+    do {
+      encodedImage = try CloudImageRequestEncoder.encode(request.imageData)
+    } catch let error as CloudImageRequestEncodingError {
+      throw RecognitionError.failed(error.errorDescription ?? "WriteIt could not prepare cloud OCR.")
+    }
     let url = try requestURL(for: request.language)
     var urlRequest = URLRequest(url: url)
     urlRequest.httpMethod = "POST"
-    urlRequest.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+    urlRequest.timeoutInterval = CloudRequestPolicy.timeoutInterval
+    urlRequest.setValue(encodedImage.contentType, forHTTPHeaderField: "Content-Type")
     urlRequest.setValue(apiKey, forHTTPHeaderField: "Ocp-Apim-Subscription-Key")
-    urlRequest.httpBody = request.imageData
+    urlRequest.httpBody = encodedImage.data
     do {
       AppLog.recognition.info("azure_vision_request_started")
       return try await requester.data(for: urlRequest)
