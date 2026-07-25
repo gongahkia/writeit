@@ -619,6 +619,33 @@ struct AnonymousMetricsQueueTests {
     #expect(queue.events.isEmpty)
     #expect(FileManager.default.fileExists(atPath: directory.path) == false)
   }
+
+  @Test("rejects text ink and screenshot metric payload fields") @MainActor
+  func rejectsSensitivePayloadFields() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-metrics-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let queue = AnonymousMetricsQueue(directory: directory, hasConsent: true)
+    queue.enqueue(.runtimeStarted)
+    let fileURL = directory.appendingPathComponent("queue.json")
+    var archive = try #require(
+      JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any])
+    var events = try #require(archive["events"] as? [[String: Any]])
+    events[0]["recognized_text"] = "private text"
+    events[0]["ink"] = ["point"]
+    events[0]["screenshot"] = "image-data"
+    archive["events"] = events
+    try JSONSerialization.data(withJSONObject: archive).write(to: fileURL)
+
+    let restored = AnonymousMetricsQueue(directory: directory, hasConsent: true)
+    restored.enqueue(.runtimeStopped)
+    let preserved = String(decoding: try Data(contentsOf: fileURL), as: UTF8.self)
+
+    #expect(restored.events.isEmpty)
+    #expect(restored.error?.message == "Saved anonymous metrics could not be read.")
+    #expect(preserved.contains("private text"))
+    #expect(preserved.contains("image-data"))
+  }
 }
 
 struct CaptureDisplaySelectorTests {
