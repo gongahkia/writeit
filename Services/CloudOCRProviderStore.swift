@@ -174,6 +174,29 @@ final class CloudOCRProviderStore: ObservableObject {
     persist()
   }
 
+  func replaceConfigurations(_ imported: [ConfigurationCloudOCRProvider]) throws {
+    guard Set(imported.map(\.provider)).count == imported.count else {
+      throw ConfigurationArchiveError.invalidConfiguration
+    }
+    try imported.forEach { try $0.validated() }
+    configurations = imported.map {
+      CloudOCRProviderConfiguration(provider: $0.provider, endpoint: $0.endpoint)
+    }.sorted { $0.provider.rawValue < $1.provider.rawValue }
+    validationStatuses = [:]
+    persist()
+    if error != nil { throw CloudOCRProviderStoreError.serializationFailed }
+  }
+
+  func restoreConfigurations(
+    _ configurations: [CloudOCRProviderConfiguration],
+    validationStatuses: [CloudOCRProvider: CloudCredentialValidation]
+  ) throws {
+    self.configurations = configurations
+    self.validationStatuses = validationStatuses
+    persist()
+    if error != nil { throw CloudOCRProviderStoreError.serializationFailed }
+  }
+
   func test(_ provider: CloudOCRProvider) async -> CloudCredentialValidation {
     guard let configuration = configuration(for: provider),
       let keyData = try? credentials.data(for: provider.credentialAccount),

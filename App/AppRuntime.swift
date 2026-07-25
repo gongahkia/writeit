@@ -6,6 +6,7 @@ final class AppRuntime {
   let history: HistoryStore
   let models: ModelStore
   let dataDeletion: LocalDataDeletionController
+  let configurationImport: ConfigurationImportController
   let cloudProviders: CloudOCRProviderStore
   let recognitionRegistry: RecognitionBackendRegistry
   let profiles: AppProfileStore
@@ -32,6 +33,12 @@ final class AppRuntime {
     let foregroundApplicationResolver = ForegroundApplicationBundleIdentifierResolver()
     let profileOverrideResolver = AppProfileOverrideResolver(profiles: profileStore)
     profiles = profileStore
+    configurationImport = ConfigurationImportController(
+      state: ConfigurationStateStore(
+        preferences: preferences,
+        profiles: profileStore,
+        cloudProviders: cloudProviderStore
+      ))
     profileCreator = CurrentAppProfileCreator(
       profiles: profileStore,
       foregroundApplicationResolver: foregroundApplicationResolver

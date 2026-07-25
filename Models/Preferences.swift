@@ -283,6 +283,32 @@ final class Preferences: ObservableObject {
     regexReplacementRules = archive.regexRules
   }
 
+  func replaceConfiguration(_ configuration: ConfigurationPreferences) throws {
+    try configuration.validated()
+    shortcut = configuration.shortcut
+    captureMode = configuration.captureMode
+    resultMode = configuration.resultMode
+    outputStrategy = configuration.outputStrategy
+    clipboardHandling = configuration.clipboardHandling
+    verifyPasteDelivery = configuration.verifyPasteDelivery
+    recognitionLanguage = configuration.recognitionLanguage
+    recognitionBackendID = configuration.recognitionBackendID
+    customWords = configuration.customWords
+    literalReplacementRules = configuration.literalReplacementRules
+    regexReplacementRules = configuration.regexReplacementRules
+    historyMode = configuration.historyMode
+    historyAutoDelete = configuration.historyAutoDelete
+    historyRetentionDays = configuration.historyRetentionDays
+    aiEnabled = configuration.aiEnabled
+    aiBaseURL = configuration.aiBaseURL
+    aiModel = configuration.aiModel
+    launchAtLogin = configuration.launchAtLogin
+    penUpDelay = configuration.penUpDelay
+    strokeWidth = configuration.strokeWidth
+    pressureSensitivity = configuration.pressureSensitivity
+    strokeSmoothing = configuration.strokeSmoothing
+  }
+
   private static func load<T: Codable>(
     _ key: Key,
     from defaults: UserDefaults,

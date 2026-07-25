@@ -30,6 +30,7 @@ struct WriteItApp: App {
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
         dataDeletion: appDelegate.runtime.dataDeletion,
+        configurationImport: appDelegate.runtime.configurationImport,
         cloudProviders: appDelegate.runtime.cloudProviders,
         profiles: appDelegate.runtime.profiles,
         profileCreator: appDelegate.runtime.profileCreator,

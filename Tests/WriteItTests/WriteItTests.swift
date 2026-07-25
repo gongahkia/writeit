@@ -434,6 +434,93 @@ struct ConfigurationArchiveTests {
       try JSONDecoder().decode(ConfigurationArchive.self, from: data)
     }
   }
+
+  @Test("imports a validated configuration without importing provider credentials") @MainActor
+  func importsValidatedConfiguration() throws {
+    let sourceDefaults = makeDefaults()
+    let sourcePreferences = Preferences(defaults: sourceDefaults)
+    sourcePreferences.captureMode = .penUpDelay
+    sourcePreferences.customWords = CustomWordList(words: ["SourceWord"])
+    let sourceProfiles = AppProfileStore(defaults: sourceDefaults)
+    try sourceProfiles.replaceProfiles([
+      AppProfile(bundleIdentifier: "com.example.source", overrides: .init(aiCleanupConsent: .init())),
+    ])
+    let sourceCredentials = TestCloudOCRCredentialStore()
+    let sourceProviders = CloudOCRProviderStore(defaults: sourceDefaults, credentials: sourceCredentials)
+    try sourceProviders.configureAzure(
+      endpoint: "https://source.cognitiveservices.azure.com", apiKey: "source-secret")
+    let archive = ConfigurationArchive(
+      preferences: sourcePreferences,
+      profiles: sourceProfiles.profiles,
+      cloudOCRProviders: sourceProviders.configurations
+    )
+
+    let destinationDefaults = makeDefaults()
+    let destinationPreferences = Preferences(defaults: destinationDefaults)
+    destinationPreferences.captureMode = .holdToCapture
+    let destinationProfiles = AppProfileStore(defaults: destinationDefaults)
+    let destinationCredentials = TestCloudOCRCredentialStore()
+    let destinationProviders = CloudOCRProviderStore(
+      defaults: destinationDefaults, credentials: destinationCredentials)
+    let state = ConfigurationStateStore(
+      preferences: destinationPreferences,
+      profiles: destinationProfiles,
+      cloudProviders: destinationProviders
+    )
+
+    try state.apply(archive)
+
+    #expect(destinationPreferences.captureMode == .penUpDelay)
+    #expect(destinationPreferences.customWords.words == ["SourceWord"])
+    #expect(destinationProfiles.profiles == sourceProfiles.profiles)
+    #expect(destinationProviders.configurations.first?.endpoint?.host == "source.cognitiveservices.azure.com")
+    #expect(destinationProviders.configurations.first?.isValidated == false)
+    #expect(try destinationCredentials.data(for: CloudOCRProvider.azureVision.credentialAccount) == nil)
+  }
+
+  @Test("rolls back a partially applied configuration") @MainActor
+  func rollsBackFailedImport() throws {
+    let original = configurationArchive(captureMode: .toggle)
+    let imported = configurationArchive(captureMode: .holdToCapture)
+    let state = TestConfigurationState(current: original, failingArchive: imported)
+    let controller = ConfigurationImportController(state: state)
+
+    controller.preview(try ConfigurationArchiveCodec.encode(imported))
+    controller.applyPreview()
+
+    #expect(state.current == original)
+    #expect(state.applied == [imported, original])
+    #expect(state.validationStatuses == [.azureVision: .invalidCredentials])
+    #expect(controller.preview == imported)
+    #expect(controller.error?.message == "Configuration file is invalid.")
+  }
+
+  @Test("rejects invalid configuration values before previewing") @MainActor
+  func rejectsInvalidValuesBeforePreview() throws {
+    let archive = configurationArchive(captureMode: .toggle)
+    let data = try ConfigurationArchiveCodec.encode(archive)
+    var object = try #require(
+      JSONSerialization.jsonObject(with: data) as? [String: Any])
+    var preferences = try #require(object["preferences"] as? [String: Any])
+    preferences["historyRetentionDays"] = 0
+    object["preferences"] = preferences
+    let invalid = try JSONSerialization.data(withJSONObject: object)
+    let state = TestConfigurationState(current: archive, failingArchive: archive)
+    let controller = ConfigurationImportController(state: state)
+
+    controller.preview(invalid)
+
+    #expect(controller.preview == nil)
+    #expect(state.applied.isEmpty)
+    #expect(controller.error?.message == "Configuration values are invalid.")
+  }
+
+  @MainActor
+  private func configurationArchive(captureMode: CaptureMode) -> ConfigurationArchive {
+    let preferences = Preferences(defaults: makeDefaults())
+    preferences.captureMode = captureMode
+    return ConfigurationArchive(preferences: preferences, profiles: [], cloudOCRProviders: [])
+  }
 }
 
 struct CaptureDisplaySelectorTests {
@@ -3709,6 +3796,41 @@ private final class TestCloudOCRCredentialStore: CloudOCRCredentialStoring {
   func data(for account: String) throws -> Data? { values[account] }
   func set(_ data: Data, for account: String) throws { values[account] = data }
   func delete(_ account: String) throws { values.removeValue(forKey: account) }
+}
+
+@MainActor
+private final class TestConfigurationState: ConfigurationStateManaging {
+  private(set) var current: ConfigurationArchive
+  private(set) var applied: [ConfigurationArchive] = []
+  private(set) var validationStatuses: [CloudOCRProvider: CloudCredentialValidation] = [
+    .azureVision: .invalidCredentials
+  ]
+  private let failingArchive: ConfigurationArchive
+
+  init(current: ConfigurationArchive, failingArchive: ConfigurationArchive) {
+    self.current = current
+    self.failingArchive = failingArchive
+  }
+
+  func snapshot() -> ConfigurationRuntimeSnapshot {
+    ConfigurationRuntimeSnapshot(
+      archive: current,
+      cloudOCRProviders: [],
+      cloudOCRValidationStatuses: validationStatuses
+    )
+  }
+
+  func apply(_ archive: ConfigurationArchive) throws {
+    current = archive
+    applied.append(archive)
+    if archive == failingArchive { throw ConfigurationArchiveError.invalidArchive }
+  }
+
+  func restore(_ snapshot: ConfigurationRuntimeSnapshot) throws {
+    current = snapshot.archive
+    applied.append(snapshot.archive)
+    validationStatuses = snapshot.cloudOCRValidationStatuses
+  }
 }
 
 @MainActor

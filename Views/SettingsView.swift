@@ -155,6 +155,7 @@ struct PrivacySettingsView: View {
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
+  @ObservedObject var configurationImport: ConfigurationImportController
   @ObservedObject var profiles: AppProfileStore
   @ObservedObject var cloudProviders: CloudOCRProviderStore
   @State private var deleteHistory = false
@@ -229,7 +230,11 @@ struct PrivacySettingsView: View {
       }
       Section("Configuration") {
         ConfigurationExportView(
-          preferences: preferences, profiles: profiles, cloudProviders: cloudProviders)
+          preferences: preferences,
+          profiles: profiles,
+          cloudProviders: cloudProviders,
+          importer: configurationImport
+        )
       }
       Section("App") {
         Toggle("Launch at login", isOn: $preferences.launchAtLogin)

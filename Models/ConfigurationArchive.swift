@@ -2,12 +2,18 @@ import Foundation
 
 enum ConfigurationArchiveError: LocalizedError, Equatable {
   case invalidArchive
+  case invalidConfiguration
+  case rollbackFailed
+  case unreadableFile
   case unsupportedVersion
   case unwritableFile
 
   var errorDescription: String? {
     switch self {
     case .invalidArchive: "Configuration file is invalid."
+    case .invalidConfiguration: "Configuration values are invalid."
+    case .rollbackFailed: "Configuration import could not be rolled back."
+    case .unreadableFile: "Configuration file could not be read."
     case .unsupportedVersion: "Configuration file uses an unsupported version."
     case .unwritableFile: "Configuration file could not be saved."
     }
@@ -62,6 +68,17 @@ struct ConfigurationPreferences: Codable, Equatable {
     pressureSensitivity = preferences.pressureSensitivity
     strokeSmoothing = preferences.strokeSmoothing
   }
+
+  func validated() throws {
+    guard ShortcutConflictValidator.message(for: shortcut) == nil,
+      recognitionBackendID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
+      (1...365).contains(historyRetentionDays),
+      (0.5...3).contains(penUpDelay),
+      (1...12).contains(strokeWidth),
+      (0...1).contains(pressureSensitivity),
+      (0...1).contains(strokeSmoothing)
+    else { throw ConfigurationArchiveError.invalidConfiguration }
+  }
 }
 
 struct ConfigurationCloudOCRProvider: Codable, Equatable {
@@ -71,6 +88,17 @@ struct ConfigurationCloudOCRProvider: Codable, Equatable {
   init(configuration: CloudOCRProviderConfiguration) {
     provider = configuration.provider
     endpoint = configuration.endpoint
+  }
+
+  func validated() throws {
+    switch provider {
+    case .googleVision:
+      guard endpoint == nil else { throw ConfigurationArchiveError.invalidConfiguration }
+    case .azureVision:
+      guard let endpoint, AzureVisionRecognitionService.isAzureEndpoint(endpoint) else {
+        throw ConfigurationArchiveError.invalidConfiguration
+      }
+    }
   }
 }
 
@@ -107,6 +135,14 @@ struct ConfigurationArchive: Codable, Equatable {
       [ConfigurationCloudOCRProvider].self, forKey: .cloudOCRProviders)
   }
 
+  func validated() throws {
+    try preferences.validated()
+    guard Set(cloudOCRProviders.map(\.provider)).count == cloudOCRProviders.count else {
+      throw ConfigurationArchiveError.invalidConfiguration
+    }
+    try cloudOCRProviders.forEach { try $0.validated() }
+  }
+
   private enum CodingKeys: String, CodingKey, CaseIterable {
     case schemaVersion = "schema_version"
     case preferences
@@ -121,9 +157,29 @@ enum ConfigurationArchiveCodec {
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     return try encoder.encode(archive)
   }
+
+  static func decode(_ data: Data) throws -> ConfigurationArchive {
+    do {
+      let archive = try JSONDecoder().decode(ConfigurationArchive.self, from: data)
+      try archive.validated()
+      return archive
+    } catch let error as ConfigurationArchiveError {
+      throw error
+    } catch {
+      throw ConfigurationArchiveError.invalidArchive
+    }
+  }
 }
 
 enum ConfigurationArchiveFileStore {
+  static func read(from url: URL) throws -> Data {
+    do {
+      return try Data(contentsOf: url)
+    } catch {
+      throw ConfigurationArchiveError.unreadableFile
+    }
+  }
+
   static func write(_ data: Data, to url: URL) throws {
     do {
       try data.write(to: url, options: .atomic)

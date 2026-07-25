@@ -26,6 +26,7 @@ struct ContentView: View {
   @ObservedObject var history: HistoryStore
   @ObservedObject var models: ModelStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
+  @ObservedObject var configurationImport: ConfigurationImportController
   @ObservedObject var cloudProviders: CloudOCRProviderStore
   @ObservedObject var profiles: AppProfileStore
   let profileCreator: CurrentAppProfileCreator
@@ -64,6 +65,7 @@ struct ContentView: View {
           preferences: preferences,
           history: history,
           dataDeletion: dataDeletion,
+          configurationImport: configurationImport,
           profiles: profiles,
           cloudProviders: cloudProviders
         )
