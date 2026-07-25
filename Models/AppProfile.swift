@@ -53,15 +53,18 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
   let recognitionLanguage: RecognitionLanguage?
   let recognitionBackendID: String?
   let outputStrategy: OutputStrategy?
+  let aiCleanupEnabled: Bool?
 
   init(
     recognitionLanguage: RecognitionLanguage? = nil,
     recognitionBackendID: String? = nil,
-    outputStrategy: OutputStrategy? = nil
+    outputStrategy: OutputStrategy? = nil,
+    aiCleanupEnabled: Bool? = nil
   ) {
     self.recognitionLanguage = recognitionLanguage
     self.recognitionBackendID = recognitionBackendID
     self.outputStrategy = outputStrategy
+    self.aiCleanupEnabled = aiCleanupEnabled
   }
 }
 

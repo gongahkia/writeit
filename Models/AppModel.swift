@@ -202,7 +202,11 @@ final class CaptureCoordinator: ObservableObject {
     )
     let enhancementRequest = TextEnhancementRequest(
       text: "",
-      enabled: preferences.aiEnabled,
+      enabled: profileOverrideResolver.value(
+        for: session.foregroundBundleIdentifier,
+        override: \.aiCleanupEnabled,
+        global: preferences.aiEnabled
+      ),
       baseURL: preferences.aiBaseURL,
       model: preferences.aiModel
     )

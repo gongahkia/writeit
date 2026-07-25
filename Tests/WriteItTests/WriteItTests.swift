@@ -2028,6 +2028,29 @@ struct AppProfileStoreTests {
     ) == .paste)
   }
 
+  @Test("resolves a cleanup override only for its matching profile") @MainActor
+  func resolvesProfileCleanupOverride() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(aiCleanupEnabled: true)
+      ),
+    ])
+    let resolver = AppProfileOverrideResolver(profiles: store)
+
+    #expect(resolver.value(
+      for: "com.example.editor",
+      override: \.aiCleanupEnabled,
+      global: false
+    ))
+    #expect(resolver.value(
+      for: "com.example.other",
+      override: \.aiCleanupEnabled,
+      global: false
+    ) == false)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()
@@ -2316,6 +2339,28 @@ struct CaptureCoordinatorLifecycleTests {
     for _ in 0..<8 { await Task.yield() }
 
     #expect(dependencies.delivery.deliveredRequests.first?.strategy == .clipboard)
+  }
+
+  @Test("capture uses the matching profile cleanup override") @MainActor
+  func usesProfileCleanupOverrideForRecognition() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(aiCleanupEnabled: true)
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.enhancer.requests.first?.enabled == true)
   }
 
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
@@ -2898,7 +2943,12 @@ private actor FailThenSucceedRecognition: TextRecognizing {
 
 @MainActor
 private final class TestEnhancer: TextEnhancing {
-  func clean(_ request: TextEnhancementRequest) async throws -> String { request.text }
+  private(set) var requests: [TextEnhancementRequest] = []
+
+  func clean(_ request: TextEnhancementRequest) async throws -> String {
+    requests.append(request)
+    return request.text
+  }
   func saveAPIKey(_ value: String) {}
   func hasAPIKey() -> Bool { false }
 }
