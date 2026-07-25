@@ -3783,6 +3783,21 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(model.statusMessage == "Accessibility enabled")
   }
 
+  @Test("restarts global monitoring after an accepted shortcut change") @MainActor
+  func restartsGlobalMonitoringAfterShortcutChange() {
+    let dependencies = TestDependencies(trusted: true)
+    let model = dependencies.makeCaptureCoordinator()
+    let shortcut = Shortcut(keyCode: 6, modifiers: CGEventFlags.maskCommand.rawValue)
+
+    #expect(ShortcutConflictValidator.message(for: shortcut) == nil)
+    model.start()
+    dependencies.preferences.shortcut = shortcut
+    model.restartShortcutMonitor()
+
+    #expect(dependencies.shortcutMonitor.shortcuts == [.default, shortcut])
+    model.stop()
+  }
+
   @Test("capture commands route shortcut, clear, confirm, and cancel") @MainActor
   func routesCaptureCommands() async {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
@@ -4203,8 +4218,12 @@ private final class TestRegexReplacer: RegexReplacementApplying {
 private final class TestShortcutMonitor: GlobalShortcutMonitoring {
   var starts = 0
   var stops = 0
+  private(set) var shortcuts: [Shortcut] = []
 
-  func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) { starts += 1 }
+  func start(shortcut: Shortcut, handler: @escaping (CaptureCommand) -> Void) {
+    starts += 1
+    shortcuts.append(shortcut)
+  }
   func stop() { stops += 1 }
 }
 

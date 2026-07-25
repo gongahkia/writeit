@@ -3,6 +3,8 @@ import SwiftUI
 struct OnboardingView: View {
   @ObservedObject var onboarding: OnboardingStore
   @ObservedObject var capture: CaptureCoordinator
+  @ObservedObject var preferences: Preferences
+  @State private var shortcutValidationMessage: String?
 
   var body: some View {
     VStack(alignment: .leading, spacing: 20) {
@@ -18,6 +20,9 @@ struct OnboardingView: View {
           Text(onboarding.currentStep.detail)
           if onboarding.currentStep == .accessibility {
             accessibilityStatus
+          }
+          if onboarding.currentStep == .shortcut {
+            shortcutSetup
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -39,6 +44,7 @@ struct OnboardingView: View {
     .onChange(of: onboarding.currentStep) { _, step in
       if step == .accessibility { capture.refreshAccessibility(force: true) }
     }
+    .onChange(of: preferences.shortcut) { _, _ in capture.restartShortcutMonitor() }
   }
 
   @ViewBuilder
@@ -53,5 +59,22 @@ struct OnboardingView: View {
         .foregroundStyle(.secondary)
       Button("Allow Accessibility", action: capture.requestAccessibility)
     }
+  }
+
+  @ViewBuilder
+  private var shortcutSetup: some View {
+    HStack {
+      Text("Capture shortcut")
+      Spacer()
+      ShortcutRecorder(
+        shortcut: $preferences.shortcut,
+        validationMessage: $shortcutValidationMessage
+      )
+    }
+    if let shortcutValidationMessage {
+      Text(shortcutValidationMessage).font(.caption).foregroundStyle(.red)
+    }
+    Text("Press it once to start writing and again to submit.")
+      .foregroundStyle(.secondary)
   }
 }

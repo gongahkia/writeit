@@ -318,7 +318,7 @@ struct PrivacySettingsView: View {
   }
 }
 
-private struct ShortcutRecorder: NSViewRepresentable {
+struct ShortcutRecorder: NSViewRepresentable {
   @Binding var shortcut: Shortcut
   @Binding var validationMessage: String?
 
