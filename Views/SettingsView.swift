@@ -155,6 +155,8 @@ struct PrivacySettingsView: View {
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
+  @ObservedObject var profiles: AppProfileStore
+  @ObservedObject var cloudProviders: CloudOCRProviderStore
   @State private var deleteHistory = false
   @State private var deleteModels = false
   @State private var deleteDiagnostics = false
@@ -224,6 +226,10 @@ struct PrivacySettingsView: View {
         if let error = dataDeletion.error {
           CaptureErrorBanner(error: error, dismiss: dataDeletion.clearError)
         }
+      }
+      Section("Configuration") {
+        ConfigurationExportView(
+          preferences: preferences, profiles: profiles, cloudProviders: cloudProviders)
       }
       Section("App") {
         Toggle("Launch at login", isOn: $preferences.launchAtLogin)

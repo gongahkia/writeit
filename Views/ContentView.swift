@@ -60,7 +60,13 @@ struct ContentView: View {
         CleanupSettingsView(capture: capture, preferences: preferences)
       case .privacy:
         PrivacySettingsView(
-          capture: capture, preferences: preferences, history: history, dataDeletion: dataDeletion)
+          capture: capture,
+          preferences: preferences,
+          history: history,
+          dataDeletion: dataDeletion,
+          profiles: profiles,
+          cloudProviders: cloudProviders
+        )
       }
     }
   }

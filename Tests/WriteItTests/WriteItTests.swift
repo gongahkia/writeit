@@ -374,6 +374,68 @@ struct ReplacementRuleArchiveTests {
   }
 }
 
+struct ConfigurationArchiveTests {
+  @Test("exports complete configuration without captured or credential data") @MainActor
+  func exportsConfigurationOnly() throws {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.captureMode = .penUpDelay
+    preferences.recognitionLanguage = .french
+    preferences.customWords = CustomWordList(words: ["WriteIt", "Café"])
+    preferences.historyMode = .full
+    preferences.aiEnabled = true
+    preferences.aiBaseURL = "https://cleanup.example.test/v1/chat/completions"
+    preferences.aiModel = "cleanup-model"
+    try preferences.addLiteralReplacementRule(find: "teh", replacement: "the")
+    try preferences.addRegexReplacementRule(pattern: "(WriteIt)", replacement: "$1 app")
+    let profile = try AppProfile(
+      bundleIdentifier: "com.example.editor",
+      overrides: .init(
+        recognitionLanguage: .spanish,
+        aiCleanupConsent: AICleanupConsent(),
+        customWords: CustomWordList(words: ["EditorWord"]),
+        cloudOCRConsent: CloudOCRConsent()
+      )
+    )
+    let profiles = AppProfileStore(defaults: defaults)
+    try profiles.replaceProfiles([profile])
+    let credentials = TestCloudOCRCredentialStore()
+    let cloudProviders = CloudOCRProviderStore(defaults: defaults, credentials: credentials)
+    try cloudProviders.configureAzure(
+      endpoint: "https://writeit.cognitiveservices.azure.com", apiKey: "cloud-secret")
+
+    let archive = ConfigurationArchive(
+      preferences: preferences,
+      profiles: profiles.profiles,
+      cloudOCRProviders: cloudProviders.configurations
+    )
+    let data = try ConfigurationArchiveCodec.encode(archive)
+    let decoded = try JSONDecoder().decode(ConfigurationArchive.self, from: data)
+    let text = String(decoding: data, as: UTF8.self)
+
+    #expect(decoded == archive)
+    #expect(decoded.preferences.customWords.words == ["WriteIt", "Café"])
+    #expect(decoded.profiles.first?.overrides.aiCleanupConsent?.allowsAICleanup == true)
+    #expect(decoded.cloudOCRProviders == [
+      ConfigurationCloudOCRProvider(configuration: cloudProviders.configurations[0]),
+    ])
+    #expect(text.contains("cloud-secret") == false)
+    #expect(text.contains("ai-api-key") == false)
+    #expect(text.contains("history.sealed") == false)
+    #expect(text.contains("diagnostic") == false)
+    #expect(text.contains("isValidated") == false)
+  }
+
+  @Test("rejects unsupported configuration schema versions")
+  func rejectsUnsupportedVersion() {
+    let data = Data("{\"schema_version\":2}".utf8)
+
+    #expect(throws: ConfigurationArchiveError.unsupportedVersion) {
+      try JSONDecoder().decode(ConfigurationArchive.self, from: data)
+    }
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {
