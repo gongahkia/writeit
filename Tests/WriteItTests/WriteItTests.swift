@@ -135,6 +135,61 @@ struct AICleanupTransportPolicyTests {
   }
 }
 
+struct CustomOCRProviderCredentialStoreTests {
+  @Test("stores bearer tokens under provider-specific Keychain accounts") @MainActor
+  func storesDistinctBearerTokens() throws {
+    let credentials = TestCustomOCRProviderCredentialStore()
+    let store = CustomOCRProviderCredentialStore(credentials: credentials)
+    let first = try customProvider(id: "custom.first", authentication: .bearerToken)
+    let second = try customProvider(id: "custom.second", authentication: .bearerToken)
+
+    try store.saveBearerToken(" first-token ", for: first)
+    try store.saveBearerToken("second-token", for: second)
+
+    #expect(try store.bearerToken(for: first) == "first-token")
+    #expect(try store.bearerToken(for: second) == "second-token")
+    #expect(store.account(for: first) != store.account(for: second))
+  }
+
+  @Test("replacing or removing a provider deletes obsolete bearer tokens") @MainActor
+  func invalidatesObsoleteTokens() throws {
+    let credentials = TestCustomOCRProviderCredentialStore()
+    let store = CustomOCRProviderCredentialStore(credentials: credentials)
+    let bearer = try customProvider(id: "custom.provider", authentication: .bearerToken)
+    let noAuthentication = try customProvider(id: "custom.provider", authentication: .none)
+
+    try store.saveBearerToken("token", for: bearer)
+    try store.replace(noAuthentication, previous: bearer)
+    #expect(try store.bearerToken(for: bearer) == nil)
+    try store.saveBearerToken("token", for: bearer)
+    try store.remove(bearer)
+    #expect(try store.bearerToken(for: bearer) == nil)
+  }
+
+  @Test("rejects tokens for unauthenticated providers") @MainActor
+  func rejectsUnauthenticatedProviderTokens() throws {
+    let store = CustomOCRProviderCredentialStore(credentials: TestCustomOCRProviderCredentialStore())
+    let configuration = try customProvider(id: "custom.none", authentication: .none)
+
+    #expect(throws: CustomOCRProviderCredentialError.authenticationNotRequired) {
+      try store.saveBearerToken("token", for: configuration)
+    }
+  }
+
+  private func customProvider(
+    id: String,
+    authentication: CustomOCRProviderAuthentication
+  ) throws -> CustomOCRProviderConfiguration {
+    try CustomOCRProviderConfiguration(
+      id: id,
+      displayName: "Custom Provider",
+      endpoint: URL(string: "https://provider.example.test/ocr")!,
+      authentication: authentication,
+      supportedLanguages: [.english]
+    ).validated()
+  }
+}
+
 struct LiteralReplacementRuleTests {
   @Test("applies literal replacements sequentially in stored order")
   func appliesRulesInOrder() throws {
@@ -3785,6 +3840,15 @@ private final class TestEnhancer: TextEnhancing {
   func testConnection(baseURL: String, model: String) async -> AICleanupConnectionStatus {
     .notConfigured
   }
+}
+
+@MainActor
+private final class TestCustomOCRProviderCredentialStore: CustomOCRProviderCredentialStoring {
+  private var values: [String: Data] = [:]
+
+  func data(for account: String) throws -> Data? { values[account] }
+  func set(_ data: Data, for account: String) throws { values[account] = data }
+  func delete(_ account: String) throws { values.removeValue(forKey: account) }
 }
 
 private actor TestAICleanupRequester: AICleanupRequesting {
