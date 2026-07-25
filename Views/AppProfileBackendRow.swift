@@ -56,6 +56,17 @@ struct AppProfileBackendRow: View {
             .font(.caption).foregroundStyle(.secondary)
         }
       }
+      Text(AICleanupDisclosure.message).font(.caption).foregroundStyle(.secondary)
+      Button(
+        profile.overrides.aiCleanupConsent?.allowsAICleanup == true
+          ? "Revoke AI cleanup consent" : "Allow AI cleanup for this app",
+        action: toggleAICleanupConsent
+      )
+      .buttonStyle(.bordered)
+      if profile.overrides.aiCleanupConsent?.allowsAICleanup == false {
+        Text("AI cleanup will not send recognized text until consent is current.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
       if let feedback {
         Text(feedback).font(.caption).foregroundStyle(.secondary)
       }
@@ -94,6 +105,16 @@ struct AppProfileBackendRow: View {
       try profiles.setCloudOCRConsent(consent, for: profile.id)
     } catch {
       feedback = (error as? LocalizedError)?.errorDescription ?? "Cloud consent could not be updated."
+    }
+  }
+
+  private func toggleAICleanupConsent() {
+    do {
+      let consent = profile.overrides.aiCleanupConsent?.allowsAICleanup == true
+        ? nil : AICleanupConsent()
+      try profiles.setAICleanupConsent(consent, for: profile.id)
+    } catch {
+      feedback = (error as? LocalizedError)?.errorDescription ?? "AI cleanup consent could not be updated."
     }
   }
 }

@@ -2475,12 +2475,14 @@ struct AppProfileStoreTests {
 
     try store.setRecognitionBackendID("google-cloud-vision", for: profile.id)
     try store.setCloudOCRConsent(CloudOCRConsent(), for: profile.id)
+    try store.setAICleanupConsent(AICleanupConsent(), for: profile.id)
 
     let restored = try #require(
       AppProfileStore(defaults: defaults).profile(matching: "com.example.editor")
     )
     #expect(restored.overrides.recognitionBackendID == "google-cloud-vision")
     #expect(restored.overrides.cloudOCRConsent?.allowsCloudOCR == true)
+    #expect(restored.overrides.aiCleanupConsent?.allowsAICleanup == true)
   }
 
   @Test("resolves an output strategy override only for its matching profile") @MainActor
@@ -2512,7 +2514,7 @@ struct AppProfileStoreTests {
     try store.replaceProfiles([
       AppProfile(
         bundleIdentifier: "com.example.editor",
-        overrides: .init(aiCleanupEnabled: true)
+        overrides: .init(aiCleanupEnabled: true, aiCleanupConsent: AICleanupConsent())
       ),
     ])
     let resolver = AppProfileOverrideResolver(profiles: store)
@@ -2527,6 +2529,26 @@ struct AppProfileStoreTests {
       override: \.aiCleanupEnabled,
       global: false
     ) == false)
+  }
+
+  @Test("requires current AI cleanup consent for a matching profile") @MainActor
+  func resolvesProfileAICleanupConsent() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.allowed",
+        overrides: .init(aiCleanupConsent: AICleanupConsent())
+      ),
+      AppProfile(
+        bundleIdentifier: "com.example.stale",
+        overrides: .init(aiCleanupConsent: AICleanupConsent(disclosureVersion: 0))
+      ),
+    ])
+    let resolver = AppProfileOverrideResolver(profiles: store)
+
+    #expect(resolver.allowsAICleanup(for: "com.example.allowed"))
+    #expect(resolver.allowsAICleanup(for: "com.example.stale") == false)
+    #expect(resolver.allowsAICleanup(for: "com.example.unprofiled"))
   }
 
   @Test("persists a profile custom-word override with global fallback") @MainActor
@@ -3085,7 +3107,7 @@ struct CaptureCoordinatorLifecycleTests {
     try dependencies.profiles.replaceProfiles([
       AppProfile(
         bundleIdentifier: "com.example.editor",
-        overrides: .init(aiCleanupEnabled: true)
+        overrides: .init(aiCleanupEnabled: true, aiCleanupConsent: AICleanupConsent())
       ),
     ])
     let capture = dependencies.makeCaptureCoordinator()

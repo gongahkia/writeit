@@ -231,7 +231,7 @@ final class CaptureCoordinator: ObservableObject {
         for: session.foregroundBundleIdentifier,
         override: \.aiCleanupEnabled,
         global: preferences.aiEnabled
-      ),
+      ) && profileOverrideResolver.allowsAICleanup(for: session.foregroundBundleIdentifier),
       baseURL: preferences.aiBaseURL,
       model: preferences.aiModel
     )

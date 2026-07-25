@@ -91,6 +91,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
   let recognitionBackendID: String?
   let outputStrategy: OutputStrategy?
   let aiCleanupEnabled: Bool?
+  let aiCleanupConsent: AICleanupConsent?
   let customWords: CustomWordList?
   let cloudOCRConsent: CloudOCRConsent?
 
@@ -99,6 +100,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     recognitionBackendID: String? = nil,
     outputStrategy: OutputStrategy? = nil,
     aiCleanupEnabled: Bool? = nil,
+    aiCleanupConsent: AICleanupConsent? = nil,
     customWords: CustomWordList? = nil,
     cloudOCRConsent: CloudOCRConsent? = nil
   ) {
@@ -106,6 +108,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     self.recognitionBackendID = recognitionBackendID
     self.outputStrategy = outputStrategy
     self.aiCleanupEnabled = aiCleanupEnabled
+    self.aiCleanupConsent = aiCleanupConsent
     self.customWords = customWords
     self.cloudOCRConsent = cloudOCRConsent
   }
@@ -116,6 +119,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       recognitionBackendID: recognitionBackendID,
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
+      aiCleanupConsent: aiCleanupConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -127,6 +131,19 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       recognitionBackendID: recognitionBackendID,
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
+      aiCleanupConsent: aiCleanupConsent,
+      customWords: customWords,
+      cloudOCRConsent: cloudOCRConsent
+    )
+  }
+
+  func settingAICleanupConsent(_ aiCleanupConsent: AICleanupConsent?) -> Self {
+    Self(
+      recognitionLanguage: recognitionLanguage,
+      recognitionBackendID: recognitionBackendID,
+      outputStrategy: outputStrategy,
+      aiCleanupEnabled: aiCleanupEnabled,
+      aiCleanupConsent: aiCleanupConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -164,6 +181,11 @@ final class AppProfileOverrideResolver {
   func allowsCloudOCR(for bundleIdentifier: String?) -> Bool {
     profiles.profile(matching: bundleIdentifier)?.overrides.cloudOCRConsent?.allowsCloudOCR ?? false
   }
+
+  func allowsAICleanup(for bundleIdentifier: String?) -> Bool {
+    guard let profile = profiles.profile(matching: bundleIdentifier) else { return true }
+    return profile.overrides.aiCleanupConsent?.allowsAICleanup ?? false
+  }
 }
 
 enum AppProfileStoreError: LocalizedError, Equatable {
@@ -180,7 +202,7 @@ enum AppProfileStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class AppProfileStore: ObservableObject {
-  nonisolated static let currentSchemaVersion = 3
+  nonisolated static let currentSchemaVersion = 4
   nonisolated static let archiveDefaultsKey = "appProfiles.archive"
   nonisolated static let schemaVersionDefaultsKey = "appProfiles.schemaVersion"
 
@@ -225,6 +247,14 @@ final class AppProfileStore: ObservableObject {
     try replaceProfiles(profiles.map {
       $0.id == profileID
         ? $0.settingOverrides($0.overrides.settingCloudOCRConsent(consent))
+        : $0
+    })
+  }
+
+  func setAICleanupConsent(_ consent: AICleanupConsent?, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID
+        ? $0.settingOverrides($0.overrides.settingAICleanupConsent(consent))
         : $0
     })
   }
