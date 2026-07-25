@@ -8,6 +8,7 @@ struct AppProfileBackendRow: View {
   let globalBackendID: String
   @State private var backendID: String
   @State private var feedback: String?
+  @State private var showsRemovalConfirmation = false
 
   init(
     profile: AppProfile,
@@ -27,8 +28,17 @@ struct AppProfileBackendRow: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack {
-        Text(profile.bundleIdentifier).font(.headline)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(profile.bundleIdentifier).font(.headline)
+          Text(backendSummary).font(.caption).foregroundStyle(.secondary)
+        }
         Spacer()
+        Label(
+          profile.isEnabled ? "Active" : "Disabled",
+          systemImage: profile.isEnabled ? "checkmark.circle.fill" : "pause.circle"
+        )
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(profile.isEnabled ? .green : .secondary)
         Button(profile.isEnabled ? "Disable" : "Enable", action: toggleEnabled)
           .buttonStyle(.bordered)
       }
@@ -70,8 +80,31 @@ struct AppProfileBackendRow: View {
       if let feedback {
         Text(feedback).font(.caption).foregroundStyle(.secondary)
       }
-      Divider()
+      HStack {
+        Spacer()
+        Button("Remove profile", role: .destructive, action: { showsRemovalConfirmation = true })
+          .buttonStyle(.bordered)
+      }
+      .confirmationDialog(
+        "Remove \(profile.bundleIdentifier)?",
+        isPresented: $showsRemovalConfirmation,
+        titleVisibility: .visible
+      ) {
+        Button("Remove profile", role: .destructive, action: removeProfile)
+      } message: {
+        Text("This removes only this app profile and its consent choices.")
+      }
     }
+    .padding(14)
+    .background(
+      WriteItTheme.cardFill,
+      in: RoundedRectangle(cornerRadius: WriteItTheme.cardCornerRadius, style: .continuous)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: WriteItTheme.cardCornerRadius, style: .continuous).stroke(
+        WriteItTheme.cardStroke)
+    )
+    .opacity(profile.isEnabled ? 1 : 0.72)
   }
 
   private var effectiveBackendID: String {
@@ -80,6 +113,10 @@ struct AppProfileBackendRow: View {
 
   private var requiresCloudConsent: Bool {
     CloudOCRProvider(rawValue: effectiveBackendID) != nil
+  }
+
+  private var backendSummary: String {
+    backendID.isEmpty ? "Using global recognizer" : "Overrides recognizer: \(backendID)"
   }
 
   private func toggleEnabled() {
@@ -115,6 +152,14 @@ struct AppProfileBackendRow: View {
       try profiles.setAICleanupConsent(consent, for: profile.id)
     } catch {
       feedback = (error as? LocalizedError)?.errorDescription ?? "AI cleanup consent could not be updated."
+    }
+  }
+
+  private func removeProfile() {
+    do {
+      try profiles.remove(profile.id)
+    } catch {
+      feedback = (error as? LocalizedError)?.errorDescription ?? "Profile could not be removed."
     }
   }
 }

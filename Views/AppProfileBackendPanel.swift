@@ -11,12 +11,24 @@ struct AppProfileBackendPanel: View {
   var body: some View {
     GroupBox("App profiles") {
       VStack(alignment: .leading, spacing: 12) {
-        Text("Profiles may override the global recognizer. Cloud choices require explicit consent for each app.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        Button("Add current app profile", action: addCurrentProfile)
+        HStack(alignment: .top) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Profiles override recognition and privacy choices for one app.")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+            Text("\(profiles.profiles.filter(\.isEnabled).count) active of \(profiles.profiles.count)")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          Spacer()
+          Button("Add current app profile", systemImage: "plus", action: addCurrentProfile)
+            .buttonStyle(.bordered)
+        }
         if profiles.profiles.isEmpty {
-          Text("No app profiles configured.").foregroundStyle(.secondary)
+          ContentUnavailableView(
+            "No app profiles",
+            systemImage: "rectangle.stack.badge.plus",
+            description: Text("Add the foreground app to customize its recognizer and consent."))
         } else {
           ForEach(profiles.profiles) { profile in
             AppProfileBackendRow(

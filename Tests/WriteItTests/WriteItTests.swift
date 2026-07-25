@@ -4159,8 +4159,20 @@ private func releaseData(assetName: String, assetURL: URL) throws -> Data {
       "name": assetName,
       "browser_download_url": assetURL.absoluteString,
     ]],
-  ])
-}
+    ])
+  }
+
+  @Test("removes only the selected app profile") @MainActor
+  func removesSelectedProfile() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    let first = try AppProfile(bundleIdentifier: "com.example.first")
+    let second = try AppProfile(bundleIdentifier: "com.example.second")
+    try store.replaceProfiles([first, second])
+
+    try store.remove(first.id)
+
+    #expect(store.profiles == [second])
+  }
 
 private actor TestGitHubReleaseRequester: GitHubReleaseRequesting {
   let responses: [URL: GitHubReleaseHTTPResponse]

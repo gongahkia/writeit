@@ -235,6 +235,10 @@ final class AppProfileStore: ObservableObject {
     })
   }
 
+  func remove(_ profileID: UUID) throws {
+    try replaceProfiles(profiles.filter { $0.id != profileID })
+  }
+
   func setRecognitionBackendID(_ backendID: String?, for profileID: UUID) throws {
     try replaceProfiles(profiles.map {
       $0.id == profileID
