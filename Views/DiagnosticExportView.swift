@@ -7,11 +7,16 @@ struct DiagnosticExportView: View {
   @State private var message: String?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(alignment: .top) {
+        Text("Export diagnostics").font(.subheadline)
+        Spacer()
+        Button("Export", systemImage: "square.and.arrow.up", action: exportDiagnostics)
+          .buttonStyle(.bordered)
+      }
       Text("Exports event codes and timestamps only. Text, ink, screenshots, identifiers, credentials, and other local data are excluded.")
         .font(.caption)
         .foregroundStyle(.secondary)
-      Button("Export diagnostics", action: exportDiagnostics)
       if let message {
         Text(message).font(.caption).foregroundStyle(.secondary)
       }

@@ -177,31 +177,12 @@ struct PrivacySettingsView: View {
           .foregroundStyle(.secondary)
         Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
       }
-      Section("Diagnostics") {
-        Toggle(
-          "Do not retain diagnostic logs",
-          isOn: Binding(
-            get: { preferences.retainsLocalLogs == false },
-            set: { preferences.retainsLocalLogs = !$0 }
-          )
+      Section {
+        DiagnosticsPrivacyPanel(
+          preferences: preferences,
+          diagnostics: diagnostics,
+          metrics: metrics
         )
-        .onChange(of: preferences.retainsLocalLogs) { _, retainsLocalLogs in
-          diagnostics.setRetainsLocalLogs(retainsLocalLogs)
-        }
-        Text("Turning this on immediately deletes local diagnostic events and prevents new events from being saved.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        Divider()
-        DiagnosticExportView(diagnostics: diagnostics)
-      }
-      Section("Anonymous metrics") {
-        Toggle("Share anonymous metrics", isOn: $preferences.allowsAnonymousMetrics)
-          .onChange(of: preferences.allowsAnonymousMetrics) { _, allowsAnonymousMetrics in
-            metrics.setConsent(allowsAnonymousMetrics)
-          }
-        Text("Optional fixed lifecycle codes are queued locally only. This build does not send metrics.")
-          .font(.caption)
-          .foregroundStyle(.secondary)
       }
       Section("Delete local data") {
         Toggle(isOn: $deleteHistory) {

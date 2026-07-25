@@ -621,6 +621,23 @@ struct DiagnosticExportTests {
 }
 
 struct PrivacyStateRegressionTests {
+  @Test("describes diagnostics and metrics opt-in states")
+  func describesDiagnosticsAndMetricsStates() {
+    let defaultState = PrivacyControlsPresentation(
+      retainsDiagnosticLogs: true,
+      sharesAnonymousMetrics: false
+    )
+    let optOutState = PrivacyControlsPresentation(
+      retainsDiagnosticLogs: false,
+      sharesAnonymousMetrics: true
+    )
+
+    #expect(defaultState.diagnosticsTitle == "Local diagnostics retained")
+    #expect(defaultState.metricsTitle == "Not sharing")
+    #expect(optOutState.diagnosticsSymbol == "internaldrive.fill.badge.xmark")
+    #expect(optOutState.metricsSymbol == "checkmark.circle.fill")
+  }
+
   @Test("default and opted-out privacy states retain no extra local content") @MainActor
   func protectsDefaultAndOptedOutStates() throws {
     let directory = FileManager.default.temporaryDirectory
