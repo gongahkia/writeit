@@ -201,7 +201,8 @@ struct RecognitionContractTests {
     let service = GoogleVisionRecognitionService(apiKey: "  ", requester: requester)
 
     do {
-      _ = try await service.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      _ = try await service.recognize(
+        RecognitionRequest(imageData: Data([1]), language: .english, allowsCloudOCR: true))
       Issue.record("an empty API key must be rejected")
     } catch let error as RecognitionError {
       #expect(error.errorDescription == "Google Cloud Vision is not configured.")
@@ -262,7 +263,8 @@ struct RecognitionContractTests {
     )
 
     do {
-      _ = try await service.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      _ = try await service.recognize(
+        RecognitionRequest(imageData: Data([1]), language: .english, allowsCloudOCR: true))
       Issue.record("a non-Azure endpoint must be rejected")
     } catch let error as RecognitionError {
       #expect(error.errorDescription == "Azure AI Vision is not configured.")
