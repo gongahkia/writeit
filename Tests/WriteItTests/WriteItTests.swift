@@ -678,7 +678,15 @@ struct OnboardingStoreTests {
     #expect(onboarding.canGoBack)
     onboarding.goBack()
     #expect(onboarding.currentStep == .accessibility)
-    for _ in OnboardingStep.allCases { onboarding.advance() }
+    for _ in OnboardingStep.allCases {
+      if onboarding.currentStep == .cloudConsent {
+        #expect(onboarding.canAdvance == false)
+        onboarding.advance()
+        #expect(onboarding.currentStep == .cloudConsent)
+        onboarding.acknowledgeCloudPrivacy()
+      }
+      onboarding.advance()
+    }
 
     #expect(onboarding.isComplete)
     #expect(OnboardingStore(defaults: defaults).isActive == false)

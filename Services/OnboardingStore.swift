@@ -76,6 +76,7 @@ enum OnboardingRecognitionSelectionState: Equatable {
 final class OnboardingStore: ObservableObject {
   @Published private(set) var currentStep: OnboardingStep
   @Published private(set) var isComplete: Bool
+  @Published private(set) var hasAcknowledgedCloudPrivacy = false
 
   private let defaults: UserDefaults
 
@@ -87,8 +88,12 @@ final class OnboardingStore: ObservableObject {
 
   var isActive: Bool { isComplete == false }
   var canGoBack: Bool { currentStep.rawValue > OnboardingStep.accessibility.rawValue }
+  var canAdvance: Bool {
+    currentStep != .cloudConsent || hasAcknowledgedCloudPrivacy
+  }
 
   func advance() {
+    guard canAdvance else { return }
     guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else {
       complete()
       return
@@ -101,7 +106,11 @@ final class OnboardingStore: ObservableObject {
     currentStep = previous
   }
 
-  func complete() {
+  func acknowledgeCloudPrivacy() {
+    hasAcknowledgedCloudPrivacy = true
+  }
+
+  private func complete() {
     isComplete = true
     defaults.set(true, forKey: Self.completedDefaultsKey)
   }

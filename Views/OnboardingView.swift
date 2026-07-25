@@ -31,6 +31,9 @@ struct OnboardingView: View {
           if onboarding.currentStep == .recognition {
             recognitionSetup
           }
+          if onboarding.currentStep == .cloudConsent {
+            cloudPrivacySetup
+          }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(4)
@@ -129,6 +132,21 @@ struct OnboardingView: View {
   }
 
   private var canContinue: Bool {
-    onboarding.currentStep != .recognition || recognitionSelection.allowsAdvance
+    onboarding.canAdvance && (
+      onboarding.currentStep != .recognition || recognitionSelection.allowsAdvance
+    )
+  }
+
+  @ViewBuilder
+  private var cloudPrivacySetup: some View {
+    Text(CloudOCRDisclosure.message)
+    Text(AICleanupDisclosure.message)
+    Text("Both stay off until you explicitly allow them for an individual app profile.")
+      .foregroundStyle(.secondary)
+    Button(
+      onboarding.hasAcknowledgedCloudPrivacy ? "Cloud privacy reviewed" : "I understand",
+      action: onboarding.acknowledgeCloudPrivacy
+    )
+    .disabled(onboarding.hasAcknowledgedCloudPrivacy)
   }
 }
