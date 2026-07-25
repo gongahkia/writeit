@@ -124,7 +124,7 @@ final class DiagnosticEventStore: ObservableObject {
       let archive = try JSONDecoder().decode(DiagnosticEventArchive.self, from: Data(contentsOf: fileURL))
       guard archive.schemaVersion == DiagnosticEventArchive.currentSchemaVersion,
         Set(archive.events.map(\.id)).count == archive.events.count,
-        archive.events.allSatisfy { $0.schemaVersion == DiagnosticEvent.currentSchemaVersion }
+        archive.events.allSatisfy({ $0.schemaVersion == DiagnosticEvent.currentSchemaVersion })
       else { throw DiagnosticEventStoreError.invalidArchive }
       return archive.events
     } catch let error as DiagnosticEventStoreError {

@@ -545,9 +545,9 @@ struct DiagnosticEventStoreTests {
     let encodedEvents = try #require(archive["events"] as? [[String: Any]])
 
     #expect(restored.events == [initialEvents[2]])
-    #expect(Set(archive.keys) == ["schema_version", "events"])
+    #expect(Set(archive.keys) == Set(["schema_version", "events"]))
     #expect(encodedEvents.allSatisfy {
-      Set($0.keys) == ["id", "schema_version", "occurred_at", "kind"]
+      Set($0.keys) == Set(["id", "schema_version", "occurred_at", "kind"])
     })
   }
 
