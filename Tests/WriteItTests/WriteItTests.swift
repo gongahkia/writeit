@@ -2738,6 +2738,31 @@ struct AppProfileStoreTests {
 }
 
 struct HistoryStoreTests {
+  @Test("retains ink only when full history is selected") @MainActor
+  func retainsInkOnlyForFullHistory() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fullURL = directory.appendingPathComponent("full.sealed")
+    let textOnlyURL = directory.appendingPathComponent("text-only.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let strokes = [
+      InkStroke(points: [
+        InkPoint(x: 13, y: 37, pressure: 0.8, timestamp: 0, inputSource: .stylus),
+        InkPoint(x: 89, y: 55, pressure: 0.6, timestamp: 0.2, inputSource: .stylus),
+      ]),
+    ]
+
+    let fullHistory = HistoryStore(fileURL: fullURL, key: key)
+    fullHistory.append(text: "full retention", strokes: strokes, mode: .full, source: "Vision")
+    #expect(HistoryStore(fileURL: fullURL, key: key).entries.first?.strokes == strokes)
+    #expect(try Data(contentsOf: fullURL).range(of: Data("full retention".utf8)) == nil)
+
+    let textOnlyHistory = HistoryStore(fileURL: textOnlyURL, key: key)
+    textOnlyHistory.append(
+      text: "text-only retention", strokes: strokes, mode: .textOnly, source: "Vision")
+    #expect(HistoryStore(fileURL: textOnlyURL, key: key).entries.first?.strokes == nil)
+  }
+
   @Test("removes only entries older than the cutoff") @MainActor
   func removesOnlyEntriesOlderThanCutoff() {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
