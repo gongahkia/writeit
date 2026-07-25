@@ -384,6 +384,7 @@ struct ConfigurationArchiveTests {
     preferences.customWords = CustomWordList(words: ["WriteIt", "Café"])
     preferences.historyMode = .full
     preferences.retainsLocalLogs = false
+    preferences.allowsAnonymousMetrics = true
     preferences.aiEnabled = true
     preferences.aiBaseURL = "https://cleanup.example.test/v1/chat/completions"
     preferences.aiModel = "cleanup-model"
@@ -426,6 +427,7 @@ struct ConfigurationArchiveTests {
     #expect(text.contains("diagnostic") == false)
     #expect(text.contains("isValidated") == false)
     #expect(text.contains("retainsLocalLogs") == false)
+    #expect(text.contains("allowsAnonymousMetrics") == false)
   }
 
   @Test("rejects unsupported configuration schema versions")
@@ -587,6 +589,35 @@ struct DiagnosticEventStoreTests {
     #expect(store.events.isEmpty)
     #expect(store.error?.message == "Saved diagnostic events could not be read.")
     #expect(preserved.contains("must-not-persist"))
+  }
+}
+
+struct AnonymousMetricsQueueTests {
+  @Test("queues fixed anonymous lifecycle events only after consent") @MainActor
+  func queuesOnlyWithConsent() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-metrics-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let now = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    let queue = AnonymousMetricsQueue(directory: directory, now: { now })
+
+    queue.enqueue(.runtimeStarted, at: now)
+    #expect(queue.events.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: directory.path) == false)
+
+    queue.setConsent(true)
+    queue.enqueue(.runtimeStarted, at: now)
+    let data = try Data(contentsOf: directory.appendingPathComponent("queue.json"))
+    let archive = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let events = try #require(archive["events"] as? [[String: Any]])
+
+    #expect(queue.events.map(\.kind) == [.runtimeStarted])
+    #expect(Set(archive.keys) == Set(["schema_version", "events"]))
+    #expect(events.allSatisfy { Set($0.keys) == Set(["schema_version", "occurred_at", "kind"]) })
+
+    queue.setConsent(false)
+    #expect(queue.events.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: directory.path) == false)
   }
 }
 
@@ -2480,6 +2511,7 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     #expect(preferences.historyAutoDelete)
     #expect(preferences.retainsLocalLogs)
+    #expect(preferences.allowsAnonymousMetrics == false)
     #expect(preferences.historyRetentionDays == 7)
     #expect(preferences.historyMode == .textOnly)
     #expect(preferences.clipboardHandling == .restorePrevious)
@@ -2531,6 +2563,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.retainsLocalLogs = false
     #expect(Preferences(defaults: defaults).retainsLocalLogs == false)
+  }
+
+  @Test("persists anonymous-metrics consent")
+  func persistsAnonymousMetricsConsent() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.allowsAnonymousMetrics = true
+    #expect(Preferences(defaults: defaults).allowsAnonymousMetrics)
   }
 
   @Test("persists the selected recognition language")
@@ -2970,18 +3010,22 @@ struct LocalDataDeletionTests {
     let historyURL = directory.appendingPathComponent("history.sealed")
     let modelsDirectory = directory.appendingPathComponent("Models", isDirectory: true)
     let diagnosticsDirectory = directory.appendingPathComponent("Diagnostics", isDirectory: true)
+    let metricsDirectory = directory.appendingPathComponent("Metrics", isDirectory: true)
     let history = HistoryStore(fileURL: historyURL, key: SymmetricKey(size: .bits256))
     history.append(HistoryEntry(text: "private history", strokes: nil, source: "Vision"))
     let models = ModelStore(modelsDirectory: modelsDirectory)
     try Data("model".utf8).write(to: modelsDirectory.appendingPathComponent("staged.asset"))
     try FileManager.default.createDirectory(at: diagnosticsDirectory, withIntermediateDirectories: true)
     try Data("diagnostic".utf8).write(to: diagnosticsDirectory.appendingPathComponent("events.json"))
+    try FileManager.default.createDirectory(at: metricsDirectory, withIntermediateDirectories: true)
+    try Data("metric".utf8).write(to: metricsDirectory.appendingPathComponent("queue.json"))
     let credentials = TestCredentialDataEraser()
     let controller = LocalDataDeletionController(
       eraser: LocalDataEraser(
         history: history,
         models: models,
         diagnosticDirectory: diagnosticsDirectory,
+        metricsDirectory: metricsDirectory,
         credentials: credentials
       ))
 
@@ -2991,6 +3035,7 @@ struct LocalDataDeletionTests {
     #expect(FileManager.default.fileExists(atPath: historyURL.path) == false)
     #expect(try FileManager.default.contentsOfDirectory(atPath: modelsDirectory.path).isEmpty)
     #expect(FileManager.default.fileExists(atPath: diagnosticsDirectory.path) == false)
+    #expect(FileManager.default.fileExists(atPath: metricsDirectory.path) == false)
     #expect(credentials.excludedAccounts == [Set([HistoryStore.keychainAccount])])
     #expect(controller.deletedCategories == LocalDataCategory.allCases)
     #expect(controller.error == nil)

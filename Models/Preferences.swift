@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 8
+  static let currentSchemaVersion = 9
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -55,6 +55,9 @@ final class Preferences: ObservableObject {
   }
   @Published var retainsLocalLogs: Bool {
     didSet { defaults.set(retainsLocalLogs, forKey: Key.retainsLocalLogs.rawValue) }
+  }
+  @Published var allowsAnonymousMetrics: Bool {
+    didSet { defaults.set(allowsAnonymousMetrics, forKey: Key.allowsAnonymousMetrics.rawValue) }
   }
   @Published var aiEnabled: Bool {
     didSet { defaults.set(aiEnabled, forKey: Key.aiEnabled.rawValue) }
@@ -127,6 +130,7 @@ final class Preferences: ObservableObject {
     historyRetentionDays = Self.validRetentionDays(
       defaults.integer(forKey: Key.historyRetentionDays.rawValue))
     retainsLocalLogs = defaults.bool(forKey: Key.retainsLocalLogs.rawValue)
+    allowsAnonymousMetrics = defaults.bool(forKey: Key.allowsAnonymousMetrics.rawValue)
     aiEnabled = defaults.bool(forKey: Key.aiEnabled.rawValue)
     aiBaseURL = defaults.string(forKey: Key.aiBaseURL.rawValue) ?? Self.defaultAIBaseURL
     aiModel = defaults.string(forKey: Key.aiModel.rawValue) ?? Self.defaultAIModel
@@ -176,6 +180,7 @@ final class Preferences: ObservableObject {
     case historyAutoDelete
     case historyRetentionDays
     case retainsLocalLogs
+    case allowsAnonymousMetrics
     case aiEnabled
     case aiBaseURL
     case aiModel
@@ -196,6 +201,7 @@ final class Preferences: ObservableObject {
       Key.verifyPasteDelivery.rawValue: false,
       Key.historyRetentionDays.rawValue: 7,
       Key.retainsLocalLogs.rawValue: true,
+      Key.allowsAnonymousMetrics.rawValue: false,
       Key.aiEnabled.rawValue: false,
       Key.aiBaseURL.rawValue: defaultAIBaseURL,
       Key.aiModel.rawValue: defaultAIModel,

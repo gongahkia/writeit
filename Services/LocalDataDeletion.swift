@@ -42,6 +42,8 @@ final class LocalDataEraser: LocalDataErasing {
   private let models: ModelStore
   private let diagnosticDirectory: URL
   private let diagnostics: DiagnosticEventStore?
+  private let metricsDirectory: URL
+  private let metrics: AnonymousMetricsQueue?
   private let credentials: any CredentialDataErasing
 
   init(
@@ -49,12 +51,16 @@ final class LocalDataEraser: LocalDataErasing {
     models: ModelStore,
     diagnosticDirectory: URL = DiagnosticLogStore.defaultDirectory,
     diagnostics: DiagnosticEventStore? = nil,
+    metricsDirectory: URL = MetricsQueueStore.defaultDirectory,
+    metrics: AnonymousMetricsQueue? = nil,
     credentials: any CredentialDataErasing = KeychainCredentialDataEraser()
   ) {
     self.history = history
     self.models = models
     self.diagnosticDirectory = diagnosticDirectory
     self.diagnostics = diagnostics
+    self.metricsDirectory = metricsDirectory
+    self.metrics = metrics
     self.credentials = credentials
   }
 
@@ -65,6 +71,9 @@ final class LocalDataEraser: LocalDataErasing {
     case .diagnostics:
       if let diagnostics { try diagnostics.erase() }
       else { try DiagnosticLogStore.erase(at: diagnosticDirectory) }
+    case .metrics:
+      if let metrics { try metrics.erase() }
+      else { try MetricsQueueStore.erase(at: metricsDirectory) }
     case .credentials: try credentials.eraseAll(excluding: [HistoryStore.keychainAccount])
     }
   }

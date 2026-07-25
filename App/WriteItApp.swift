@@ -31,6 +31,7 @@ struct WriteItApp: App {
         models: appDelegate.runtime.models,
         dataDeletion: appDelegate.runtime.dataDeletion,
         diagnostics: appDelegate.runtime.diagnostics,
+        metrics: appDelegate.runtime.metrics,
         configurationImport: appDelegate.runtime.configurationImport,
         cloudProviders: appDelegate.runtime.cloudProviders,
         profiles: appDelegate.runtime.profiles,

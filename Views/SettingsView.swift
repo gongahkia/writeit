@@ -156,12 +156,14 @@ struct PrivacySettingsView: View {
   @ObservedObject var history: HistoryStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
   @ObservedObject var diagnostics: DiagnosticEventStore
+  @ObservedObject var metrics: AnonymousMetricsQueue
   @ObservedObject var configurationImport: ConfigurationImportController
   @ObservedObject var profiles: AppProfileStore
   @ObservedObject var cloudProviders: CloudOCRProviderStore
   @State private var deleteHistory = false
   @State private var deleteModels = false
   @State private var deleteDiagnostics = false
+  @State private var deleteMetrics = false
   @State private var deleteCredentials = false
   @State private var showsDeletionConfirmation = false
 
@@ -180,6 +182,11 @@ struct PrivacySettingsView: View {
       if let error = diagnostics.error {
         Section("Recent error") {
           CaptureErrorBanner(error: error, dismiss: diagnostics.clearError)
+        }
+      }
+      if let error = metrics.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: metrics.clearError)
         }
       }
       Section("History") {
@@ -206,6 +213,15 @@ struct PrivacySettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
       }
+      Section("Anonymous metrics") {
+        Toggle("Share anonymous metrics", isOn: $preferences.allowsAnonymousMetrics)
+          .onChange(of: preferences.allowsAnonymousMetrics) { _, allowsAnonymousMetrics in
+            metrics.setConsent(allowsAnonymousMetrics)
+          }
+        Text("Optional fixed lifecycle codes are queued locally only. This build does not send metrics.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
       Section("Delete local data") {
         Toggle(isOn: $deleteHistory) {
           VStack(alignment: .leading) {
@@ -223,6 +239,12 @@ struct PrivacySettingsView: View {
           VStack(alignment: .leading) {
             Text(LocalDataCategory.diagnostics.title)
             Text(LocalDataCategory.diagnostics.detail).font(.caption).foregroundStyle(.secondary)
+          }
+        }
+        Toggle(isOn: $deleteMetrics) {
+          VStack(alignment: .leading) {
+            Text(LocalDataCategory.metrics.title)
+            Text(LocalDataCategory.metrics.detail).font(.caption).foregroundStyle(.secondary)
           }
         }
         Toggle(isOn: $deleteCredentials) {
@@ -271,6 +293,7 @@ struct PrivacySettingsView: View {
     if deleteHistory { categories.insert(.history) }
     if deleteModels { categories.insert(.models) }
     if deleteDiagnostics { categories.insert(.diagnostics) }
+    if deleteMetrics { categories.insert(.metrics) }
     if deleteCredentials { categories.insert(.credentials) }
     return categories
   }
@@ -287,6 +310,7 @@ struct PrivacySettingsView: View {
     case .history: deleteHistory = value
     case .models: deleteModels = value
     case .diagnostics: deleteDiagnostics = value
+    case .metrics: deleteMetrics = value
     case .credentials: deleteCredentials = value
     }
   }

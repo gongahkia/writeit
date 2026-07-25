@@ -27,6 +27,7 @@ struct ContentView: View {
   @ObservedObject var models: ModelStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
   @ObservedObject var diagnostics: DiagnosticEventStore
+  @ObservedObject var metrics: AnonymousMetricsQueue
   @ObservedObject var configurationImport: ConfigurationImportController
   @ObservedObject var cloudProviders: CloudOCRProviderStore
   @ObservedObject var profiles: AppProfileStore
@@ -67,6 +68,7 @@ struct ContentView: View {
           history: history,
           dataDeletion: dataDeletion,
           diagnostics: diagnostics,
+          metrics: metrics,
           configurationImport: configurationImport,
           profiles: profiles,
           cloudProviders: cloudProviders
