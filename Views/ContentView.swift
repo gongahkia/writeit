@@ -25,7 +25,10 @@ struct ContentView: View {
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
   @ObservedObject var models: ModelStore
-  let recognitionCapabilities: RecognitionBackendCapabilities
+  @ObservedObject var cloudProviders: CloudOCRProviderStore
+  @ObservedObject var profiles: AppProfileStore
+  let profileCreator: CurrentAppProfileCreator
+  let recognitionRegistry: RecognitionBackendRegistry
   @State private var section: MainSection = .capture
 
   var body: some View {
@@ -45,9 +48,11 @@ struct ContentView: View {
           history: history, preferences: preferences, onCleanup: capture.cleanupHistory)
       case .models:
         ModelCatalogView(
-          models: models,
           preferences: preferences,
-          recognitionCapabilities: recognitionCapabilities
+          cloudProviders: cloudProviders,
+          profiles: profiles,
+          profileCreator: profileCreator,
+          registry: recognitionRegistry
         )
       case .cleanup:
         CleanupSettingsView(capture: capture, preferences: preferences)

@@ -30,7 +30,10 @@ struct WriteItApp: App {
         preferences: appDelegate.runtime.preferences,
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
-        recognitionCapabilities: appDelegate.runtime.recognition.capabilities
+        cloudProviders: appDelegate.runtime.cloudProviders,
+        profiles: appDelegate.runtime.profiles,
+        profileCreator: appDelegate.runtime.profileCreator,
+        recognitionRegistry: appDelegate.runtime.recognitionRegistry
       )
       .frame(minWidth: 820, minHeight: 560)
     }

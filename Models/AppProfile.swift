@@ -51,6 +51,15 @@ struct AppProfile: Codable, Sendable, Equatable, Identifiable {
     )
   }
 
+  func settingOverrides(_ overrides: AppProfileOverrides) -> Self {
+    Self(
+      id: id,
+      canonicalBundleIdentifier: bundleIdentifier,
+      isEnabled: isEnabled,
+      overrides: overrides
+    )
+  }
+
   private enum CodingKeys: String, CodingKey {
     case id
     case bundleIdentifier
@@ -99,6 +108,28 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     self.aiCleanupEnabled = aiCleanupEnabled
     self.customWords = customWords
     self.cloudOCRConsent = cloudOCRConsent
+  }
+
+  func settingRecognitionBackendID(_ recognitionBackendID: String?) -> Self {
+    Self(
+      recognitionLanguage: recognitionLanguage,
+      recognitionBackendID: recognitionBackendID,
+      outputStrategy: outputStrategy,
+      aiCleanupEnabled: aiCleanupEnabled,
+      customWords: customWords,
+      cloudOCRConsent: cloudOCRConsent
+    )
+  }
+
+  func settingCloudOCRConsent(_ cloudOCRConsent: CloudOCRConsent?) -> Self {
+    Self(
+      recognitionLanguage: recognitionLanguage,
+      recognitionBackendID: recognitionBackendID,
+      outputStrategy: outputStrategy,
+      aiCleanupEnabled: aiCleanupEnabled,
+      customWords: customWords,
+      cloudOCRConsent: cloudOCRConsent
+    )
   }
 }
 
@@ -179,6 +210,22 @@ final class AppProfileStore: ObservableObject {
   func setEnabled(_ isEnabled: Bool, for profileID: UUID) throws {
     try replaceProfiles(profiles.map {
       $0.id == profileID ? $0.settingEnabled(isEnabled) : $0
+    })
+  }
+
+  func setRecognitionBackendID(_ backendID: String?, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID
+        ? $0.settingOverrides($0.overrides.settingRecognitionBackendID(backendID))
+        : $0
+    })
+  }
+
+  func setCloudOCRConsent(_ consent: CloudOCRConsent?, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID
+        ? $0.settingOverrides($0.overrides.settingCloudOCRConsent(consent))
+        : $0
     })
   }
 

@@ -1904,6 +1904,7 @@ struct PreferencesTests {
     #expect(preferences.clipboardHandling == .restorePrevious)
     #expect(preferences.verifyPasteDelivery == false)
     #expect(preferences.customWords == CustomWordList(words: []))
+    #expect(preferences.recognitionBackendID == "apple-vision")
     #expect(preferences.penUpDelay == 1.2)
     #expect(preferences.inkStyle == .default)
     #expect(defaults.integer(forKey: "schemaVersion") == Preferences.currentSchemaVersion)
@@ -1949,6 +1950,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.recognitionLanguage = .italian
     #expect(Preferences(defaults: defaults).recognitionLanguage == .italian)
+  }
+
+  @Test("persists the global recognition backend")
+  func persistsRecognitionBackend() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.recognitionBackendID = "google-cloud-vision"
+    #expect(Preferences(defaults: defaults).recognitionBackendID == "google-cloud-vision")
   }
 
   @Test("persists normalized global custom words")
@@ -2132,6 +2141,23 @@ struct AppProfileStoreTests {
       override: \.recognitionBackendID,
       global: ModelStore.appleVisionModelID
     ) == ModelStore.appleVisionModelID)
+  }
+
+  @Test("persists profile backend and cloud-consent mutations") @MainActor
+  func persistsProfileBackendAndConsentMutations() throws {
+    let defaults = makeDefaults()
+    let store = AppProfileStore(defaults: defaults)
+    let profile = try AppProfile(bundleIdentifier: "com.example.editor")
+    try store.replaceProfiles([profile])
+
+    try store.setRecognitionBackendID("google-cloud-vision", for: profile.id)
+    try store.setCloudOCRConsent(CloudOCRConsent(), for: profile.id)
+
+    let restored = try #require(
+      AppProfileStore(defaults: defaults).profile(matching: "com.example.editor")
+    )
+    #expect(restored.overrides.recognitionBackendID == "google-cloud-vision")
+    #expect(restored.overrides.cloudOCRConsent?.allowsCloudOCR == true)
   }
 
   @Test("resolves an output strategy override only for its matching profile") @MainActor
