@@ -292,6 +292,61 @@ struct RecognitionContractTests {
     }
   }
 
+  @Test("custom OCR provider validates a versioned secure request and response contract")
+  func validatesCustomOCRProviderContract() throws {
+    let provider = try CustomOCRProviderConfiguration(
+      id: "custom.example",
+      displayName: "Example OCR",
+      endpoint: URL(string: "https://ocr.example.com/v1/recognize")!,
+      authentication: .bearerToken,
+      supportedLanguages: [.english, .french]
+    ).validated()
+    let request = try CustomOCRProviderRequest(
+      imageData: Data([1, 2, 3]),
+      imageContentType: "image/jpeg",
+      language: .french
+    )
+    let encoded = try JSONEncoder().encode(request)
+    let payload = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    #expect(payload["schema_version"] as? Int == 1)
+    #expect(payload["image_base64"] as? String == Data([1, 2, 3]).base64EncodedString())
+    #expect(payload["image_content_type"] as? String == "image/jpeg")
+    #expect(payload["language"] as? String == "fr-FR")
+
+    let result = try CustomOCRProviderResponse(text: "  bonjour\nmonde ", confidence: 0.84)
+      .recognitionResult(provider: provider, language: .french)
+    #expect(result.text == "bonjour monde")
+    #expect(result.confidence == 0.84)
+    #expect(result.backendID == "custom.example")
+  }
+
+  @Test("custom OCR provider rejects insecure or malformed contracts")
+  func rejectsInvalidCustomOCRProviderContracts() {
+    let insecureProvider = CustomOCRProviderConfiguration(
+      id: "custom.example",
+      displayName: "Example OCR",
+      endpoint: URL(string: "http://ocr.example.com")!,
+      authentication: .none,
+      supportedLanguages: [.english]
+    )
+    #expect(throws: CustomOCRProviderContractError.invalidEndpoint) {
+      try insecureProvider.validated()
+    }
+    #expect(throws: CustomOCRProviderContractError.invalidContentType) {
+      try CustomOCRProviderRequest(
+        imageData: Data([1]), imageContentType: "image/tiff", language: .english)
+    }
+    let localProvider = CustomOCRProviderConfiguration(
+      id: "custom.local",
+      displayName: "Local OCR",
+      endpoint: URL(string: "http://127.0.0.1:8080/recognize")!,
+      authentication: .none,
+      supportedLanguages: [.english]
+    )
+    let validatedLocalProvider = try? localProvider.validated()
+    #expect(validatedLocalProvider == localProvider)
+  }
+
   @Test("recognition failures map to a shared user-facing error")
   func failuresMapToPresentation() {
     let error = AppErrorPresentation.recognition(RecognitionError.noText)
