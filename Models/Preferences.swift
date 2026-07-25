@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 6
+  static let currentSchemaVersion = 7
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -39,6 +39,9 @@ final class Preferences: ObservableObject {
   }
   @Published var literalReplacementRules: LiteralReplacementRules {
     didSet { save(literalReplacementRules, key: .literalReplacementRules) }
+  }
+  @Published var regexReplacementRules: RegexReplacementRules {
+    didSet { save(regexReplacementRules, key: .regexReplacementRules) }
   }
   @Published var historyMode: HistoryMode { didSet { save(historyMode, key: .historyMode) } }
   @Published var historyAutoDelete: Bool {
@@ -102,6 +105,8 @@ final class Preferences: ObservableObject {
       .customWords, from: defaults, fallback: CustomWordList(words: []))
     let literalReplacementRulesResult = Self.load(
       .literalReplacementRules, from: defaults, fallback: LiteralReplacementRules())
+    let regexReplacementRulesResult = Self.load(
+      .regexReplacementRules, from: defaults, fallback: RegexReplacementRules())
     let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
     shortcut = shortcutResult.value
     captureMode = captureModeResult.value
@@ -113,6 +118,7 @@ final class Preferences: ObservableObject {
     recognitionBackendID = recognitionBackendIDResult.value
     customWords = customWordsResult.value
     literalReplacementRules = literalReplacementRulesResult.value
+    regexReplacementRules = regexReplacementRulesResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
@@ -136,6 +142,7 @@ final class Preferences: ObservableObject {
       recognitionBackendIDResult.error,
       customWordsResult.error,
       literalReplacementRulesResult.error,
+      regexReplacementRulesResult.error,
       historyModeResult.error,
     ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
   }
@@ -160,6 +167,7 @@ final class Preferences: ObservableObject {
     case recognitionBackendID
     case customWords
     case literalReplacementRules
+    case regexReplacementRules
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
@@ -234,6 +242,31 @@ final class Preferences: ObservableObject {
     var rules = literalReplacementRules.rules
     rules.swapAt(index, destination)
     literalReplacementRules = LiteralReplacementRules(rules: rules)
+  }
+
+  func addRegexReplacementRule(pattern: String, replacement: String) throws {
+    let rule = try RegexReplacementRule(pattern: pattern, replacement: replacement)
+    regexReplacementRules = try RegexReplacementRules(
+      rules: regexReplacementRules.rules + [rule])
+  }
+
+  func removeRegexReplacementRule(id: UUID) {
+    if let rules = try? RegexReplacementRules(
+      rules: regexReplacementRules.rules.filter { $0.id != id })
+    {
+      regexReplacementRules = rules
+    }
+  }
+
+  func moveRegexReplacementRule(id: UUID, by offset: Int) {
+    guard let index = regexReplacementRules.rules.firstIndex(where: { $0.id == id }) else { return }
+    let destination = index + offset
+    guard regexReplacementRules.rules.indices.contains(destination) else { return }
+    var rules = regexReplacementRules.rules
+    rules.swapAt(index, destination)
+    if let rules = try? RegexReplacementRules(rules: rules) {
+      regexReplacementRules = rules
+    }
   }
 
   private static func load<T: Codable>(

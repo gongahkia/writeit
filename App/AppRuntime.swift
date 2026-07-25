@@ -42,6 +42,7 @@ final class AppRuntime {
       shortcutMonitor: GlobalShortcutMonitor(),
       delivery: AccessibilityTextDelivery(),
       recognitionRegistry: backendRegistry,
+      regexReplacer: RegexReplacementService(),
       enhancer: AIEnhancer(),
       overlay: CaptureOverlayController.shared,
       loginItem: LoginItemService(),

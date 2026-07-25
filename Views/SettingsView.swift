@@ -79,6 +79,8 @@ struct CaptureSettingsView: View {
       }
       Section("Recognition replacements") {
         LiteralReplacementRulesSettingsView(preferences: preferences)
+        Divider()
+        RegexReplacementRulesSettingsView(preferences: preferences)
       }
       Section("Permissions") {
         LabeledContent(

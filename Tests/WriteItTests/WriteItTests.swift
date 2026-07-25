@@ -32,6 +32,55 @@ struct LiteralReplacementRuleTests {
   }
 }
 
+struct RegexReplacementRuleTests {
+  @Test("applies regular-expression replacements sequentially")
+  func appliesRulesInOrder() throws {
+    let rules = try RegexReplacementRules(rules: [
+      try RegexReplacementRule(pattern: "teh", replacement: "the"),
+      try RegexReplacementRule(pattern: "the (cloud)", replacement: "WriteIt $1"),
+    ])
+    #expect(try RegexReplacementWorker.apply(rules, to: "teh cloud") == "WriteIt cloud")
+  }
+
+  @Test("rejects invalid, empty, and oversized regular-expression rules")
+  func validatesRules() throws {
+    #expect(throws: RegexReplacementRuleError.emptyPattern) {
+      try RegexReplacementRule(pattern: "", replacement: "replacement")
+    }
+    #expect(throws: RegexReplacementRuleError.invalidPattern) {
+      try RegexReplacementRule(pattern: "(", replacement: "replacement")
+    }
+    #expect(throws: RegexReplacementRuleError.patternTooLong) {
+      try RegexReplacementRule(
+        pattern: String(repeating: "a", count: RegexReplacementRule.maximumPatternLength + 1),
+        replacement: "replacement")
+    }
+  }
+
+  @Test("service propagates a worker timeout") @MainActor
+  func propagatesTimeout() async throws {
+    let runner = TestRegexReplacementWorkerRunner(failure: .timedOut)
+    let service = RegexReplacementService(runner: runner)
+    let rules = try RegexReplacementRules(rules: [
+      try RegexReplacementRule(pattern: "x", replacement: "y"),
+    ])
+    await #expect(throws: RegexReplacementExecutionError.timedOut) {
+      try await service.apply(rules, to: "x")
+    }
+  }
+
+  @Test("process worker terminates at the execution deadline") @MainActor
+  func processWorkerTerminatesAtDeadline() async {
+    let runner = ProcessRegexReplacementWorkerRunner(
+      executableURL: URL(fileURLWithPath: "/bin/sh"),
+      arguments: ["-c", "exec sleep 10"]
+    )
+    await #expect(throws: RegexReplacementExecutionError.timedOut) {
+      try await runner.run(input: Data(), timeout: .milliseconds(50))
+    }
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {
@@ -2005,6 +2054,18 @@ struct PreferencesTests {
       == "the WriteIt")
   }
 
+  @Test("persists ordered regular-expression replacement rules")
+  func persistsRegexReplacementRules() throws {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.regexReplacementRules = try RegexReplacementRules(rules: [
+      try RegexReplacementRule(pattern: "teh", replacement: "the"),
+      try RegexReplacementRule(pattern: "the (cloud)", replacement: "WriteIt $1"),
+    ])
+    let saved = Preferences(defaults: defaults).regexReplacementRules
+    #expect(try RegexReplacementWorker.apply(saved, to: "teh cloud") == "WriteIt cloud")
+  }
+
   @Test("persists the selected stroke smoothing")
   func persistsStrokeSmoothing() {
     let defaults = makeDefaults()
@@ -2619,6 +2680,49 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(dependencies.delivery.deliveredRequests.first?.text == "corrected")
   }
 
+  @Test("capture applies regex replacements after literal replacements") @MainActor
+  func appliesRegexReplacementsBeforeCleanup() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.aiEnabled = true
+    dependencies.preferences.literalReplacementRules = LiteralReplacementRules(rules: [
+      try LiteralReplacementRule(find: "recognized", replacement: "corrected"),
+    ])
+    dependencies.preferences.regexReplacementRules = try RegexReplacementRules(rules: [
+      try RegexReplacementRule(pattern: "correct(ed)", replacement: "regex-$1"),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.enhancer.requests.first?.text == "regex-ed")
+    #expect(dependencies.delivery.deliveredRequests.first?.text == "regex-ed")
+  }
+
+  @Test("capture exposes regular-expression timeout failures") @MainActor
+  func exposesRegexReplacementTimeout() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.regexReplacementRules = try RegexReplacementRules(rules: [
+      try RegexReplacementRule(pattern: "recognized", replacement: "corrected"),
+    ])
+    dependencies.regexReplacer.failure = .timedOut
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(capture.session.phase == .failed("Regular-expression processing exceeded the time limit."))
+    #expect(capture.error?.message == "Regular-expression processing exceeded the time limit.")
+  }
+
   @Test("capture resolves a profile backend before the global default") @MainActor
   func resolvesProfileBackendBeforeGlobalDefault() async throws {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
@@ -3055,6 +3159,7 @@ private final class TestDependencies {
   let delivery: TestDelivery
   let recognition: any TextRecognizing
   let recognitionRegistry: TestRecognitionBackendSelector
+  let regexReplacer = TestRegexReplacer()
   let enhancer = TestEnhancer()
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
@@ -3088,12 +3193,39 @@ private final class TestDependencies {
       shortcutMonitor: shortcutMonitor,
       delivery: delivery,
       recognitionRegistry: recognitionRegistry,
+      regexReplacer: regexReplacer,
       enhancer: enhancer,
       overlay: overlay,
       loginItem: loginItem,
       foregroundApplicationResolver: foregroundApplicationResolver,
       profileOverrideResolver: profileOverrideResolver
     )
+  }
+}
+
+@MainActor
+private final class TestRegexReplacementWorkerRunner: RegexReplacementWorkerRunning {
+  let failure: RegexReplacementExecutionError?
+
+  init(failure: RegexReplacementExecutionError? = nil) {
+    self.failure = failure
+  }
+
+  func run(input: Data, timeout: Duration) async throws -> Data {
+    if let failure { throw failure }
+    return try JSONEncoder().encode(RegexReplacementWorkerResponse(text: input.base64EncodedString(), error: nil))
+  }
+}
+
+@MainActor
+private final class TestRegexReplacer: RegexReplacementApplying {
+  var failure: RegexReplacementExecutionError?
+  private(set) var requests: [(RegexReplacementRules, String)] = []
+
+  func apply(_ rules: RegexReplacementRules, to text: String) async throws -> String {
+    requests.append((rules, text))
+    if let failure { throw failure }
+    return try RegexReplacementWorker.apply(rules, to: text)
   }
 }
 

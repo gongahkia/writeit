@@ -19,7 +19,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-@main
 struct WriteItApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -46,5 +45,16 @@ struct WriteItApp: App {
       )
     }
     .menuBarExtraStyle(.menu)
+  }
+}
+
+@main
+enum WriteItMain {
+  static func main() {
+    if CommandLine.arguments.contains(RegexReplacementWorker.argument) {
+      RegexReplacementWorker.run()
+      return
+    }
+    WriteItApp.main()
   }
 }

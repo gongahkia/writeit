@@ -15,6 +15,7 @@ final class CaptureCoordinator: ObservableObject {
   private let shortcutMonitor: any GlobalShortcutMonitoring
   private let delivery: any AccessibilityDelivering
   private let recognitionRegistry: any RecognitionBackendSelecting
+  private let regexReplacer: any RegexReplacementApplying
   private let enhancer: any TextEnhancing
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
@@ -37,6 +38,7 @@ final class CaptureCoordinator: ObservableObject {
     shortcutMonitor: any GlobalShortcutMonitoring,
     delivery: any AccessibilityDelivering,
     recognitionRegistry: any RecognitionBackendSelecting,
+    regexReplacer: any RegexReplacementApplying,
     enhancer: any TextEnhancing,
     overlay: any CaptureOverlayPresenting,
     loginItem: any LoginItemManaging,
@@ -50,6 +52,7 @@ final class CaptureCoordinator: ObservableObject {
     self.shortcutMonitor = shortcutMonitor
     self.delivery = delivery
     self.recognitionRegistry = recognitionRegistry
+    self.regexReplacer = regexReplacer
     self.enhancer = enhancer
     self.overlay = overlay
     self.loginItem = loginItem
@@ -213,6 +216,8 @@ final class CaptureCoordinator: ObservableObject {
       override: \.recognitionBackendID,
       global: preferences.recognitionBackendID
     )
+    let literalReplacementRules = preferences.literalReplacementRules
+    let regexReplacementRules = preferences.regexReplacementRules
     let selectedRecognizer: any TextRecognizing
     do {
       selectedRecognizer = try recognitionRegistry.recognizer(for: selectedBackendID)
@@ -235,7 +240,7 @@ final class CaptureCoordinator: ObservableObject {
     )
     let taskID = UUID()
     captureTaskID = taskID
-    captureTask = Task { [weak self, selectedRecognizer, enhancer] in
+    captureTask = Task { [weak self, selectedRecognizer, regexReplacer, enhancer] in
       defer { self?.completeCaptureTask(id: taskID) }
       guard let self, self.ownsCaptureTask(taskID) else { return }
       do {
@@ -243,7 +248,8 @@ final class CaptureCoordinator: ObservableObject {
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID) else { return }
         guard !candidate.text.isEmpty else { throw RecognitionError.noText }
-        let replacedText = self.preferences.literalReplacementRules.applying(to: candidate.text)
+        let literalReplacedText = literalReplacementRules.applying(to: candidate.text)
+        let replacedText = try await regexReplacer.apply(regexReplacementRules, to: literalReplacedText)
         guard replacedText.isEmpty == false else { throw RecognitionError.noText }
         let metadata = RecognitionCaptureMetadata(
           source: candidate.backendID,
