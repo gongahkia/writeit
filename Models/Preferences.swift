@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 7
+  static let currentSchemaVersion = 8
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -52,6 +52,9 @@ final class Preferences: ObservableObject {
       defaults.set(
         Self.validRetentionDays(historyRetentionDays), forKey: Key.historyRetentionDays.rawValue)
     }
+  }
+  @Published var retainsLocalLogs: Bool {
+    didSet { defaults.set(retainsLocalLogs, forKey: Key.retainsLocalLogs.rawValue) }
   }
   @Published var aiEnabled: Bool {
     didSet { defaults.set(aiEnabled, forKey: Key.aiEnabled.rawValue) }
@@ -123,6 +126,7 @@ final class Preferences: ObservableObject {
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
       defaults.integer(forKey: Key.historyRetentionDays.rawValue))
+    retainsLocalLogs = defaults.bool(forKey: Key.retainsLocalLogs.rawValue)
     aiEnabled = defaults.bool(forKey: Key.aiEnabled.rawValue)
     aiBaseURL = defaults.string(forKey: Key.aiBaseURL.rawValue) ?? Self.defaultAIBaseURL
     aiModel = defaults.string(forKey: Key.aiModel.rawValue) ?? Self.defaultAIModel
@@ -171,6 +175,7 @@ final class Preferences: ObservableObject {
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
+    case retainsLocalLogs
     case aiEnabled
     case aiBaseURL
     case aiModel
@@ -190,6 +195,7 @@ final class Preferences: ObservableObject {
       Key.historyAutoDelete.rawValue: true,
       Key.verifyPasteDelivery.rawValue: false,
       Key.historyRetentionDays.rawValue: 7,
+      Key.retainsLocalLogs.rawValue: true,
       Key.aiEnabled.rawValue: false,
       Key.aiBaseURL.rawValue: defaultAIBaseURL,
       Key.aiModel.rawValue: defaultAIModel,

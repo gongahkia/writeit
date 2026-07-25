@@ -20,7 +20,7 @@ final class AppRuntime {
     preferences = Preferences(defaults: defaults)
     let historyStore = HistoryStore()
     let modelStore = ModelStore()
-    let diagnosticStore = DiagnosticEventStore()
+    let diagnosticStore = DiagnosticEventStore(retainsLocalLogs: preferences.retainsLocalLogs)
     history = historyStore
     models = modelStore
     dataDeletion = LocalDataDeletionController(

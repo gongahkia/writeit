@@ -84,24 +84,25 @@ final class DiagnosticEventStore: ObservableObject {
   private let fileURL: URL
   private let retentionPolicy: DiagnosticEventRetentionPolicy
   private let now: () -> Date
+  private var retainsLocalLogs: Bool
   private var storageAvailable: Bool
 
   init(
     directory: URL = DiagnosticLogStore.defaultDirectory,
     retentionPolicy: DiagnosticEventRetentionPolicy = .default,
+    retainsLocalLogs: Bool = true,
     now: @escaping () -> Date = Date.init
   ) {
     fileURL = directory.appendingPathComponent("events.json")
     self.retentionPolicy = retentionPolicy
     self.now = now
+    self.retainsLocalLogs = retainsLocalLogs
     storageAvailable = false
     events = []
     error = nil
     do {
-      let loaded = try Self.load(from: fileURL)
-      let retained = retentionPolicy.retained(loaded, at: now())
-      events = retained
-      if retained != loaded { try persist(retained) }
+      if retainsLocalLogs { try enableRetention() }
+      else { try erasePersistedEvents() }
       storageAvailable = true
     } catch {
       self.error = .persistence(error)
@@ -109,7 +110,7 @@ final class DiagnosticEventStore: ObservableObject {
   }
 
   func record(_ kind: DiagnosticEventKind, at occurredAt: Date? = nil) {
-    guard storageAvailable else { return }
+    guard retainsLocalLogs, storageAvailable else { return }
     let updated = retentionPolicy.retained(
       events + [DiagnosticEvent(occurredAt: occurredAt ?? now(), kind: kind)], at: now())
     do {
@@ -123,13 +124,30 @@ final class DiagnosticEventStore: ObservableObject {
 
   func erase() throws {
     do {
-      try DiagnosticLogStore.erase(at: fileURL.deletingLastPathComponent())
+      try erasePersistedEvents()
       events = []
       error = nil
       storageAvailable = true
     } catch {
       self.error = .persistence(error)
       throw error
+    }
+  }
+
+  func setRetainsLocalLogs(_ retainsLocalLogs: Bool) {
+    guard self.retainsLocalLogs != retainsLocalLogs else { return }
+    self.retainsLocalLogs = retainsLocalLogs
+    do {
+      if retainsLocalLogs { try enableRetention() }
+      else {
+        try erasePersistedEvents()
+        events = []
+      }
+      storageAvailable = true
+      error = nil
+    } catch {
+      storageAvailable = false
+      self.error = .persistence(error)
     }
   }
 
@@ -144,6 +162,17 @@ final class DiagnosticEventStore: ObservableObject {
     } catch {
       throw DiagnosticEventStoreError.persistenceFailed
     }
+  }
+
+  private func enableRetention() throws {
+    let loaded = try Self.load(from: fileURL)
+    let retained = retentionPolicy.retained(loaded, at: now())
+    events = retained
+    if retained != loaded { try persist(retained) }
+  }
+
+  private func erasePersistedEvents() throws {
+    try DiagnosticLogStore.erase(at: fileURL.deletingLastPathComponent())
   }
 
   private static func load(from fileURL: URL) throws -> [DiagnosticEvent] {

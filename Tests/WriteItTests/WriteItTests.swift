@@ -383,6 +383,7 @@ struct ConfigurationArchiveTests {
     preferences.recognitionLanguage = .french
     preferences.customWords = CustomWordList(words: ["WriteIt", "Café"])
     preferences.historyMode = .full
+    preferences.retainsLocalLogs = false
     preferences.aiEnabled = true
     preferences.aiBaseURL = "https://cleanup.example.test/v1/chat/completions"
     preferences.aiModel = "cleanup-model"
@@ -424,6 +425,7 @@ struct ConfigurationArchiveTests {
     #expect(text.contains("history.sealed") == false)
     #expect(text.contains("diagnostic") == false)
     #expect(text.contains("isValidated") == false)
+    #expect(text.contains("retainsLocalLogs") == false)
   }
 
   @Test("rejects unsupported configuration schema versions")
@@ -553,6 +555,14 @@ struct DiagnosticEventStoreTests {
     #expect(FileManager.default.fileExists(atPath: directory.path) == false)
     restored.record(.runtimeStopped, at: now)
     #expect(restored.events.map(\.kind) == [.runtimeStopped])
+    restored.setRetainsLocalLogs(false)
+    #expect(restored.events.isEmpty)
+    #expect(FileManager.default.fileExists(atPath: directory.path) == false)
+    restored.record(.runtimeStarted, at: now)
+    #expect(restored.events.isEmpty)
+    restored.setRetainsLocalLogs(true)
+    restored.record(.runtimeStarted, at: now)
+    #expect(restored.events.map(\.kind) == [.runtimeStarted])
   }
 
   @Test("fails closed for malformed or unmodeled diagnostic archives") @MainActor
@@ -2469,6 +2479,7 @@ struct PreferencesTests {
     let defaults = makeDefaults()
     let preferences = Preferences(defaults: defaults)
     #expect(preferences.historyAutoDelete)
+    #expect(preferences.retainsLocalLogs)
     #expect(preferences.historyRetentionDays == 7)
     #expect(preferences.historyMode == .textOnly)
     #expect(preferences.clipboardHandling == .restorePrevious)
@@ -2512,6 +2523,14 @@ struct PreferencesTests {
     let preferences = Preferences(defaults: defaults)
     preferences.verifyPasteDelivery = true
     #expect(Preferences(defaults: defaults).verifyPasteDelivery)
+  }
+
+  @Test("persists the no-retained-logs setting")
+  func persistsNoRetainedLogsSetting() {
+    let defaults = makeDefaults()
+    let preferences = Preferences(defaults: defaults)
+    preferences.retainsLocalLogs = false
+    #expect(Preferences(defaults: defaults).retainsLocalLogs == false)
   }
 
   @Test("persists the selected recognition language")

@@ -155,6 +155,7 @@ struct PrivacySettingsView: View {
   @ObservedObject var preferences: Preferences
   @ObservedObject var history: HistoryStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
+  @ObservedObject var diagnostics: DiagnosticEventStore
   @ObservedObject var configurationImport: ConfigurationImportController
   @ObservedObject var profiles: AppProfileStore
   @ObservedObject var cloudProviders: CloudOCRProviderStore
@@ -176,6 +177,11 @@ struct PrivacySettingsView: View {
           CaptureErrorBanner(error: error, dismiss: preferences.clearError)
         }
       }
+      if let error = diagnostics.error {
+        Section("Recent error") {
+          CaptureErrorBanner(error: error, dismiss: diagnostics.clearError)
+        }
+      }
       Section("History") {
         Picker("Retain captures", selection: $preferences.historyMode) {
           ForEach(HistoryMode.allCases) { Text($0.title).tag($0) }
@@ -184,6 +190,21 @@ struct PrivacySettingsView: View {
           .font(.caption)
           .foregroundStyle(.secondary)
         Toggle("Auto-delete history", isOn: $preferences.historyAutoDelete)
+      }
+      Section("Diagnostics") {
+        Toggle(
+          "Do not retain diagnostic logs",
+          isOn: Binding(
+            get: { preferences.retainsLocalLogs == false },
+            set: { preferences.retainsLocalLogs = !$0 }
+          )
+        )
+        .onChange(of: preferences.retainsLocalLogs) { _, retainsLocalLogs in
+          diagnostics.setRetainsLocalLogs(retainsLocalLogs)
+        }
+        Text("Turning this on immediately deletes local diagnostic events and prevents new events from being saved.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       Section("Delete local data") {
         Toggle(isOn: $deleteHistory) {
