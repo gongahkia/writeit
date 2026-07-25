@@ -198,6 +198,9 @@ final class CaptureCoordinator: ObservableObject {
         for: session.foregroundBundleIdentifier,
         override: \.recognitionLanguage,
         global: preferences.recognitionLanguage
+      ),
+      allowsCloudOCR: profileOverrideResolver.allowsCloudOCR(
+        for: session.foregroundBundleIdentifier
       )
     )
     let enhancementRequest = TextEnhancementRequest(

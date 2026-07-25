@@ -83,19 +83,22 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
   let outputStrategy: OutputStrategy?
   let aiCleanupEnabled: Bool?
   let customWords: CustomWordList?
+  let cloudOCRConsent: CloudOCRConsent?
 
   init(
     recognitionLanguage: RecognitionLanguage? = nil,
     recognitionBackendID: String? = nil,
     outputStrategy: OutputStrategy? = nil,
     aiCleanupEnabled: Bool? = nil,
-    customWords: CustomWordList? = nil
+    customWords: CustomWordList? = nil,
+    cloudOCRConsent: CloudOCRConsent? = nil
   ) {
     self.recognitionLanguage = recognitionLanguage
     self.recognitionBackendID = recognitionBackendID
     self.outputStrategy = outputStrategy
     self.aiCleanupEnabled = aiCleanupEnabled
     self.customWords = customWords
+    self.cloudOCRConsent = cloudOCRConsent
   }
 }
 
@@ -125,6 +128,10 @@ final class AppProfileOverrideResolver {
       profileOverride: profileOverride,
       global: global
     )
+  }
+
+  func allowsCloudOCR(for bundleIdentifier: String?) -> Bool {
+    profiles.profile(matching: bundleIdentifier)?.overrides.cloudOCRConsent?.allowsCloudOCR ?? false
   }
 }
 

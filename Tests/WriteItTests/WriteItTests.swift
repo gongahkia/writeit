@@ -65,6 +65,7 @@ struct RecognitionContractTests {
     #expect(request.imageData == Data([1, 2, 3]))
     #expect(request.language == .french)
     #expect(request.language.displayName == "French")
+    #expect(request.allowsCloudOCR == false)
   }
 
   @Test("recognition errors provide a user-facing explanation")
@@ -117,6 +118,39 @@ struct RecognitionContractTests {
     #expect(service.capabilities.isLocal)
   }
 
+  @Test("cloud OCR refuses unconsented captures before sending ink")
+  func cloudOCRRequiresConsent() async {
+    let googleRequester = TestGoogleVisionRequester(
+      response: GoogleVisionHTTPResponse(data: Data(), statusCode: 200))
+    let google = GoogleVisionRecognitionService(apiKey: "test-api-key", requester: googleRequester)
+    do {
+      _ = try await google.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      Issue.record("Google Cloud Vision must require profile consent")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Cloud OCR requires consent for this app profile.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
+    #expect(await googleRequester.requests.isEmpty)
+
+    let azureRequester = TestAzureVisionRequester(
+      response: AzureVisionHTTPResponse(data: Data(), statusCode: 200))
+    let azure = AzureVisionRecognitionService(
+      endpoint: URL(string: "https://writeit.cognitiveservices.azure.com")!,
+      apiKey: "test-subscription-key",
+      requester: azureRequester
+    )
+    do {
+      _ = try await azure.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      Issue.record("Azure AI Vision must require profile consent")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Cloud OCR requires consent for this app profile.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
+    #expect(await azureRequester.requests.isEmpty)
+  }
+
   @Test("Google Vision sends a document handwriting request and normalizes its result")
   func googleVisionRecognizesDocumentText() async throws {
     let requester = TestGoogleVisionRequester(
@@ -138,7 +172,7 @@ struct RecognitionContractTests {
     let imageData = CloudCredentialValidationProbe.imageData
     let encodedImage = try CloudImageRequestEncoder.encode(imageData)
     let result = try await service.recognize(
-      RecognitionRequest(imageData: imageData, language: .french))
+      RecognitionRequest(imageData: imageData, language: .french, allowsCloudOCR: true))
 
     #expect(result.text == "hello world")
     #expect(abs(result.confidence - 0.7) < 0.001)
@@ -200,7 +234,7 @@ struct RecognitionContractTests {
     let imageData = CloudCredentialValidationProbe.imageData
     let encodedImage = try CloudImageRequestEncoder.encode(imageData)
     let result = try await service.recognize(
-      RecognitionRequest(imageData: imageData, language: .italian))
+      RecognitionRequest(imageData: imageData, language: .italian, allowsCloudOCR: true))
 
     #expect(result.text == "hello azure")
     #expect(abs(result.confidence - 0.8) < 0.001)
@@ -2090,6 +2124,30 @@ struct AppProfileStoreTests {
     ) == global)
   }
 
+  @Test("requires a current cloud OCR acknowledgement for each profile") @MainActor
+  func resolvesProfileCloudOCRConsent() throws {
+    let defaults = makeDefaults()
+    let store = AppProfileStore(defaults: defaults)
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.allowed",
+        overrides: .init(cloudOCRConsent: CloudOCRConsent())
+      ),
+      AppProfile(
+        bundleIdentifier: "com.example.stale",
+        overrides: .init(cloudOCRConsent: CloudOCRConsent(disclosureVersion: 0))
+      ),
+    ])
+    let restored = AppProfileStore(defaults: defaults)
+    let resolver = AppProfileOverrideResolver(profiles: restored)
+
+    #expect(CloudOCRDisclosure.message
+      == "Cloud OCR sends the capture image to the selected cloud provider for recognition.")
+    #expect(resolver.allowsCloudOCR(for: "com.example.allowed"))
+    #expect(resolver.allowsCloudOCR(for: "com.example.stale") == false)
+    #expect(resolver.allowsCloudOCR(for: "com.example.unconfigured") == false)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()
@@ -2371,6 +2429,31 @@ struct CaptureCoordinatorLifecycleTests {
 
     let request = try #require(await recognition.requests.first)
     #expect(request.language == .french)
+    #expect(request.allowsCloudOCR == false)
+  }
+
+  @Test("capture passes cloud OCR consent from only the matching profile") @MainActor
+  func passesProfileCloudOCRConsentToRecognition() async throws {
+    let recognition = RecordingRecognition()
+    let dependencies = TestDependencies(trusted: true, recognition: recognition)
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(cloudOCRConsent: CloudOCRConsent())
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    let request = try #require(await recognition.requests.first)
+    #expect(request.allowsCloudOCR)
   }
 
   @Test("capture uses the matching profile output strategy") @MainActor

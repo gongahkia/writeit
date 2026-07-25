@@ -25,6 +25,13 @@ enum RecognitionLanguage: String, CaseIterable, Codable, Sendable, Identifiable,
 struct RecognitionRequest: Sendable {
   let imageData: Data
   let language: RecognitionLanguage
+  let allowsCloudOCR: Bool
+
+  init(imageData: Data, language: RecognitionLanguage, allowsCloudOCR: Bool = false) {
+    self.imageData = imageData
+    self.language = language
+    self.allowsCloudOCR = allowsCloudOCR
+  }
 }
 
 struct RecognitionResult: Equatable, Sendable {

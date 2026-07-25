@@ -43,6 +43,9 @@ actor AzureVisionRecognitionService: TextRecognizing, CloudCredentialValidating 
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     try Task.checkCancellation()
+    guard request.allowsCloudOCR else {
+      throw RecognitionError.unavailable("Cloud OCR requires consent for this app profile.")
+    }
     guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
       Self.isAzureEndpoint(endpoint)
     else {
