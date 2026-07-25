@@ -14,7 +14,7 @@ final class CaptureCoordinator: ObservableObject {
 
   private let shortcutMonitor: any GlobalShortcutMonitoring
   private let delivery: any AccessibilityDelivering
-  private let recognition: any TextRecognizing
+  private let recognitionRegistry: any RecognitionBackendSelecting
   private let enhancer: any TextEnhancing
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
@@ -36,7 +36,7 @@ final class CaptureCoordinator: ObservableObject {
     session: CaptureSession,
     shortcutMonitor: any GlobalShortcutMonitoring,
     delivery: any AccessibilityDelivering,
-    recognition: any TextRecognizing,
+    recognitionRegistry: any RecognitionBackendSelecting,
     enhancer: any TextEnhancing,
     overlay: any CaptureOverlayPresenting,
     loginItem: any LoginItemManaging,
@@ -49,7 +49,7 @@ final class CaptureCoordinator: ObservableObject {
     self.session = session
     self.shortcutMonitor = shortcutMonitor
     self.delivery = delivery
-    self.recognition = recognition
+    self.recognitionRegistry = recognitionRegistry
     self.enhancer = enhancer
     self.overlay = overlay
     self.loginItem = loginItem
@@ -203,6 +203,18 @@ final class CaptureCoordinator: ObservableObject {
         for: session.foregroundBundleIdentifier
       )
     )
+    let selectedBackendID = profileOverrideResolver.value(
+      for: session.foregroundBundleIdentifier,
+      override: \.recognitionBackendID,
+      global: preferences.recognitionBackendID
+    )
+    let selectedRecognizer: any TextRecognizing
+    do {
+      selectedRecognizer = try recognitionRegistry.recognizer(for: selectedBackendID)
+    } catch {
+      completeRecognitionFailure(error)
+      return
+    }
     let enhancementRequest = TextEnhancementRequest(
       text: "",
       enabled: profileOverrideResolver.value(
@@ -218,11 +230,11 @@ final class CaptureCoordinator: ObservableObject {
     )
     let taskID = UUID()
     captureTaskID = taskID
-    captureTask = Task { [weak self, recognition, enhancer] in
+    captureTask = Task { [weak self, selectedRecognizer, enhancer] in
       defer { self?.completeCaptureTask(id: taskID) }
       guard let self, self.ownsCaptureTask(taskID) else { return }
       do {
-        let candidate = try await recognition.recognize(recognitionRequest)
+        let candidate = try await selectedRecognizer.recognize(recognitionRequest)
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID) else { return }
         guard !candidate.text.isEmpty else { throw RecognitionError.noText }
@@ -282,14 +294,7 @@ final class CaptureCoordinator: ObservableObject {
         return
       } catch {
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
-        self.recognitionStartedAt = nil
-        let presentation = AppErrorPresentation.recognition(error)
-        AppLog.recognition.error(
-          "recognition_failed type=\(AppLog.errorType(error), privacy: .public)"
-        )
-        guard self.session.transition(to: .failed(presentation.message)) else { return }
-        self.error = presentation
-        self.statusMessage = presentation.message
+        self.completeRecognitionFailure(error)
       }
     }
   }
@@ -428,6 +433,17 @@ final class CaptureCoordinator: ObservableObject {
       self.statusMessage = message
       if self.preferences.resultMode != .review { self.scheduleDismissal() }
     }
+  }
+
+  private func completeRecognitionFailure(_ error: Error) {
+    recognitionStartedAt = nil
+    let presentation = AppErrorPresentation.recognition(error)
+    AppLog.recognition.error(
+      "recognition_failed type=\(AppLog.errorType(error), privacy: .public)"
+    )
+    guard session.transition(to: .failed(presentation.message)) else { return }
+    self.error = presentation
+    statusMessage = presentation.message
   }
 
   private func cancelOwnedWork() {

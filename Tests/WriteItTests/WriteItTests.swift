@@ -582,6 +582,28 @@ struct CloudOCRProviderStoreTests {
   }
 }
 
+struct RecognitionBackendRegistryTests {
+  @Test("exposes only locally available and validated cloud recognizers") @MainActor
+  func exposesValidatedBackends() async throws {
+    let store = CloudOCRProviderStore(
+      defaults: makeDefaults(),
+      credentials: TestCloudOCRCredentialStore(),
+      tester: TestCloudOCRProviderTester(status: .valid)
+    )
+    let registry = RecognitionBackendRegistry(localRecognizer: TestRecognition(), cloudProviders: store)
+    #expect(registry.availableBackends.map(\.identifier) == ["test"])
+
+    try store.configureGoogle(apiKey: "google-key")
+    _ = await store.test(.googleVision)
+    #expect(registry.availableBackends.map(\.identifier) == ["google-cloud-vision", "test"])
+    let recognizer = try registry.recognizer(for: "google-cloud-vision")
+    #expect(recognizer.capabilities.isLocal == false)
+    #expect(throws: RecognitionError.self) {
+      try registry.recognizer(for: "unknown-provider")
+    }
+  }
+}
+
 struct ManifestModelInstallerTests {
   @Test("model store exposes manifest-scoped installation state") @MainActor
   func tracksManifestInstallationState() throws {
@@ -2492,6 +2514,46 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(request.allowsCloudOCR == false)
   }
 
+  @Test("capture resolves a profile backend before the global default") @MainActor
+  func resolvesProfileBackendBeforeGlobalDefault() async throws {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.recognitionBackendID = "global-backend"
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(recognitionBackendID: "profile-backend")
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    #expect(dependencies.recognitionRegistry.requestedIdentifiers == ["profile-backend"])
+  }
+
+  @Test("capture fails visibly when the selected backend is unavailable") @MainActor
+  func failsForUnavailableSelectedBackend() {
+    let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    dependencies.preferences.recognitionBackendID = "unavailable-backend"
+    dependencies.recognitionRegistry.unavailableIdentifiers = ["unavailable-backend"]
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+
+    #expect(capture.session.phase == .failed("The selected OCR provider is unavailable."))
+    #expect(capture.statusMessage == "The selected OCR provider is unavailable.")
+  }
+
   @Test("capture passes cloud OCR consent from only the matching profile") @MainActor
   func passesProfileCloudOCRConsentToRecognition() async throws {
     let recognition = RecordingRecognition()
@@ -2887,6 +2949,7 @@ private final class TestDependencies {
   let shortcutMonitor = TestShortcutMonitor()
   let delivery: TestDelivery
   let recognition: any TextRecognizing
+  let recognitionRegistry: TestRecognitionBackendSelector
   let enhancer = TestEnhancer()
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
@@ -2901,6 +2964,7 @@ private final class TestDependencies {
   init(trusted: Bool, recognition: any TextRecognizing = TestRecognition()) {
     delivery = TestDelivery(trusted: trusted)
     self.recognition = recognition
+    recognitionRegistry = TestRecognitionBackendSelector(recognizer: recognition)
     preferences = Preferences(defaults: defaults)
     let profileStore = AppProfileStore(defaults: defaults)
     profiles = profileStore
@@ -2918,7 +2982,7 @@ private final class TestDependencies {
       session: CaptureSession(),
       shortcutMonitor: shortcutMonitor,
       delivery: delivery,
-      recognition: recognition,
+      recognitionRegistry: recognitionRegistry,
       enhancer: enhancer,
       overlay: overlay,
       loginItem: loginItem,
@@ -3050,6 +3114,27 @@ private final class TestDelivery: AccessibilityDelivering {
     return outcome
   }
   func undo() {}
+}
+
+@MainActor
+private final class TestRecognitionBackendSelector: RecognitionBackendSelecting {
+  let service: any TextRecognizing
+  private(set) var requestedIdentifiers: [String] = []
+  var unavailableIdentifiers: Set<String> = []
+
+  init(recognizer: any TextRecognizing) {
+    service = recognizer
+  }
+
+  var availableBackends: [RecognitionBackendCapabilities] { [service.capabilities] }
+
+  func recognizer(for identifier: String) throws -> any TextRecognizing {
+    requestedIdentifiers.append(identifier)
+    guard unavailableIdentifiers.contains(identifier) == false else {
+      throw RecognitionError.unavailable("The selected OCR provider is unavailable.")
+    }
+    return service
+  }
 }
 
 private actor TestRecognition: TextRecognizing {
