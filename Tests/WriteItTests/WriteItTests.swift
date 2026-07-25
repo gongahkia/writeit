@@ -117,6 +117,63 @@ struct RecognitionContractTests {
     #expect(service.capabilities.isLocal)
   }
 
+  @Test("Google Vision sends a document handwriting request and normalizes its result")
+  func googleVisionRecognizesDocumentText() async throws {
+    let requester = TestGoogleVisionRequester(
+      response: GoogleVisionHTTPResponse(
+        data: try JSONSerialization.data(withJSONObject: [
+          "responses": [[
+            "fullTextAnnotation": [
+              "text": "  hello\nworld  ",
+              "pages": [["blocks": [["paragraphs": [["words": [
+                ["confidence": 0.8], ["confidence": 0.6],
+              ]]]]]]],
+            ],
+          ]],
+        ]),
+        statusCode: 200
+      ))
+    let service = GoogleVisionRecognitionService(apiKey: "test-api-key", requester: requester)
+
+    let result = try await service.recognize(
+      RecognitionRequest(imageData: Data([1, 2, 3]), language: .french))
+
+    #expect(result.text == "hello world")
+    #expect(abs(result.confidence - 0.7) < 0.001)
+    #expect(result.backendID == "google-cloud-vision")
+    #expect(result.languageResolution == .identity(.french))
+    let sent = try #require(await requester.requests.first)
+    #expect(URLComponents(url: try #require(sent.url), resolvingAgainstBaseURL: false)?
+      .queryItems?.first(where: { $0.name == "key" })?.value == "test-api-key")
+    let body = try #require(sent.httpBody)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    let requests = try #require(json["requests"] as? [[String: Any]])
+    let request = try #require(requests.first)
+    let image = try #require(request["image"] as? [String: Any])
+    #expect(image["content"] as? String == Data([1, 2, 3]).base64EncodedString())
+    let features = try #require(request["features"] as? [[String: Any]])
+    #expect(features.first?["type"] as? String == "DOCUMENT_TEXT_DETECTION")
+    let context = try #require(request["imageContext"] as? [String: Any])
+    #expect(context["languageHints"] as? [String] == ["fr-FR"])
+  }
+
+  @Test("Google Vision refuses an empty API key without sending ink")
+  func googleVisionRequiresAPIKey() async {
+    let requester = TestGoogleVisionRequester(
+      response: GoogleVisionHTTPResponse(data: Data(), statusCode: 200))
+    let service = GoogleVisionRecognitionService(apiKey: "  ", requester: requester)
+
+    do {
+      _ = try await service.recognize(RecognitionRequest(imageData: Data([1]), language: .english))
+      Issue.record("an empty API key must be rejected")
+    } catch let error as RecognitionError {
+      #expect(error.errorDescription == "Google Cloud Vision is not configured.")
+    } catch {
+      Issue.record("unexpected error type: \(String(reflecting: type(of: error)))")
+    }
+    #expect(await requester.requests.isEmpty)
+  }
+
   @Test("recognition failures map to a shared user-facing error")
   func failuresMapToPresentation() {
     let error = AppErrorPresentation.recognition(RecognitionError.noText)
@@ -1953,6 +2010,20 @@ private actor TestGitHubReleaseRequester: GitHubReleaseRequesting {
     guard let url = request.url, let response = responses[url] else {
       throw GitHubReleaseManifestError.networkUnavailable
     }
+    return response
+  }
+}
+
+private actor TestGoogleVisionRequester: GoogleVisionRequesting {
+  let response: GoogleVisionHTTPResponse
+  private(set) var requests: [URLRequest] = []
+
+  init(response: GoogleVisionHTTPResponse) {
+    self.response = response
+  }
+
+  func data(for request: URLRequest) async throws -> GoogleVisionHTTPResponse {
+    requests.append(request)
     return response
   }
 }
