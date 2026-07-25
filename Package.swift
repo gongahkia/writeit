@@ -10,8 +10,8 @@ let package = Package(
       name: "WriteIt",
       path: ".",
       exclude: [
-        "Tests", "script", ".codex", ".github", "dist", "release", "Packaging", ".gitignore",
-        "Package.swift", "README.md", "BUILD.md", "PrivacyInfo.xcprivacy",
+        "Tests", "script", ".github", "dist", "release", "Packaging", ".gitignore",
+        "Package.swift", "README.md", "BUILD.md", "LICENSE", "PrivacyInfo.xcprivacy",
       ],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),

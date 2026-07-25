@@ -48,6 +48,14 @@ swift test
 
 See [BUILD.md](BUILD.md) for the current packaging notes.
 
+Run isolated source-beta verification on macOS with Xcode installed:
+
+```sh
+./script/verify_source_beta.sh
+```
+
+It builds and tests in temporary SwiftPM scratch paths, then removes them without modifying `.build`.
+
 ## Use
 
 1. Open WriteIt and enable Accessibility.

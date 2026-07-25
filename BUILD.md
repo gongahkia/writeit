@@ -14,6 +14,14 @@ Run unit tests:
 swift test
 ```
 
+Verify a source-beta checkout from clean SwiftPM scratch paths:
+
+```sh
+./script/verify_source_beta.sh
+```
+
+The verifier requires Xcode’s macOS SDK, builds with warnings as errors, runs tests, validates release attribution, and removes its temporary build directories.
+
 ## Developer ID release
 
 The release script requires a `Developer ID Application` identity and a version:
