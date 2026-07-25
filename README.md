@@ -25,6 +25,7 @@ WriteIt is a source-first beta, currently developed and tested on Apple Silicon.
 ## Privacy
 
 Apple Vision recognition runs on-device. WriteIt does not collect screen context, URLs, clipboard contents, raw ink, or recognized text in diagnostics.
+Structured diagnostic events contain fixed lifecycle codes only, stay local, and retain at most 200 events from the last seven days.
 
 Optional AI cleanup is off by default. When enabled, it sends recognized text to the endpoint and model selected by the user. API keys stay in Keychain.
 

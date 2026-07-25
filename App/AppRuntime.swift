@@ -6,6 +6,7 @@ final class AppRuntime {
   let history: HistoryStore
   let models: ModelStore
   let dataDeletion: LocalDataDeletionController
+  let diagnostics: DiagnosticEventStore
   let configurationImport: ConfigurationImportController
   let cloudProviders: CloudOCRProviderStore
   let recognitionRegistry: RecognitionBackendRegistry
@@ -23,6 +24,7 @@ final class AppRuntime {
     models = modelStore
     dataDeletion = LocalDataDeletionController(
       eraser: LocalDataEraser(history: historyStore, models: modelStore))
+    diagnostics = DiagnosticEventStore()
     let recognitionService = RecognitionService()
     let cloudProviderStore = CloudOCRProviderStore(defaults: defaults)
     let backendRegistry = RecognitionBackendRegistry(
@@ -65,11 +67,13 @@ final class AppRuntime {
   }
 
   func start() {
+    diagnostics.record(.runtimeStarted)
     AppLog.app.info("runtime_started")
     capture.start()
   }
 
   func stop() {
+    diagnostics.record(.runtimeStopped)
     AppLog.app.info("runtime_stopped")
     capture.stop()
   }

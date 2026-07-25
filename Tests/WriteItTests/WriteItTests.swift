@@ -523,6 +523,50 @@ struct ConfigurationArchiveTests {
   }
 }
 
+struct DiagnosticEventStoreTests {
+  @Test("retains only recent bounded local diagnostic events") @MainActor
+  func retainsRecentBoundedEvents() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-diagnostics-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let now = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    let broadPolicy = DiagnosticEventRetentionPolicy(maximumAge: 10_000, maximumEvents: 10)
+    let store = DiagnosticEventStore(directory: directory, retentionPolicy: broadPolicy, now: { now })
+    store.record(.runtimeStarted, at: now.addingTimeInterval(-3_700))
+    store.record(.runtimeStopped, at: now.addingTimeInterval(-30))
+    store.record(.runtimeStarted, at: now.addingTimeInterval(-10))
+    let initialEvents = store.events
+    #expect(initialEvents.count == 3)
+
+    let strictPolicy = DiagnosticEventRetentionPolicy(maximumAge: 3_600, maximumEvents: 1)
+    let restored = DiagnosticEventStore(directory: directory, retentionPolicy: strictPolicy, now: { now })
+    let data = try Data(contentsOf: directory.appendingPathComponent("events.json"))
+    let archive = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let encodedEvents = try #require(archive["events"] as? [[String: Any]])
+
+    #expect(restored.events == [initialEvents[2]])
+    #expect(Set(archive.keys) == ["schema_version", "events"])
+    #expect(encodedEvents.allSatisfy {
+      Set($0.keys) == ["id", "schema_version", "occurred_at", "kind"]
+    })
+  }
+
+  @Test("fails closed for malformed diagnostic archives") @MainActor
+  func rejectsMalformedArchive() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-diagnostics-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("{\"schema_version\":2,\"events\":[]}".utf8)
+      .write(to: directory.appendingPathComponent("events.json"))
+
+    let store = DiagnosticEventStore(directory: directory)
+
+    #expect(store.events.isEmpty)
+    #expect(store.error?.message == "Saved diagnostic events could not be read.")
+  }
+}
+
 struct CaptureDisplaySelectorTests {
   @Test("maps AX top-left coordinates to the containing display")
   func mapsAccessibilityPositionToDisplay() {
