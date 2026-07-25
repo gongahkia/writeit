@@ -258,6 +258,8 @@ final class CaptureCoordinator: ObservableObject {
         guard replacedText.isEmpty == false else { throw RecognitionError.noText }
         let metadata = RecognitionCaptureMetadata(
           source: candidate.backendID,
+          model: candidate.backendID,
+          language: candidate.languageResolution.resolved,
           confidence: candidate.confidence,
           duration: max(0, Date.now.timeIntervalSince(recognitionStartedAt))
         )
@@ -449,6 +451,9 @@ final class CaptureCoordinator: ObservableObject {
         strokes: strokes,
         mode: self.preferences.historyMode,
         source: source,
+        model: metadata?.model,
+        language: metadata?.language,
+        delivery: HistoryDeliveryMetadata(outcome),
         confidence: metadata?.confidence,
         recognitionDuration: metadata?.duration
       )

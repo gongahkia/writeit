@@ -106,6 +106,15 @@ private struct HistoryEntryCard: View {
     }
     HStack {
       Label(entry.source, systemImage: "text.viewfinder").font(.caption).foregroundStyle(.secondary)
+      if let model = entry.model {
+        Label(model, systemImage: "cpu").font(.caption).foregroundStyle(.secondary)
+      }
+      if let language = entry.language {
+        Label(language.displayName, systemImage: "globe").font(.caption).foregroundStyle(.secondary)
+      }
+      if let delivery = entry.delivery {
+        Label(delivery.method, systemImage: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
+      }
       Spacer()
       Button("Copy") {
         NSPasteboard.general.clearContents()

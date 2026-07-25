@@ -365,12 +365,56 @@ struct HistoryEntry: Identifiable, Codable, Hashable {
   var text: String
   var strokes: [InkStroke]?
   var source: String
+  var model: String? = nil
+  var language: RecognitionLanguage? = nil
+  var delivery: HistoryDeliveryMetadata? = nil
   var confidence: Float? = nil
   var recognitionDuration: TimeInterval? = nil
 }
 
+struct HistoryDeliveryMetadata: Codable, Hashable {
+  let method: String
+  let verification: String?
+
+  init(_ outcome: DeliveryOutcome) {
+    switch outcome {
+    case .pasted(_, let verification):
+      method = "paste"
+      self.verification = String(describing: verification)
+    case .accessibilityInserted:
+      method = "accessibility"
+      verification = nil
+    case .clipboard:
+      method = "clipboard"
+      verification = nil
+    case .clipboardFallback:
+      method = "clipboard-fallback"
+      verification = nil
+    case .failed:
+      method = "failed"
+      verification = nil
+    }
+  }
+}
+
 struct RecognitionCaptureMetadata: Hashable {
   let source: String
+  let model: String
+  let language: RecognitionLanguage
   let confidence: Float
   let duration: TimeInterval
+
+  init(
+    source: String,
+    model: String? = nil,
+    language: RecognitionLanguage = .english,
+    confidence: Float,
+    duration: TimeInterval
+  ) {
+    self.source = source
+    self.model = model ?? source
+    self.language = language
+    self.confidence = confidence
+    self.duration = duration
+  }
 }

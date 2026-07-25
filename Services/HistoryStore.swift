@@ -74,6 +74,9 @@ final class HistoryStore: ObservableObject {
     strokes: [InkStroke],
     mode: HistoryMode,
     source: String,
+    model: String? = nil,
+    language: RecognitionLanguage? = nil,
+    delivery: HistoryDeliveryMetadata? = nil,
     confidence: Float? = nil,
     recognitionDuration: TimeInterval? = nil
   ) {
@@ -83,6 +86,9 @@ final class HistoryStore: ObservableObject {
         text: text,
         strokes: mode == .full ? strokes : nil,
         source: source,
+        model: model,
+        language: language,
+        delivery: delivery,
         confidence: confidence,
         recognitionDuration: recognitionDuration
       ))

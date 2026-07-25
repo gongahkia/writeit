@@ -2818,9 +2818,36 @@ struct HistoryStoreTests {
     let reloaded = HistoryStore(fileURL: fileURL, key: key)
     let entry = reloaded.entries.first
     #expect(entry?.source == "Apple Vision")
+    #expect(entry?.model == nil)
+    #expect(entry?.language == nil)
+    #expect(entry?.delivery == nil)
     #expect(entry?.confidence == 0.92)
     #expect(entry?.recognitionDuration == 0.18)
     #expect(entry?.strokes == nil)
+  }
+
+  @Test("persists history source model language and delivery metadata") @MainActor
+  func persistsHistoryCaptureMetadata() {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString, isDirectory: true)
+    let fileURL = directory.appendingPathComponent("history.sealed")
+    let key = SymmetricKey(size: .bits256)
+    let history = HistoryStore(fileURL: fileURL, key: key)
+    history.append(
+      text: "recognized",
+      strokes: [],
+      mode: .textOnly,
+      source: "apple-vision",
+      model: "apple-vision",
+      language: .french,
+      delivery: HistoryDeliveryMetadata(.pasted(.restorePrevious, .verified))
+    )
+
+    let entry = HistoryStore(fileURL: fileURL, key: key).entries.first
+    #expect(entry?.source == "apple-vision")
+    #expect(entry?.model == "apple-vision")
+    #expect(entry?.language == .french)
+    #expect(entry?.delivery == HistoryDeliveryMetadata(.pasted(.restorePrevious, .verified)))
   }
 
   @Test("surfaces history directory setup failures") @MainActor
