@@ -1959,6 +1959,29 @@ struct AppProfileStoreTests {
     ) == .accessibility)
   }
 
+  @Test("resolves a language override only for its matching profile") @MainActor
+  func resolvesProfileLanguageOverride() throws {
+    let store = AppProfileStore(defaults: makeDefaults())
+    try store.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(recognitionLanguage: .french)
+      ),
+    ])
+    let resolver = AppProfileOverrideResolver(profiles: store)
+
+    #expect(resolver.value(
+      for: "COM.Example.Editor",
+      override: \.recognitionLanguage,
+      global: .english
+    ) == .french)
+    #expect(resolver.value(
+      for: "com.example.other",
+      override: \.recognitionLanguage,
+      global: .english
+    ) == .english)
+  }
+
   @Test("creates and persists a profile for the resolved foreground app") @MainActor
   func createsCurrentAppProfile() throws {
     let defaults = makeDefaults()
@@ -2178,6 +2201,30 @@ struct CaptureCoordinatorLifecycleTests {
 
     #expect(capture.session.foregroundBundleIdentifier == "com.example.editor")
     #expect(dependencies.foregroundApplicationResolver.resolveRequests == 1)
+  }
+
+  @Test("capture uses the matching profile language override") @MainActor
+  func usesProfileLanguageOverrideForRecognition() async throws {
+    let recognition = RecordingRecognition()
+    let dependencies = TestDependencies(trusted: true, recognition: recognition)
+    dependencies.foregroundApplicationResolver.bundleIdentifier = "com.example.editor"
+    try dependencies.profiles.replaceProfiles([
+      AppProfile(
+        bundleIdentifier: "com.example.editor",
+        overrides: .init(recognitionLanguage: .french)
+      ),
+    ])
+    let capture = dependencies.makeCaptureCoordinator()
+    capture.beginCapture()
+    capture.session.canvasSize = CGSize(width: 300, height: 120)
+    capture.session.beginStroke(at: InkPoint(x: 20, y: 30, pressure: 1, timestamp: 0))
+    capture.session.append(point: InkPoint(x: 190, y: 70, pressure: 1, timestamp: 0.2))
+
+    capture.submitCapture()
+    for _ in 0..<8 { await Task.yield() }
+
+    let request = try #require(await recognition.requests.first)
+    #expect(request.language == .french)
   }
 
   @Test("starts and stops shortcut monitoring with Accessibility") @MainActor
@@ -2469,6 +2516,8 @@ private final class TestDependencies {
   let overlay = TestOverlay()
   let loginItem = TestLoginItem()
   let foregroundApplicationResolver = TestForegroundApplicationBundleIdentifierResolver()
+  let profiles: AppProfileStore
+  let profileOverrideResolver: AppProfileOverrideResolver
   let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
     UUID().uuidString, isDirectory: true)
   let preferences: Preferences
@@ -2478,6 +2527,9 @@ private final class TestDependencies {
     delivery = TestDelivery(trusted: trusted)
     self.recognition = recognition
     preferences = Preferences(defaults: defaults)
+    let profileStore = AppProfileStore(defaults: defaults)
+    profiles = profileStore
+    profileOverrideResolver = AppProfileOverrideResolver(profiles: profileStore)
     history = HistoryStore(
       fileURL: directory.appendingPathComponent("history.sealed"),
       key: SymmetricKey(size: .bits256)
@@ -2495,7 +2547,8 @@ private final class TestDependencies {
       enhancer: enhancer,
       overlay: overlay,
       loginItem: loginItem,
-      foregroundApplicationResolver: foregroundApplicationResolver
+      foregroundApplicationResolver: foregroundApplicationResolver,
+      profileOverrideResolver: profileOverrideResolver
     )
   }
 }
@@ -2685,6 +2738,28 @@ private actor SuccessfulRecognition: TextRecognizing {
 
   func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
     RecognitionResult(text: "recognized", confidence: 1, backendID: "successful-test")
+  }
+}
+
+private actor RecordingRecognition: TextRecognizing {
+  nonisolated let capabilities = RecognitionBackendCapabilities(
+    identifier: "recording-test",
+    displayName: "Recording Test",
+    supportedLanguages: Set(RecognitionLanguage.allCases),
+    isLocal: true,
+    supportsStreaming: false,
+    availability: .available
+  )
+  private(set) var requests: [RecognitionRequest] = []
+
+  func recognize(_ request: RecognitionRequest) async throws -> RecognitionResult {
+    requests.append(request)
+    return RecognitionResult(
+      text: "recognized",
+      confidence: 1,
+      backendID: "recording-test",
+      languageResolution: .identity(request.language)
+    )
   }
 }
 

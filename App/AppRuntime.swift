@@ -17,6 +17,7 @@ final class AppRuntime {
     models = ModelStore()
     let profileStore = AppProfileStore(defaults: defaults)
     let foregroundApplicationResolver = ForegroundApplicationBundleIdentifierResolver()
+    let profileOverrideResolver = AppProfileOverrideResolver(profiles: profileStore)
     profiles = profileStore
     profileCreator = CurrentAppProfileCreator(
       profiles: profileStore,
@@ -34,7 +35,8 @@ final class AppRuntime {
       enhancer: AIEnhancer(),
       overlay: CaptureOverlayController.shared,
       loginItem: LoginItemService(),
-      foregroundApplicationResolver: foregroundApplicationResolver
+      foregroundApplicationResolver: foregroundApplicationResolver,
+      profileOverrideResolver: profileOverrideResolver
     )
   }
 

@@ -50,12 +50,39 @@ struct AppProfile: Codable, Sendable, Equatable, Identifiable {
 }
 
 struct AppProfileOverrides: Codable, Sendable, Equatable {
-  init() {}
+  let recognitionLanguage: RecognitionLanguage?
+
+  init(recognitionLanguage: RecognitionLanguage? = nil) {
+    self.recognitionLanguage = recognitionLanguage
+  }
 }
 
 enum AppProfileOverrideResolution {
   static func value<Value>(profileOverride: Value?, global: Value) -> Value {
     profileOverride ?? global
+  }
+}
+
+@MainActor
+final class AppProfileOverrideResolver {
+  private let profiles: AppProfileStore
+
+  init(profiles: AppProfileStore) {
+    self.profiles = profiles
+  }
+
+  func value<Value>(
+    for bundleIdentifier: String?,
+    override: KeyPath<AppProfileOverrides, Value?>,
+    global: Value
+  ) -> Value {
+    let profileOverride = profiles.profile(matching: bundleIdentifier).flatMap {
+      $0.overrides[keyPath: override]
+    }
+    return AppProfileOverrideResolution.value(
+      profileOverride: profileOverride,
+      global: global
+    )
   }
 }
 

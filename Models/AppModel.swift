@@ -19,6 +19,7 @@ final class CaptureCoordinator: ObservableObject {
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
   private let foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving
+  private let profileOverrideResolver: AppProfileOverrideResolver
   private var penUpTask: Task<Void, Never>?
   private var penUpTaskID: UUID?
   private var captureTask: Task<Void, Never>?
@@ -40,7 +41,8 @@ final class CaptureCoordinator: ObservableObject {
     overlay: any CaptureOverlayPresenting,
     loginItem: any LoginItemManaging,
     foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving =
-      ForegroundApplicationBundleIdentifierResolver()
+      ForegroundApplicationBundleIdentifierResolver(),
+    profileOverrideResolver: AppProfileOverrideResolver
   ) {
     self.preferences = preferences
     self.history = history
@@ -52,6 +54,7 @@ final class CaptureCoordinator: ObservableObject {
     self.overlay = overlay
     self.loginItem = loginItem
     self.foregroundApplicationResolver = foregroundApplicationResolver
+    self.profileOverrideResolver = profileOverrideResolver
     accessibilityGranted = delivery.isTrusted
     session.onStrokeFinished = { [weak self] in self?.schedulePenUpSubmit() }
   }
@@ -191,7 +194,11 @@ final class CaptureCoordinator: ObservableObject {
     let target = session.target
     let recognitionRequest = RecognitionRequest(
       imageData: imageData,
-      language: preferences.recognitionLanguage
+      language: profileOverrideResolver.value(
+        for: session.foregroundBundleIdentifier,
+        override: \.recognitionLanguage,
+        global: preferences.recognitionLanguage
+      )
     )
     let enhancementRequest = TextEnhancementRequest(
       text: "",
