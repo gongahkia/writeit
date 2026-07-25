@@ -2,6 +2,12 @@ import Foundation
 
 @MainActor
 final class AIEnhancer: TextEnhancing {
+  private let requester: any AICleanupRequesting
+
+  init(requester: any AICleanupRequesting = AICleanupURLSession()) {
+    self.requester = requester
+  }
+
   func clean(_ request: TextEnhancementRequest) async throws -> String {
     guard request.enabled else { return request.text }
     let keyData: Data?
@@ -29,11 +35,11 @@ final class AIEnhancer: TextEnhancing {
     urlRequest.httpBody = try JSONEncoder().encode(body)
     do {
       AppLog.cleanup.info("cleanup_request_started")
-      let (data, response) = try await URLSession.shared.data(for: urlRequest)
-      guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+      let response = try await requester.data(for: urlRequest)
+      guard response.statusCode == 200 else {
         throw AICleanupContractError.invalidResponse
       }
-      return try JSONDecoder().decode(AICleanupChatResponse.self, from: data).cleanedText(
+      return try JSONDecoder().decode(AICleanupChatResponse.self, from: response.data).cleanedText(
         for: request.text)
     } catch {
       if error is CancellationError { throw error }
@@ -58,4 +64,19 @@ final class AIEnhancer: TextEnhancing {
   }
 
   func hasAPIKey() throws -> Bool { try KeychainStore.data(for: "ai-api-key") != nil }
+
+  func testConnection(baseURL: String, model: String) async -> AICleanupConnectionStatus {
+    do {
+      guard let keyData = try KeychainStore.data(for: "ai-api-key"),
+        let key = String(data: keyData, encoding: .utf8), key.isEmpty == false
+      else { return .notConfigured }
+      return await AICleanupCapabilityDiscovery(requester: requester).discover(
+        endpoint: baseURL,
+        apiKey: key,
+        model: model
+      )
+    } catch {
+      return .notConfigured
+    }
+  }
 }

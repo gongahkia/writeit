@@ -281,6 +281,7 @@ protocol TextEnhancing: AnyObject {
   func clean(_ request: TextEnhancementRequest) async throws -> String
   func saveAPIKey(_ value: String) throws
   func hasAPIKey() throws -> Bool
+  func testConnection(baseURL: String, model: String) async -> AICleanupConnectionStatus
 }
 
 @MainActor

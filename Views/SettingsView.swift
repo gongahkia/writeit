@@ -105,6 +105,7 @@ struct CleanupSettingsView: View {
   @ObservedObject var preferences: Preferences
   @State private var apiKey = ""
   @State private var keySaved = false
+  @State private var connectionStatus: AICleanupConnectionStatus?
 
   var body: some View {
     Form {
@@ -132,6 +133,15 @@ struct CleanupSettingsView: View {
           if keySaved || capture.hasAPIKey() {
             Text("Saved in Keychain").foregroundStyle(.secondary)
           }
+        }
+        Text("Connection testing sends only the API key to the derived models endpoint; it never sends recognized text.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Button("Test connection") {
+          Task { connectionStatus = await capture.testAIConnection() }
+        }
+        if let connectionStatus {
+          Text(connectionStatus.message).font(.caption).foregroundStyle(.secondary)
         }
       }
     }

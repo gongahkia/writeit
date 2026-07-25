@@ -70,6 +70,51 @@ struct AICleanupContractTests {
   }
 }
 
+struct AICleanupCapabilityDiscoveryTests {
+  @Test("derives a models probe without forwarding chat query data")
+  func derivesModelsURL() {
+    let url = AICleanupCapabilityDiscovery.modelsURL(
+      for: "https://api.example.test/v1/chat/completions?ignored=true")
+
+    #expect(url?.absoluteString == "https://api.example.test/v1/models")
+    #expect(AICleanupCapabilityDiscovery.modelsURL(for: "https://api.example.test/v1/models") == nil)
+  }
+
+  @Test("reports discovered models and configured model availability")
+  func discoversModels() async {
+    let requester = TestAICleanupRequester(
+      response: AICleanupHTTPResponse(
+        data: Data("{\"data\":[{\"id\":\"other\"},{\"id\":\"cleanup\"}]}".utf8),
+        statusCode: 200
+      ))
+    let status = await AICleanupCapabilityDiscovery(requester: requester).discover(
+      endpoint: "https://api.example.test/v1/chat/completions",
+      apiKey: "key",
+      model: "cleanup"
+    )
+
+    #expect(status == .ready(models: ["cleanup", "other"], selectedModelAvailable: true))
+    let request = await requester.requests.first
+    #expect(request?.httpMethod == "GET")
+    #expect(request?.value(forHTTPHeaderField: "Authorization") == "Bearer key")
+    #expect(request?.url?.path == "/v1/models")
+    #expect(request?.httpBody == nil)
+  }
+
+  @Test("classifies rejected credentials and invalid configuration")
+  func classifiesFailures() async {
+    let rejected = TestAICleanupRequester(
+      response: AICleanupHTTPResponse(data: Data(), statusCode: 401))
+    let discovery = AICleanupCapabilityDiscovery(requester: rejected)
+
+    #expect(await discovery.discover(
+      endpoint: "https://api.example.test/v1/chat/completions", apiKey: "key", model: "cleanup")
+      == .invalidCredentials)
+    #expect(await discovery.discover(
+      endpoint: "not a url", apiKey: "key", model: "cleanup") == .notConfigured)
+  }
+}
+
 struct LiteralReplacementRuleTests {
   @Test("applies literal replacements sequentially in stored order")
   func appliesRulesInOrder() throws {
@@ -3675,6 +3720,23 @@ private final class TestEnhancer: TextEnhancing {
   }
   func saveAPIKey(_ value: String) {}
   func hasAPIKey() -> Bool { false }
+  func testConnection(baseURL: String, model: String) async -> AICleanupConnectionStatus {
+    .notConfigured
+  }
+}
+
+private actor TestAICleanupRequester: AICleanupRequesting {
+  let response: AICleanupHTTPResponse
+  private(set) var requests: [URLRequest] = []
+
+  init(response: AICleanupHTTPResponse) {
+    self.response = response
+  }
+
+  func data(for request: URLRequest) async throws -> AICleanupHTTPResponse {
+    requests.append(request)
+    return response
+  }
 }
 
 @MainActor

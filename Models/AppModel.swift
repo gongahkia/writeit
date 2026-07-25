@@ -347,6 +347,10 @@ final class CaptureCoordinator: ObservableObject {
       return false
     }
   }
+
+  func testAIConnection() async -> AICleanupConnectionStatus {
+    await enhancer.testConnection(baseURL: preferences.aiBaseURL, model: preferences.aiModel)
+  }
   func updateLaunchAtLogin() { loginItem.update(enabled: preferences.launchAtLogin) }
 
   func cleanupHistory() {
