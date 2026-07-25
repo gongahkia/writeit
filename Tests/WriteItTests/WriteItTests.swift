@@ -288,6 +288,40 @@ struct ManifestModelInstallerTests {
     }
     #expect(ManifestModelInstaller.installedAssetURL(for: validManifest, in: modelsDirectory) != nil)
   }
+
+  @Test("cancelling installation removes staged state without publishing a model")
+  func rollsBackCancelledInstall() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let source = directory.appendingPathComponent("fixture.asset")
+    try Data([1]).write(to: source)
+    let manifest = ModelManifest(
+      id: "fixture",
+      version: "1.0.0",
+      downloadURL: URL(string: "https://example.invalid/fixture.asset")!,
+      sha256: try ModelAssetDigestVerifier.sha256(for: source),
+      license: "MIT",
+      supportedLanguages: [.english],
+      requiresAppleSilicon: true
+    )
+    let modelsDirectory = directory.appendingPathComponent("Models", isDirectory: true)
+    var checks = 0
+
+    #expect(throws: ManifestModelInstallerError.cancelled) {
+      try ManifestModelInstaller.install(
+        manifest: manifest,
+        stagedAssetURL: source,
+        in: modelsDirectory,
+        isCancelled: {
+          checks += 1
+          return checks == 2
+        }
+      )
+    }
+    #expect(ManifestModelInstaller.installedAssetURL(for: manifest, in: modelsDirectory) == nil)
+    #expect((try? FileManager.default.contentsOfDirectory(atPath: modelsDirectory.path))?.isEmpty != false)
+  }
 }
 
 struct ModelAssetDigestVerifierTests {

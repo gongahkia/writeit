@@ -3,6 +3,7 @@ import Foundation
 enum ManifestModelInstallerError: LocalizedError, Equatable {
   case invalidManifest
   case assetMissing
+  case cancelled
   case alreadyInstalled
   case installFailed
   case removalFailed
@@ -11,6 +12,7 @@ enum ManifestModelInstallerError: LocalizedError, Equatable {
     switch self {
     case .invalidManifest: "The model manifest has an unsafe identifier or version."
     case .assetMissing: "The staged model asset is unavailable."
+    case .cancelled: "Model installation was cancelled."
     case .alreadyInstalled: "This model version is already installed."
     case .installFailed: "WriteIt could not install the selected model version."
     case .removalFailed: "WriteIt could not delete the selected model version."
@@ -47,13 +49,15 @@ enum ManifestModelInstaller {
   static func install(
     manifest: ModelManifest,
     stagedAssetURL: URL,
-    in modelsDirectory: URL
+    in modelsDirectory: URL,
+    isCancelled: () -> Bool = { false }
   ) throws -> URL {
     guard FileManager.default.fileExists(atPath: stagedAssetURL.path) else {
       throw ManifestModelInstallerError.assetMissing
     }
     let destination = try installationDirectory(for: manifest, in: modelsDirectory)
     try ModelAssetDigestVerifier.verify(assetURL: stagedAssetURL, expectedSHA256: manifest.sha256)
+    guard !isCancelled() else { throw ManifestModelInstallerError.cancelled }
     guard !FileManager.default.fileExists(atPath: destination.path) else {
       throw ManifestModelInstallerError.alreadyInstalled
     }
@@ -69,6 +73,7 @@ enum ManifestModelInstaller {
       try FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
       let stagedAsset = stagingDirectory.appendingPathComponent(assetName, isDirectory: true)
       try FileManager.default.copyItem(at: stagedAssetURL, to: stagedAsset)
+      guard !isCancelled() else { throw ManifestModelInstallerError.cancelled }
       let record = InstalledModelRecord(
         schemaVersion: InstalledModelRecord.schemaVersion,
         manifest: manifest,
@@ -76,11 +81,14 @@ enum ManifestModelInstaller {
       )
       try JSONEncoder().encode(record).write(
         to: stagingDirectory.appendingPathComponent(recordFileName), options: .atomic)
+      guard !isCancelled() else { throw ManifestModelInstallerError.cancelled }
       try FileManager.default.createDirectory(
         at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
       try FileManager.default.moveItem(at: stagingDirectory, to: destination)
       moved = true
       return destination.appendingPathComponent(assetName, isDirectory: true)
+    } catch let error as ManifestModelInstallerError {
+      throw error
     } catch {
       throw ManifestModelInstallerError.installFailed
     }

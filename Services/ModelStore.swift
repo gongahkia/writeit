@@ -61,7 +61,11 @@ final class ModelStore: ObservableObject {
     return installationStates[installationKey(for: manifest)] ?? .notInstalled
   }
 
-  func install(manifest: ModelManifest, stagedAssetURL: URL) {
+  func install(
+    manifest: ModelManifest,
+    stagedAssetURL: URL,
+    isCancelled: () -> Bool = { false }
+  ) {
     if let failure = ModelCompatibilityChecker.failure(
       for: manifest,
       environment: ModelCompatibilityChecker.currentEnvironment(storageURL: modelsDirectory)
@@ -75,7 +79,8 @@ final class ModelStore: ObservableObject {
       let installed = try ManifestModelInstaller.install(
         manifest: manifest,
         stagedAssetURL: stagedAssetURL,
-        in: modelsDirectory
+        in: modelsDirectory,
+        isCancelled: isCancelled
       )
       installationStates[installationKey(for: manifest)] = .installed(installed)
       clearDownloadCheckpoint(for: manifest)
