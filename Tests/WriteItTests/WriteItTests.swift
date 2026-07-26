@@ -856,6 +856,69 @@ struct TrOCRTokenizerTests {
   }
 }
 
+struct TrOCRQualificationTests {
+  private func sample(
+    backendID: String,
+    text: String,
+    duration: Duration = .milliseconds(100)
+  ) -> OCRCorpusBenchmarkSample {
+    OCRCorpusBenchmarkSample(
+      fixtureID: "fixture",
+      language: .english,
+      expectedText: "hello world",
+      outcome: .recognized(text: text, confidence: 1, backendID: backendID),
+      duration: duration
+    )
+  }
+
+  @Test("TrOCR qualifies only when it strictly improves Vision within resource limits")
+  func qualifiesStrictImprovement() throws {
+    let vision = OCRBenchmarkReport(
+      samples: [sample(backendID: "apple-vision", text: "hello word")],
+      totalDuration: .milliseconds(200), peakResidentMemoryBytes: 100
+    )
+    let trocr = OCRBenchmarkReport(
+      samples: [sample(backendID: "trocr-small-handwritten", text: "hello world")],
+      totalDuration: .milliseconds(150), peakResidentMemoryBytes: 100
+    )
+    let artifact = try TrOCRBenchmarkQualifier.qualify(visionReport: vision, trocrReport: trocr)
+    #expect(artifact.isQualified)
+    #expect(artifact.failures.isEmpty)
+  }
+
+  @Test("TrOCR qualification rejects ties and excessive resource use")
+  func rejectsTieAndResourceRegression() throws {
+    let vision = OCRBenchmarkReport(
+      samples: [sample(backendID: "apple-vision", text: "hello world")],
+      totalDuration: .milliseconds(200), peakResidentMemoryBytes: 100
+    )
+    let trocr = OCRBenchmarkReport(
+      samples: [sample(backendID: "trocr-small-handwritten", text: "hello world", duration: .seconds(2))],
+      totalDuration: .seconds(16), peakResidentMemoryBytes: 2_000 * 1_024 * 1_024
+    )
+    let artifact = try TrOCRBenchmarkQualifier.qualify(visionReport: vision, trocrReport: trocr)
+    #expect(!artifact.isQualified)
+    #expect(artifact.failures == ["character-error-not-improved"])
+  }
+
+  @Test("qualification artifacts round-trip only with the current schema")
+  func persistsQualificationArtifact() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let report = OCRBenchmarkReport(
+      samples: [sample(backendID: "apple-vision", text: "hello word")],
+      totalDuration: .milliseconds(100), peakResidentMemoryBytes: 1
+    )
+    let trocr = OCRBenchmarkReport(
+      samples: [sample(backendID: "trocr-small-handwritten", text: "hello world")],
+      totalDuration: .milliseconds(100), peakResidentMemoryBytes: 1
+    )
+    let artifact = try TrOCRBenchmarkQualifier.qualify(visionReport: report, trocrReport: trocr)
+    try TrOCRQualificationStore.save(artifact, to: directory)
+    #expect(TrOCRQualificationStore.load(from: directory) == artifact)
+  }
+}
+
 struct PrivacyStateRegressionTests {
   @Test("describes diagnostics and metrics opt-in states")
   func describesDiagnosticsAndMetricsStates() {

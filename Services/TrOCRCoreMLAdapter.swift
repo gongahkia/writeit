@@ -226,7 +226,9 @@ actor TrOCRCoreMLAdapter {
   }
 
   func recognize(imageData: Data) throws -> RecognitionResult? {
-    guard let bundleURL = installedBundleURL() else { return nil }
+    guard TrOCRQualificationStore.load(from: modelsDirectory)?.isQualified == true,
+      let bundleURL = installedBundleURL()
+    else { return nil }
     guard let image = HandwritingImagePreprocessor.process(imageData)?.image else {
       throw RecognitionError.invalidImage
     }
