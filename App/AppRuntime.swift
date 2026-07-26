@@ -73,6 +73,7 @@ final class AppRuntime {
       recognitionRegistry: backendRegistry,
       regexReplacer: RegexReplacementService(),
       enhancer: AIEnhancer(),
+      diagramTranslator: AIDiagramTranslator(),
       overlay: CaptureOverlayController.shared,
       loginItem: LoginItemService(),
       historyRetentionScheduler: HistoryRetentionScheduler(),

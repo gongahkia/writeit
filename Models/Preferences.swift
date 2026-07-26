@@ -14,7 +14,7 @@ enum PreferenceStoreError: LocalizedError, Equatable {
 }
 
 final class Preferences: ObservableObject {
-  static let currentSchemaVersion = 10
+  static let currentSchemaVersion = 11
 
   @Published var shortcut: Shortcut { didSet { save(shortcut, key: .shortcut) } }
   @Published var captureMode: CaptureMode { didSet { save(captureMode, key: .captureMode) } }
@@ -46,6 +46,9 @@ final class Preferences: ObservableObject {
   @Published var mathematicalNotationFormat: MathematicalNotationFormat {
     didSet { save(mathematicalNotationFormat, key: .mathematicalNotationFormat) }
   }
+  @Published var flowchartDirection: FlowchartDirection {
+    didSet { save(flowchartDirection, key: .flowchartDirection) }
+  }
   @Published var historyMode: HistoryMode { didSet { save(historyMode, key: .historyMode) } }
   @Published var historyAutoDelete: Bool {
     didSet { defaults.set(historyAutoDelete, forKey: Key.historyAutoDelete.rawValue) }
@@ -69,6 +72,15 @@ final class Preferences: ObservableObject {
     didSet { defaults.set(aiBaseURL, forKey: Key.aiBaseURL.rawValue) }
   }
   @Published var aiModel: String { didSet { defaults.set(aiModel, forKey: Key.aiModel.rawValue) } }
+  @Published var aiDiagramFallbackEnabled: Bool {
+    didSet { defaults.set(aiDiagramFallbackEnabled, forKey: Key.aiDiagramFallbackEnabled.rawValue) }
+  }
+  @Published var aiDiagramConsent: AIDiagramConsent? {
+    didSet { save(aiDiagramConsent, key: .aiDiagramConsent) }
+  }
+  @Published var aiDiagramOutputFormat: AIDiagramOutputFormat {
+    didSet { save(aiDiagramOutputFormat, key: .aiDiagramOutputFormat) }
+  }
   @Published var launchAtLogin: Bool {
     didSet { defaults.set(launchAtLogin, forKey: Key.launchAtLogin.rawValue) }
   }
@@ -118,7 +130,13 @@ final class Preferences: ObservableObject {
       .regexReplacementRules, from: defaults, fallback: RegexReplacementRules())
     let mathematicalNotationFormatResult = Self.load(
       .mathematicalNotationFormat, from: defaults, fallback: MathematicalNotationFormat.plainText)
+    let flowchartDirectionResult = Self.load(
+      .flowchartDirection, from: defaults, fallback: FlowchartDirection.leftToRight)
     let historyModeResult = Self.load(.historyMode, from: defaults, fallback: HistoryMode.textOnly)
+    let aiDiagramConsentResult = Self.load(
+      .aiDiagramConsent, from: defaults, fallback: Optional<AIDiagramConsent>.none)
+    let aiDiagramOutputFormatResult = Self.load(
+      .aiDiagramOutputFormat, from: defaults, fallback: AIDiagramOutputFormat.mermaid)
     shortcut = shortcutResult.value
     captureMode = captureModeResult.value
     resultMode = resultModeResult.value
@@ -131,6 +149,7 @@ final class Preferences: ObservableObject {
     literalReplacementRules = literalReplacementRulesResult.value
     regexReplacementRules = regexReplacementRulesResult.value
     mathematicalNotationFormat = mathematicalNotationFormatResult.value
+    flowchartDirection = flowchartDirectionResult.value
     historyMode = historyModeResult.value
     historyAutoDelete = defaults.bool(forKey: Key.historyAutoDelete.rawValue)
     historyRetentionDays = Self.validRetentionDays(
@@ -140,6 +159,9 @@ final class Preferences: ObservableObject {
     aiEnabled = defaults.bool(forKey: Key.aiEnabled.rawValue)
     aiBaseURL = defaults.string(forKey: Key.aiBaseURL.rawValue) ?? Self.defaultAIBaseURL
     aiModel = defaults.string(forKey: Key.aiModel.rawValue) ?? Self.defaultAIModel
+    aiDiagramFallbackEnabled = defaults.bool(forKey: Key.aiDiagramFallbackEnabled.rawValue)
+    aiDiagramConsent = aiDiagramConsentResult.value
+    aiDiagramOutputFormat = aiDiagramOutputFormatResult.value
     launchAtLogin = defaults.bool(forKey: Key.launchAtLogin.rawValue)
     penUpDelay = Self.validPenUpDelay(defaults.double(forKey: Key.penUpDelay.rawValue))
     strokeWidth = Self.validStrokeWidth(defaults.double(forKey: Key.strokeWidth.rawValue))
@@ -158,7 +180,10 @@ final class Preferences: ObservableObject {
       literalReplacementRulesResult.error,
       regexReplacementRulesResult.error,
       mathematicalNotationFormatResult.error,
+      flowchartDirectionResult.error,
       historyModeResult.error,
+      aiDiagramConsentResult.error,
+      aiDiagramOutputFormatResult.error,
     ].compactMap { $0 }.first.map(AppErrorPresentation.persistence)
   }
 
@@ -184,6 +209,7 @@ final class Preferences: ObservableObject {
     case literalReplacementRules
     case regexReplacementRules
     case mathematicalNotationFormat
+    case flowchartDirection
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
@@ -192,6 +218,9 @@ final class Preferences: ObservableObject {
     case aiEnabled
     case aiBaseURL
     case aiModel
+    case aiDiagramFallbackEnabled
+    case aiDiagramConsent
+    case aiDiagramOutputFormat
     case launchAtLogin
     case penUpDelay
     case strokeWidth
@@ -213,6 +242,7 @@ final class Preferences: ObservableObject {
       Key.aiEnabled.rawValue: false,
       Key.aiBaseURL.rawValue: defaultAIBaseURL,
       Key.aiModel.rawValue: defaultAIModel,
+      Key.aiDiagramFallbackEnabled.rawValue: false,
       Key.launchAtLogin.rawValue: false,
       Key.penUpDelay.rawValue: 1.2,
       Key.strokeWidth.rawValue: InkStyle.default.baseWidth,
@@ -244,6 +274,16 @@ final class Preferences: ObservableObject {
   }
 
   func clearError() { error = nil }
+
+  func enableAIDiagramFallback() {
+    aiDiagramConsent = AIDiagramConsent()
+    aiDiagramFallbackEnabled = true
+  }
+
+  func disableAIDiagramFallback() {
+    aiDiagramFallbackEnabled = false
+    aiDiagramConsent = nil
+  }
 
   func addLiteralReplacementRule(find: String, replacement: String) throws {
     let rule = try LiteralReplacementRule(find: find, replacement: replacement)
@@ -317,6 +357,7 @@ final class Preferences: ObservableObject {
     literalReplacementRules = configuration.literalReplacementRules
     regexReplacementRules = configuration.regexReplacementRules
     mathematicalNotationFormat = configuration.mathematicalNotationFormat
+    flowchartDirection = configuration.flowchartDirection
     historyMode = configuration.historyMode
     historyAutoDelete = configuration.historyAutoDelete
     historyRetentionDays = configuration.historyRetentionDays

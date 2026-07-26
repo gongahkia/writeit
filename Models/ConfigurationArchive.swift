@@ -33,6 +33,7 @@ struct ConfigurationPreferences: Codable, Equatable {
   let literalReplacementRules: LiteralReplacementRules
   let regexReplacementRules: RegexReplacementRules
   let mathematicalNotationFormat: MathematicalNotationFormat
+  let flowchartDirection: FlowchartDirection
   let historyMode: HistoryMode
   let historyAutoDelete: Bool
   let historyRetentionDays: Int
@@ -58,6 +59,7 @@ struct ConfigurationPreferences: Codable, Equatable {
     literalReplacementRules = preferences.literalReplacementRules
     regexReplacementRules = preferences.regexReplacementRules
     mathematicalNotationFormat = preferences.mathematicalNotationFormat
+    flowchartDirection = preferences.flowchartDirection
     historyMode = preferences.historyMode
     historyAutoDelete = preferences.historyAutoDelete
     historyRetentionDays = preferences.historyRetentionDays
@@ -99,6 +101,8 @@ struct ConfigurationPreferences: Codable, Equatable {
       RegexReplacementRules.self, forKey: .regexReplacementRules)
     mathematicalNotationFormat = try container.decodeIfPresent(
       MathematicalNotationFormat.self, forKey: .mathematicalNotationFormat) ?? .plainText
+    flowchartDirection = try container.decodeIfPresent(
+      FlowchartDirection.self, forKey: .flowchartDirection) ?? .leftToRight
     historyMode = try container.decode(HistoryMode.self, forKey: .historyMode)
     historyAutoDelete = try container.decode(Bool.self, forKey: .historyAutoDelete)
     historyRetentionDays = try container.decode(Int.self, forKey: .historyRetentionDays)
@@ -125,6 +129,7 @@ struct ConfigurationPreferences: Codable, Equatable {
     case literalReplacementRules
     case regexReplacementRules
     case mathematicalNotationFormat
+    case flowchartDirection
     case historyMode
     case historyAutoDelete
     case historyRetentionDays
@@ -161,7 +166,7 @@ struct ConfigurationCloudOCRProvider: Codable, Equatable {
 }
 
 struct ConfigurationArchive: Codable, Equatable {
-  static let currentSchemaVersion = 2
+  static let currentSchemaVersion = 3
 
   let schemaVersion: Int
   let preferences: ConfigurationPreferences

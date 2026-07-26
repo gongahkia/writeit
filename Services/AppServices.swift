@@ -214,6 +214,11 @@ struct TextEnhancementRequest: Sendable {
 }
 
 @MainActor
+protocol DiagramTranslating: AnyObject {
+  func translate(_ request: AIDiagramTranslationRequest) async throws -> AIDiagramTranslation?
+}
+
+@MainActor
 struct DeliveryRequest {
   let text: String
   let target: TargetReference?

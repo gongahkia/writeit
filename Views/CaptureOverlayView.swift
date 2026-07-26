@@ -42,7 +42,7 @@ struct CaptureOverlayView: View {
         recognitionProgress
           .frame(height: 250)
       case .reviewing:
-        if showsDiagramReview && session.flowchartDiagram != nil {
+        if showsDiagramReview && hasDiagram {
           diagramReview.frame(height: 250)
         } else {
           review.frame(height: 250)
@@ -92,8 +92,8 @@ struct CaptureOverlayView: View {
         .foregroundStyle(.white.opacity(0.7))
         .help("Export ink")
       }
-      if session.flowchartDiagram != nil {
-        Button(showsDiagramReview ? "Text review" : "Review flowchart") {
+      if hasDiagram {
+        Button(showsDiagramReview ? "Text review" : "Review diagram") {
           showsDiagramReview.toggle()
         }
         .buttonStyle(.bordered)
@@ -161,6 +161,16 @@ struct CaptureOverlayView: View {
   }
 
   private var diagramReview: some View {
+    Group {
+      if let translation = session.aiDiagramTranslation {
+        aiDiagramReview(translation)
+      } else if session.flowchartDiagram != nil {
+        flowchartDiagramReview
+      }
+    }
+  }
+
+  private var flowchartDiagramReview: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
         Text("Detected flowchart").font(.title3.weight(.semibold)).foregroundStyle(.white)
@@ -248,6 +258,10 @@ struct CaptureOverlayView: View {
     }
   }
 
+  private var hasDiagram: Bool {
+    session.flowchartDiagram != nil || session.aiDiagramTranslation != nil
+  }
+
   private func exportInk(_ format: InkExportFormat) {
     let panel = NSSavePanel()
     panel.allowedContentTypes = [format.contentType]
@@ -264,14 +278,22 @@ struct CaptureOverlayView: View {
 
   private var diagramPreview: String {
     guard let diagram = session.flowchartDiagram,
-      let data = try? FlowchartDiagramExportCodec.encode(diagram, format: diagramFormat)
+      let data = try? FlowchartDiagramExportCodec.encode(
+        diagram,
+        format: diagramFormat,
+        direction: preferences.flowchartDirection
+      )
     else { return "Diagram preview unavailable." }
     return String(decoding: data, as: UTF8.self)
   }
 
   private func copyDiagram() {
     guard let diagram = session.flowchartDiagram,
-      let data = try? FlowchartDiagramExportCodec.encode(diagram, format: diagramFormat),
+      let data = try? FlowchartDiagramExportCodec.encode(
+        diagram,
+        format: diagramFormat,
+        direction: preferences.flowchartDirection
+      ),
       let value = String(data: data, encoding: .utf8)
     else {
       exportMessage = "Diagram export failed."
@@ -291,8 +313,59 @@ struct CaptureOverlayView: View {
     guard panel.runModal() == .OK, let url = panel.url else { return }
     do {
       try InkExportFileStore.write(
-        FlowchartDiagramExportCodec.encode(diagram, format: diagramFormat), to: url)
+        FlowchartDiagramExportCodec.encode(
+          diagram,
+          format: diagramFormat,
+          direction: preferences.flowchartDirection
+        ),
+        to: url)
       exportMessage = "Flowchart exported as \(diagramFormat.title)."
+    } catch {
+      exportMessage = (error as? LocalizedError)?.errorDescription ?? "Diagram export failed."
+    }
+  }
+
+  private func aiDiagramReview(_ translation: AIDiagramTranslation) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack {
+        Text("AI translated \(translation.type.title)").font(.title3.weight(.semibold)).foregroundStyle(.white)
+        Spacer()
+        Text(translation.format.title).font(.caption).foregroundStyle(.white.opacity(0.56))
+      }
+      ScrollView {
+        Text(translation.source)
+          .font(.caption.monospaced())
+          .foregroundStyle(.white.opacity(0.86))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .textSelection(.enabled)
+      }
+      HStack {
+        Button("Copy \(translation.format.title)") { copyAIDiagram(translation) }
+          .buttonStyle(.bordered)
+        Button("Save \(translation.format.title)") { saveAIDiagram(translation) }
+          .buttonStyle(.borderedProminent)
+        Spacer()
+        Text("Review generated source before use.").font(.caption).foregroundStyle(.white.opacity(0.56))
+      }
+    }
+    .padding(18)
+  }
+
+  private func copyAIDiagram(_ translation: AIDiagramTranslation) {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(translation.source, forType: .string)
+    exportMessage = "Copied \(translation.format.title)."
+  }
+
+  private func saveAIDiagram(_ translation: AIDiagramTranslation) {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [translation.format.contentType]
+    panel.nameFieldStringValue = "WriteItDiagram.\(translation.format.fileExtension)"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      try InkExportFileStore.write(Data(translation.source.utf8), to: url)
+      exportMessage = "Diagram exported as \(translation.format.title)."
     } catch {
       exportMessage = (error as? LocalizedError)?.errorDescription ?? "Diagram export failed."
     }
@@ -313,8 +386,18 @@ private extension DiagramExportFormat {
   var contentType: UTType {
     switch self {
     case .ascii: .plainText
+    case .mermaid: UTType(filenameExtension: "mmd") ?? .plainText
     case .excalidraw: UTType(filenameExtension: "excalidraw") ?? .json
     case .svg: UTType(filenameExtension: "svg") ?? .xml
+    }
+  }
+}
+
+private extension AIDiagramOutputFormat {
+  var contentType: UTType {
+    switch self {
+    case .mermaid: UTType(filenameExtension: "mmd") ?? .plainText
+    case .plantUML: UTType(filenameExtension: "puml") ?? .plainText
     }
   }
 }

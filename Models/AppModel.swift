@@ -18,6 +18,7 @@ final class CaptureCoordinator: ObservableObject {
   private let recognitionRegistry: any RecognitionBackendSelecting
   private let regexReplacer: any RegexReplacementApplying
   private let enhancer: any TextEnhancing
+  private let diagramTranslator: any DiagramTranslating
   private let overlay: any CaptureOverlayPresenting
   private let loginItem: any LoginItemManaging
   private let foregroundApplicationResolver: any ForegroundApplicationBundleIdentifierResolving
@@ -44,6 +45,7 @@ final class CaptureCoordinator: ObservableObject {
     recognitionRegistry: any RecognitionBackendSelecting,
     regexReplacer: any RegexReplacementApplying,
     enhancer: any TextEnhancing,
+    diagramTranslator: any DiagramTranslating,
     overlay: any CaptureOverlayPresenting,
     loginItem: any LoginItemManaging,
     historyRetentionScheduler: any HistoryRetentionScheduling = HistoryRetentionScheduler(),
@@ -59,6 +61,7 @@ final class CaptureCoordinator: ObservableObject {
     self.recognitionRegistry = recognitionRegistry
     self.regexReplacer = regexReplacer
     self.enhancer = enhancer
+    self.diagramTranslator = diagramTranslator
     self.overlay = overlay
     self.loginItem = loginItem
     self.historyRetentionScheduler = historyRetentionScheduler
@@ -274,6 +277,15 @@ final class CaptureCoordinator: ObservableObject {
     let literalReplacementRules = preferences.literalReplacementRules
     let regexReplacementRules = preferences.regexReplacementRules
     let mathematicalNotationFormat = preferences.mathematicalNotationFormat
+    let aiDiagramFallbackEnabled = preferences.aiDiagramFallbackEnabled
+      && profileOverrideResolver.allowsAIDiagramTranslation(
+        for: session.foregroundBundleIdentifier,
+        globalConsent: preferences.aiDiagramConsent
+      )
+    let aiDiagramImageData = aiDiagramFallbackEnabled
+      ? session.renderedPNGData(style: preferences.inkStyle)
+      : nil
+    let aiDiagramOutputFormat = preferences.aiDiagramOutputFormat
     let selectedRecognizer: any TextRecognizing
     do {
       selectedRecognizer = try recognitionRegistry.recognizer(for: selectedBackendID)
@@ -296,7 +308,7 @@ final class CaptureCoordinator: ObservableObject {
     )
     let taskID = UUID()
     captureTaskID = taskID
-    captureTask = Task { [weak self, selectedRecognizer, regexReplacer, enhancer] in
+    captureTask = Task { [weak self, selectedRecognizer, regexReplacer, enhancer, diagramTranslator] in
       defer { self?.completeCaptureTask(id: taskID) }
       guard let self, self.ownsCaptureTask(taskID) else { return }
       do {
@@ -355,10 +367,38 @@ final class CaptureCoordinator: ObservableObject {
           canvasSize: self.session.canvasSize,
           recognizedText: formattedResult
         )
+        let aiDiagramTranslation: AIDiagramTranslation?
+        if diagram == nil, aiDiagramFallbackEnabled, let aiDiagramImageData {
+          do {
+            aiDiagramTranslation = try await diagramTranslator.translate(
+              AIDiagramTranslationRequest(
+                imageData: aiDiagramImageData,
+                recognizedText: formattedResult,
+                preferredFormat: aiDiagramOutputFormat,
+                enabled: true,
+                baseURL: enhancementRequest.baseURL,
+                model: enhancementRequest.model
+              ))
+          } catch is CancellationError {
+            return
+          } catch {
+            notices.append("AI diagram translation failed; used recognized text unchanged.")
+            aiDiagramTranslation = nil
+          }
+        } else {
+          aiDiagramTranslation = nil
+        }
+        try Task.checkCancellation()
+        guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
         self.session.setFlowchartDiagram(diagram)
-        if self.preferences.resultMode == .review || diagram != nil {
+        self.session.setAIDiagramTranslation(aiDiagramTranslation)
+        if self.preferences.resultMode == .review || diagram != nil || aiDiagramTranslation != nil {
           guard self.session.transition(to: .reviewing) else { return }
-          self.statusMessage = diagram == nil ? "Review before inserting" : "Flowchart detected; review an export or insert text"
+          self.statusMessage = switch (diagram, aiDiagramTranslation) {
+          case (.some, _): "Flowchart detected; review an export or insert text"
+          case (_, .some): "AI diagram translated; review an export or insert text"
+          case (.none, .none): "Review before inserting"
+          }
         } else {
           let notice = notices.joined(separator: " ")
           self.finish(

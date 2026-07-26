@@ -89,6 +89,17 @@ struct AppProfileBackendRow: View {
         Text("AI cleanup will not send recognized text until consent is current.")
           .font(.caption).foregroundStyle(.secondary)
       }
+      Text(AIDiagramDisclosure.message).font(.caption).foregroundStyle(.secondary)
+      Button(
+        profile.overrides.aiDiagramConsent?.allowsAIDiagramTranslation == true
+          ? "Revoke AI diagram fallback permission" : "Allow AI diagram fallback for this app",
+        action: toggleAIDiagramConsent
+      )
+      .buttonStyle(.bordered)
+      if profile.overrides.aiDiagramConsent?.allowsAIDiagramTranslation == false {
+        Text("AI diagram fallback will not send this app's capture image until permission is current.")
+          .font(.caption).foregroundStyle(.secondary)
+      }
       if let feedback {
         Text(feedback).font(.caption).foregroundStyle(.secondary)
       }
@@ -172,6 +183,16 @@ struct AppProfileBackendRow: View {
       try profiles.setAICleanupConsent(consent, for: profile.id)
     } catch {
       feedback = (error as? LocalizedError)?.errorDescription ?? "AI cleanup consent could not be updated."
+    }
+  }
+
+  private func toggleAIDiagramConsent() {
+    do {
+      let consent = profile.overrides.aiDiagramConsent?.allowsAIDiagramTranslation == true
+        ? nil : AIDiagramConsent()
+      try profiles.setAIDiagramConsent(consent, for: profile.id)
+    } catch {
+      feedback = (error as? LocalizedError)?.errorDescription ?? "AI diagram permission could not be updated."
     }
   }
 

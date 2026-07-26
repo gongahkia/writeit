@@ -65,6 +65,14 @@ struct CaptureSettingsView: View {
       Section {
         InputTuningPanel(preferences: preferences)
       }
+      Section("Diagram export") {
+        Picker("Flowchart direction", selection: $preferences.flowchartDirection) {
+          ForEach(FlowchartDirection.allCases) { Text($0.title).tag($0) }
+        }
+        Text("Mermaid flowchart export defaults to left-to-right. Choose another direction for future exports.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
       Section("Recognition replacements") {
         LiteralReplacementRulesSettingsView(preferences: preferences)
         Divider()
@@ -94,6 +102,7 @@ struct CleanupSettingsView: View {
   @State private var apiKey = ""
   @State private var keySaved = false
   @State private var connectionStatus: AICleanupConnectionStatus?
+  @State private var showsAIDiagramConsent = false
 
   var body: some View {
     Form {
@@ -132,9 +141,47 @@ struct CleanupSettingsView: View {
           Text(connectionStatus.message).font(.caption).foregroundStyle(.secondary)
         }
       }
+      Section("AI diagram fallback") {
+        Toggle("Enable AI diagram fallback", isOn: aiDiagramFallbackBinding)
+        Picker("Preferred diagram export", selection: $preferences.aiDiagramOutputFormat) {
+          ForEach(AIDiagramOutputFormat.allCases) { Text($0.title).tag($0) }
+        }
+        Text(AIDiagramDisclosure.message)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        Text("Local flowchart translation remains first. This fallback needs the configured endpoint, model, and API key; an app profile can require separate permission.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
     }
     .padding(20)
     .navigationTitle("Cleanup")
+    .confirmationDialog(
+      "Allow AI diagram fallback?",
+      isPresented: $showsAIDiagramConsent,
+      titleVisibility: .visible
+    ) {
+      Button("Allow and enable") { preferences.enableAIDiagramFallback() }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text(AIDiagramDisclosure.message)
+    }
+  }
+
+  private var aiDiagramFallbackBinding: Binding<Bool> {
+    Binding(
+      get: {
+        preferences.aiDiagramFallbackEnabled
+          && preferences.aiDiagramConsent?.allowsAIDiagramTranslation == true
+      },
+      set: { enabled in
+        if enabled {
+          showsAIDiagramConsent = true
+        } else {
+          preferences.disableAIDiagramFallback()
+        }
+      }
+    )
   }
 }
 

@@ -16,6 +16,8 @@ WriteIt is currently distributed as a source-first beta for Apple Silicon. It is
 - Encrypted local history; new installs retain text only for seven days
 - Optional OpenAI-compatible text cleanup; only recognized text is sent
 - Optional local LaTeX or MathJax formatting for supported written mathematical phrases
+- Deterministic flowchart export as ASCII, Mermaid, Excalidraw JSON, or SVG
+- Optional AI diagram fallback with explicit image-and-text consent
 
 ## Privacy
 
@@ -23,7 +25,7 @@ Apple Vision recognition runs on-device. WriteIt does not collect screen context
 
 Structured diagnostic events contain fixed lifecycle codes only, stay local, and retain at most 200 events from the last seven days. Turn off **Retain diagnostic logs** to delete them immediately and prevent new retained events. Diagnostic export contains event codes and timestamps only; it excludes text, ink, screenshots, identifiers, and credentials.
 
-Anonymous metrics are off by default. When enabled, fixed lifecycle codes are queued locally and are not sent by this build. Optional AI cleanup is also off by default; when enabled, it sends recognized text to the endpoint and model selected by the user. API keys stay in Keychain.
+Anonymous metrics are off by default. When enabled, fixed lifecycle codes are queued locally and are not sent by this build. Optional AI cleanup is also off by default; when enabled, it sends recognized text to the endpoint and model selected by the user. Optional AI diagram fallback is separately off by default; when enabled with current consent, it can send the rendered capture image and recognized text to that endpoint only after local diagram translation does not qualify. API keys stay in Keychain.
 
 Cloud OCR and custom providers are catalogued as future, explicit-consent capabilities. They are not implemented in this build.
 

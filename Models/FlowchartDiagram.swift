@@ -2,6 +2,7 @@ import Foundation
 
 enum DiagramExportFormat: String, CaseIterable, Identifiable {
   case ascii
+  case mermaid
   case excalidraw
   case svg
 
@@ -9,6 +10,7 @@ enum DiagramExportFormat: String, CaseIterable, Identifiable {
   var title: String {
     switch self {
     case .ascii: "ASCII"
+    case .mermaid: "Mermaid"
     case .excalidraw: "Excalidraw JSON"
     case .svg: "SVG"
     }
@@ -16,8 +18,34 @@ enum DiagramExportFormat: String, CaseIterable, Identifiable {
   var fileExtension: String {
     switch self {
     case .ascii: "txt"
+    case .mermaid: "mmd"
     case .excalidraw: "excalidraw"
     case .svg: "svg"
+    }
+  }
+}
+
+enum FlowchartDirection: String, CaseIterable, Codable, Identifiable {
+  case leftToRight
+  case topToBottom
+  case bottomToTop
+  case rightToLeft
+
+  var id: String { rawValue }
+  var title: String {
+    switch self {
+    case .leftToRight: "Left to right (LR)"
+    case .topToBottom: "Top to bottom (TD)"
+    case .bottomToTop: "Bottom to top (BT)"
+    case .rightToLeft: "Right to left (RL)"
+    }
+  }
+  var mermaidKeyword: String {
+    switch self {
+    case .leftToRight: "LR"
+    case .topToBottom: "TD"
+    case .bottomToTop: "BT"
+    case .rightToLeft: "RL"
     }
   }
 }
@@ -153,10 +181,15 @@ enum FlowchartDiagramAnalyzer {
 }
 
 enum FlowchartDiagramExportCodec {
-  static func encode(_ diagram: FlowchartDiagram, format: DiagramExportFormat) throws -> Data {
+  static func encode(
+    _ diagram: FlowchartDiagram,
+    format: DiagramExportFormat,
+    direction: FlowchartDirection = .leftToRight
+  ) throws -> Data {
     guard diagram.isQualified else { throw DiagramExportError.noDiagram }
     return switch format {
     case .ascii: Data(ascii(diagram).utf8)
+    case .mermaid: Data(mermaid(diagram, direction: direction).utf8)
     case .excalidraw: try excalidraw(diagram)
     case .svg: Data(svg(diagram).utf8)
     }
@@ -168,6 +201,23 @@ enum FlowchartDiagramExportCodec {
       guard let source = names[edge.sourceID], let destination = names[edge.destinationID] else { return nil }
       return "[\(source)] --> [\(destination)]"
     }.joined(separator: "\n")
+  }
+
+  static func mermaid(_ diagram: FlowchartDiagram, direction: FlowchartDirection) -> String {
+    let identifiers = Dictionary(uniqueKeysWithValues: diagram.nodes.enumerated().map {
+      ($0.element.id, "n\($0.offset + 1)")
+    })
+    var lines = ["flowchart \(direction.mermaidKeyword)"]
+    for node in diagram.nodes {
+      guard let identifier = identifiers[node.id] else { continue }
+      lines.append("  \(identifier)[\"\(escapeMermaid(node.label))\"]")
+    }
+    for edge in diagram.edges {
+      guard let source = identifiers[edge.sourceID], let destination = identifiers[edge.destinationID]
+      else { continue }
+      lines.append("  \(source) --> \(destination)")
+    }
+    return lines.joined(separator: "\n")
   }
 
   private static func excalidraw(_ diagram: FlowchartDiagram) throws -> Data {
@@ -248,5 +298,11 @@ enum FlowchartDiagramExportCodec {
       .replacingOccurrences(of: ">", with: "&gt;")
       .replacingOccurrences(of: "\"", with: "&quot;")
       .replacingOccurrences(of: "'", with: "&apos;")
+  }
+
+  private static func escapeMermaid(_ value: String) -> String {
+    value.replacingOccurrences(of: "\\", with: "\\\\")
+      .replacingOccurrences(of: "\"", with: "\\\"")
+      .replacingOccurrences(of: "\n", with: " ")
   }
 }

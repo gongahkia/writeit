@@ -7,6 +7,7 @@ final class CaptureSession: ObservableObject {
   @Published var strokes: [InkStroke] = []
   @Published var recognizedText = ""
   @Published private(set) var flowchartDiagram: FlowchartDiagram?
+  @Published private(set) var aiDiagramTranslation: AIDiagramTranslation?
   @Published var canvasSize = CGSize(width: 760, height: 250)
   @Published private(set) var deliveryOutcome: DeliveryOutcome?
   private(set) var foregroundBundleIdentifier: String?
@@ -27,6 +28,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     flowchartDiagram = nil
+    aiDiagramTranslation = nil
     deliveryOutcome = nil
     recognitionMetadata = nil
     captureActivatedAt = clock.now
@@ -46,6 +48,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     flowchartDiagram = nil
+    aiDiagramTranslation = nil
     deliveryOutcome = nil
     foregroundBundleIdentifier = nil
     recognitionMetadata = nil
@@ -102,6 +105,10 @@ final class CaptureSession: ObservableObject {
     flowchartDiagram = diagram
   }
 
+  func setAIDiagramTranslation(_ translation: AIDiagramTranslation?) {
+    aiDiagramTranslation = translation
+  }
+
   func inputValidationMessage() -> String? {
     guard !strokes.isEmpty else { return "Write something before recognizing." }
     guard strokes.contains(where: { $0.points.count > 1 }) else {
@@ -113,6 +120,11 @@ final class CaptureSession: ObservableObject {
   func renderedImageData(style: InkStyle = .default) -> Data? {
     guard inputValidationMessage() == nil else { return nil }
     return renderedImage(style: style)?.tiffRepresentation
+  }
+
+  func renderedPNGData(style: InkStyle = .default) -> Data? {
+    guard inputValidationMessage() == nil else { return nil }
+    return renderedImage(style: style)?.representation(using: .png, properties: [:])
   }
 
   func exportedInkData(

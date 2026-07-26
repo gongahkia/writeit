@@ -92,6 +92,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
   let outputStrategy: OutputStrategy?
   let aiCleanupEnabled: Bool?
   let aiCleanupConsent: AICleanupConsent?
+  let aiDiagramConsent: AIDiagramConsent?
   let customWords: CustomWordList?
   let cloudOCRConsent: CloudOCRConsent?
 
@@ -101,6 +102,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     outputStrategy: OutputStrategy? = nil,
     aiCleanupEnabled: Bool? = nil,
     aiCleanupConsent: AICleanupConsent? = nil,
+    aiDiagramConsent: AIDiagramConsent? = nil,
     customWords: CustomWordList? = nil,
     cloudOCRConsent: CloudOCRConsent? = nil
   ) {
@@ -109,6 +111,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     self.outputStrategy = outputStrategy
     self.aiCleanupEnabled = aiCleanupEnabled
     self.aiCleanupConsent = aiCleanupConsent
+    self.aiDiagramConsent = aiDiagramConsent
     self.customWords = customWords
     self.cloudOCRConsent = cloudOCRConsent
   }
@@ -120,6 +123,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
       aiCleanupConsent: aiCleanupConsent,
+      aiDiagramConsent: aiDiagramConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -132,6 +136,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
       aiCleanupConsent: aiCleanupConsent,
+      aiDiagramConsent: aiDiagramConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -144,6 +149,7 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
       aiCleanupConsent: aiCleanupConsent,
+      aiDiagramConsent: aiDiagramConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -156,6 +162,20 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
       outputStrategy: outputStrategy,
       aiCleanupEnabled: aiCleanupEnabled,
       aiCleanupConsent: aiCleanupConsent,
+      aiDiagramConsent: aiDiagramConsent,
+      customWords: customWords,
+      cloudOCRConsent: cloudOCRConsent
+    )
+  }
+
+  func settingAIDiagramConsent(_ aiDiagramConsent: AIDiagramConsent?) -> Self {
+    Self(
+      recognitionLanguage: recognitionLanguage,
+      recognitionBackendID: recognitionBackendID,
+      outputStrategy: outputStrategy,
+      aiCleanupEnabled: aiCleanupEnabled,
+      aiCleanupConsent: aiCleanupConsent,
+      aiDiagramConsent: aiDiagramConsent,
       customWords: customWords,
       cloudOCRConsent: cloudOCRConsent
     )
@@ -198,6 +218,16 @@ final class AppProfileOverrideResolver {
     guard let profile = profiles.profile(matching: bundleIdentifier) else { return true }
     return profile.overrides.aiCleanupConsent?.allowsAICleanup ?? false
   }
+
+  func allowsAIDiagramTranslation(
+    for bundleIdentifier: String?,
+    globalConsent: AIDiagramConsent?
+  ) -> Bool {
+    if let profile = profiles.profile(matching: bundleIdentifier) {
+      return profile.overrides.aiDiagramConsent?.allowsAIDiagramTranslation ?? false
+    }
+    return globalConsent?.allowsAIDiagramTranslation ?? false
+  }
 }
 
 enum AppProfileStoreError: LocalizedError, Equatable {
@@ -214,7 +244,7 @@ enum AppProfileStoreError: LocalizedError, Equatable {
 
 @MainActor
 final class AppProfileStore: ObservableObject {
-  nonisolated static let currentSchemaVersion = 4
+  nonisolated static let currentSchemaVersion = 5
   nonisolated static let archiveDefaultsKey = "appProfiles.archive"
   nonisolated static let schemaVersionDefaultsKey = "appProfiles.schemaVersion"
 
@@ -277,6 +307,14 @@ final class AppProfileStore: ObservableObject {
     try replaceProfiles(profiles.map {
       $0.id == profileID
         ? $0.settingOverrides($0.overrides.settingAICleanupConsent(consent))
+        : $0
+    })
+  }
+
+  func setAIDiagramConsent(_ consent: AIDiagramConsent?, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID
+        ? $0.settingOverrides($0.overrides.settingAIDiagramConsent(consent))
         : $0
     })
   }
