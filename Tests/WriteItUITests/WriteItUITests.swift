@@ -5,6 +5,7 @@ final class WriteItUITests: XCTestCase {
   private var app: XCUIApplication!
 
   override func setUpWithError() throws {
+    try super.setUpWithError()
     continueAfterFailure = false
     app = XCUIApplication(bundleIdentifier: "com.gongahkia.writeit")
     app.launchEnvironment["WRITEIT_UI_TESTING"] = "1"
