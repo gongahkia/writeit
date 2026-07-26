@@ -43,12 +43,14 @@ enum UMLDiagram: Equatable {
   case classDiagram(UMLClassDiagram)
   case sequenceDiagram(UMLSequenceDiagram)
   case stateDiagram(UMLStateDiagram)
+  case useCaseDiagram(UMLUseCaseDiagram)
 
   var title: String {
     switch self {
     case .classDiagram: "class diagram"
     case .sequenceDiagram: "sequence diagram"
     case .stateDiagram: "state diagram"
+    case .useCaseDiagram: "use-case diagram"
     }
   }
   var isQualified: Bool {
@@ -56,6 +58,7 @@ enum UMLDiagram: Equatable {
     case .classDiagram(let diagram): diagram.isQualified
     case .sequenceDiagram(let diagram): diagram.isQualified
     case .stateDiagram(let diagram): diagram.isQualified
+    case .useCaseDiagram(let diagram): diagram.isQualified
     }
   }
   var availableExportFormats: [UMLDiagramExportFormat] {
@@ -63,6 +66,14 @@ enum UMLDiagram: Equatable {
     case .classDiagram: UMLDiagramExportFormat.allCases
     case .sequenceDiagram: UMLDiagramExportFormat.allCases
     case .stateDiagram: UMLDiagramExportFormat.allCases
+    case .useCaseDiagram: [.plantUML, .svg, .excalidraw]
+    }
+  }
+  var compatibilityNote: String? {
+    switch self {
+    case .useCaseDiagram:
+      "Mermaid has no native UML use-case syntax; export this diagram as PlantUML, SVG, or Excalidraw."
+    case .classDiagram, .sequenceDiagram, .stateDiagram: nil
     }
   }
 }
@@ -90,6 +101,13 @@ enum UMLDiagramAnalyzer {
     ) {
       return .stateDiagram(diagram)
     }
+    if let diagram = UMLUseCaseDiagramAnalyzer.analyze(
+      strokes: strokes,
+      canvasSize: canvasSize,
+      recognizedText: recognizedText
+    ) {
+      return .useCaseDiagram(diagram)
+    }
     return nil
   }
 }
@@ -107,6 +125,8 @@ enum UMLDiagramExportCodec {
       return try UMLSequenceDiagramExportCodec.encode(sequenceDiagram, format: format)
     case .stateDiagram(let stateDiagram):
       return try UMLStateDiagramExportCodec.encode(stateDiagram, format: format)
+    case .useCaseDiagram(let useCaseDiagram):
+      return try UMLUseCaseDiagramExportCodec.encode(useCaseDiagram, format: format)
     }
   }
 }

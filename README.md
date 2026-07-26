@@ -17,6 +17,7 @@ WriteIt is currently distributed as a source-first beta for Apple Silicon. It is
 - Optional OpenAI-compatible text cleanup; only recognized text is sent
 - Optional local LaTeX or MathJax formatting for supported written mathematical phrases
 - Deterministic flowchart export as ASCII, Mermaid, Excalidraw JSON, or SVG
+- Deterministic UML class, sequence, state, and use-case diagram export; use-case diagrams export as PlantUML, SVG, or Excalidraw because Mermaid has no native UML use-case syntax
 - Optional AI diagram fallback with explicit image-and-text consent
 
 ## Privacy

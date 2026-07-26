@@ -1103,6 +1103,68 @@ struct UMLStateDiagramTests {
   }
 }
 
+struct UMLUseCaseDiagramTests {
+  @Test("classifies actors use cases associations and supported exports")
+  func detectsAndExportsUseCaseDiagram() throws {
+    let fixture = try UMLInkFixture.load("uml-usecase-qualified")
+    let diagram = try #require(UMLUseCaseDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ))
+    #expect(diagram.isQualified)
+    #expect(diagram.actors.map(\.name) == ["Customer"])
+    #expect(diagram.useCases.map(\.name) == ["Place order"])
+    #expect(diagram.associations == [UMLUseCaseAssociation(actorID: "actor-1", useCaseID: "usecase-1")])
+    guard case .useCaseDiagram? = UMLDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ) else {
+      Issue.record("expected the unified analyzer to retain the use-case diagram")
+      return
+    }
+    let detected = UMLDiagram.useCaseDiagram(diagram)
+    let plantUML = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .plantUML), as: UTF8.self)
+    let svg = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .svg), as: UTF8.self)
+    let excalidraw = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .excalidraw), as: UTF8.self)
+
+    #expect(plantUML.contains("actor \"Customer\" as A1"))
+    #expect(plantUML.contains("usecase \"Place order\" as U1"))
+    #expect(plantUML.contains("A1 -- U1"))
+    #expect(svg.contains("<ellipse"))
+    #expect(excalidraw.contains("\"type\" : \"ellipse\""))
+    #expect(detected.availableExportFormats.contains(.mermaid) == false)
+    #expect(detected.compatibilityNote?.contains("Mermaid has no native UML use-case syntax") == true)
+    #expect(throws: UMLDiagramExportError.unsupportedFormat) {
+      try UMLDiagramExportCodec.encode(detected, format: .mermaid)
+    }
+  }
+
+  @Test("rejects incomplete actor/use-case ink and escapes labels")
+  func rejectsIncompleteInkAndEscapesLabels() throws {
+    let rejected = try UMLInkFixture.load("uml-usecase-rejected")
+    #expect(UMLUseCaseDiagramAnalyzer.analyze(
+      strokes: rejected.inkStrokes,
+      canvasSize: rejected.canvasSize,
+      recognizedText: rejected.recognizedText
+    ) == nil)
+
+    let escaped = try UMLInkFixture.load("uml-usecase-escaped-labels")
+    let diagram = try #require(UMLUseCaseDiagramAnalyzer.analyze(
+      strokes: escaped.inkStrokes,
+      canvasSize: escaped.canvasSize,
+      recognizedText: escaped.recognizedText
+    ))
+    let plantUML = UMLUseCaseDiagramExportCodec.plantUML(diagram)
+    let svg = String(decoding: try UMLUseCaseDiagramExportCodec.encode(diagram, format: .svg), as: UTF8.self)
+
+    #expect(plantUML.contains("Customer & <member>"))
+    #expect(svg.contains("Customer &amp; &lt;member&gt;"))
+    #expect(svg.contains("Place &quot;order&quot;"))
+  }
+}
+
 struct TrOCRTokenizerTests {
   private func tokenizer() throws -> TrOCRTokenizer {
     try TrOCRTokenizer(configuration: TrOCRTokenizerConfiguration(
@@ -4896,6 +4958,41 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(localDependencies.delivery.deliveredRequests.isEmpty)
 
     let rejected = try UMLInkFixture.load("uml-state-rejected")
+    let textDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    let textCapture = textDependencies.makeCaptureCoordinator()
+    textCapture.beginCapture()
+    textCapture.session.canvasSize = rejected.canvasSize
+    textCapture.session.strokes = rejected.inkStrokes
+
+    textCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    #expect(textCapture.session.umlDiagram == nil)
+    #expect(textDependencies.delivery.deliveredRequests.first?.text == "recognized")
+  }
+
+  @Test("keeps qualified use-case diagrams local and rejected use-case ink in text delivery") @MainActor
+  func handlesUseCaseDiagramRecognitionWithoutChangingTextDelivery() async throws {
+    let qualified = try UMLInkFixture.load("uml-usecase-qualified")
+    let localDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    localDependencies.preferences.enableAIDiagramFallback()
+    let localCapture = localDependencies.makeCaptureCoordinator()
+    localCapture.beginCapture()
+    localCapture.session.canvasSize = qualified.canvasSize
+    localCapture.session.strokes = qualified.inkStrokes
+
+    localCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    guard case .useCaseDiagram? = localCapture.session.umlDiagram else {
+      Issue.record("expected qualified use-case ink to be retained locally")
+      return
+    }
+    #expect(localCapture.session.phase == .reviewing)
+    #expect(localDependencies.diagramTranslator.requests.isEmpty)
+    #expect(localDependencies.delivery.deliveredRequests.isEmpty)
+
+    let rejected = try UMLInkFixture.load("uml-usecase-rejected")
     let textDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
     let textCapture = textDependencies.makeCaptureCoordinator()
     textCapture.beginCapture()

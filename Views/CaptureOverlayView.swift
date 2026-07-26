@@ -290,6 +290,9 @@ struct CaptureOverlayView: View {
         Spacer()
         Text("Text delivery remains unchanged.").font(.caption).foregroundStyle(.white.opacity(0.56))
       }
+      if let compatibilityNote = diagram.compatibilityNote {
+        Text(compatibilityNote).font(.caption).foregroundStyle(.white.opacity(0.56))
+      }
     }
     .onChange(of: diagram.title, initial: true) { _, _ in
       if !formats.contains(umlDiagramFormat) { umlDiagramFormat = formats[0] }
