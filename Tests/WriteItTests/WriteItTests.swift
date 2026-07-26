@@ -728,6 +728,35 @@ struct DiagnosticExportTests {
   }
 }
 
+struct DiagnosticSourceBetaSmokeTests {
+  @Test("persists and redacts source-beta runtime diagnostics") @MainActor
+  func persistsAndRedactsRuntimeLifecycle() throws {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("writeit-diagnostic-smoke-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let startedAt = Date(timeIntervalSinceReferenceDate: 1_000_000)
+    let current = startedAt.addingTimeInterval(2)
+    let store = DiagnosticEventStore(directory: directory, now: { current })
+
+    store.record(.runtimeStarted, at: startedAt)
+    store.record(.runtimeStopped, at: startedAt.addingTimeInterval(1))
+    let restored = DiagnosticEventStore(directory: directory, now: { current })
+    let archive = DiagnosticExportArchive(events: restored.events, generatedAt: startedAt)
+    let data = try DiagnosticExportCodec.encode(archive)
+    let text = String(decoding: data, as: UTF8.self)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let events = try #require(object["events"] as? [[String: Any]])
+
+    #expect(restored.events.map(\.kind) == [.runtimeStarted, .runtimeStopped])
+    #expect(events.allSatisfy { Set($0.keys) == Set(["occurred_at", "kind"]) })
+    #expect(text.contains("id") == false)
+    #expect(text.contains("recognized_text") == false)
+    #expect(text.contains("ink") == false)
+    #expect(text.contains("screenshot") == false)
+    #expect(text.contains("credential") == false)
+  }
+}
+
 struct InkExportTests {
   @Test("exports transparent PNG, vector SVG, and vector PDF from captured ink") @MainActor
   func exportsCapturedInkInSupportedFormats() throws {
