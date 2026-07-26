@@ -1044,6 +1044,65 @@ struct UMLSequenceDiagramTests {
   }
 }
 
+struct UMLStateDiagramTests {
+  @Test("classifies states initial final transitions and labels")
+  func detectsAndExportsStateDiagram() throws {
+    let fixture = try UMLInkFixture.load("uml-state-qualified")
+    let diagram = try #require(UMLStateDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ))
+    #expect(diagram.isQualified)
+    #expect(diagram.states.map(\.name) == ["Idle", "Active"])
+    #expect(diagram.initial.kind == .initial)
+    #expect(diagram.final.kind == .final)
+    #expect(diagram.transitions.map(\.label) == ["start", "advance", "complete"])
+    guard case .stateDiagram? = UMLDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ) else {
+      Issue.record("expected the unified analyzer to retain the state diagram")
+      return
+    }
+    let detected = UMLDiagram.stateDiagram(diagram)
+    let plantUML = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .plantUML), as: UTF8.self)
+    let mermaid = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .mermaid), as: UTF8.self)
+    let svg = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .svg), as: UTF8.self)
+    let excalidraw = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .excalidraw), as: UTF8.self)
+
+    #expect(plantUML.contains("[*] --> S1: start"))
+    #expect(plantUML.contains("S2 --> [*]: complete"))
+    #expect(mermaid.contains("stateDiagram-v2"))
+    #expect(mermaid.contains("S1 --> S2: advance"))
+    #expect(svg.contains("<circle"))
+    #expect(excalidraw.contains("\"type\" : \"ellipse\""))
+  }
+
+  @Test("rejects missing pseudostates and escapes state labels")
+  func rejectsIncompleteInkAndEscapesLabels() throws {
+    let rejected = try UMLInkFixture.load("uml-state-rejected")
+    #expect(UMLStateDiagramAnalyzer.analyze(
+      strokes: rejected.inkStrokes,
+      canvasSize: rejected.canvasSize,
+      recognizedText: rejected.recognizedText
+    ) == nil)
+
+    let escaped = try UMLInkFixture.load("uml-state-escaped-labels")
+    let diagram = try #require(UMLStateDiagramAnalyzer.analyze(
+      strokes: escaped.inkStrokes,
+      canvasSize: escaped.canvasSize,
+      recognizedText: escaped.recognizedText
+    ))
+    let svg = String(decoding: try UMLStateDiagramExportCodec.encode(diagram, format: .svg), as: UTF8.self)
+    let mermaid = UMLStateDiagramExportCodec.mermaid(diagram)
+
+    #expect(svg.contains("Idle &amp; &lt;ready&gt;"))
+    #expect(mermaid.contains("go#58;now#59;"))
+  }
+}
+
 struct TrOCRTokenizerTests {
   private func tokenizer() throws -> TrOCRTokenizer {
     try TrOCRTokenizer(configuration: TrOCRTokenizerConfiguration(
@@ -4802,6 +4861,41 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(localDependencies.delivery.deliveredRequests.isEmpty)
 
     let rejected = try UMLInkFixture.load("uml-sequence-rejected")
+    let textDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    let textCapture = textDependencies.makeCaptureCoordinator()
+    textCapture.beginCapture()
+    textCapture.session.canvasSize = rejected.canvasSize
+    textCapture.session.strokes = rejected.inkStrokes
+
+    textCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    #expect(textCapture.session.umlDiagram == nil)
+    #expect(textDependencies.delivery.deliveredRequests.first?.text == "recognized")
+  }
+
+  @Test("keeps qualified state diagrams local and rejected state ink in text delivery") @MainActor
+  func handlesStateDiagramRecognitionWithoutChangingTextDelivery() async throws {
+    let qualified = try UMLInkFixture.load("uml-state-qualified")
+    let localDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    localDependencies.preferences.enableAIDiagramFallback()
+    let localCapture = localDependencies.makeCaptureCoordinator()
+    localCapture.beginCapture()
+    localCapture.session.canvasSize = qualified.canvasSize
+    localCapture.session.strokes = qualified.inkStrokes
+
+    localCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    guard case .stateDiagram? = localCapture.session.umlDiagram else {
+      Issue.record("expected qualified state ink to be retained locally")
+      return
+    }
+    #expect(localCapture.session.phase == .reviewing)
+    #expect(localDependencies.diagramTranslator.requests.isEmpty)
+    #expect(localDependencies.delivery.deliveredRequests.isEmpty)
+
+    let rejected = try UMLInkFixture.load("uml-state-rejected")
     let textDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
     let textCapture = textDependencies.makeCaptureCoordinator()
     textCapture.beginCapture()

@@ -42,23 +42,27 @@ enum UMLDiagramExportError: LocalizedError, Equatable {
 enum UMLDiagram: Equatable {
   case classDiagram(UMLClassDiagram)
   case sequenceDiagram(UMLSequenceDiagram)
+  case stateDiagram(UMLStateDiagram)
 
   var title: String {
     switch self {
     case .classDiagram: "class diagram"
     case .sequenceDiagram: "sequence diagram"
+    case .stateDiagram: "state diagram"
     }
   }
   var isQualified: Bool {
     switch self {
     case .classDiagram(let diagram): diagram.isQualified
     case .sequenceDiagram(let diagram): diagram.isQualified
+    case .stateDiagram(let diagram): diagram.isQualified
     }
   }
   var availableExportFormats: [UMLDiagramExportFormat] {
     switch self {
     case .classDiagram: UMLDiagramExportFormat.allCases
     case .sequenceDiagram: UMLDiagramExportFormat.allCases
+    case .stateDiagram: UMLDiagramExportFormat.allCases
     }
   }
 }
@@ -79,6 +83,13 @@ enum UMLDiagramAnalyzer {
     ) {
       return .sequenceDiagram(diagram)
     }
+    if let diagram = UMLStateDiagramAnalyzer.analyze(
+      strokes: strokes,
+      canvasSize: canvasSize,
+      recognizedText: recognizedText
+    ) {
+      return .stateDiagram(diagram)
+    }
     return nil
   }
 }
@@ -94,6 +105,8 @@ enum UMLDiagramExportCodec {
       return try UMLClassDiagramExportCodec.encode(classDiagram, format: format)
     case .sequenceDiagram(let sequenceDiagram):
       return try UMLSequenceDiagramExportCodec.encode(sequenceDiagram, format: format)
+    case .stateDiagram(let stateDiagram):
+      return try UMLStateDiagramExportCodec.encode(stateDiagram, format: format)
     }
   }
 }
