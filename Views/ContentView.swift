@@ -26,6 +26,7 @@ struct ContentView: View {
   @ObservedObject var onboarding: OnboardingStore
   @ObservedObject var history: HistoryStore
   @ObservedObject var models: ModelStore
+  @ObservedObject var customModelSource: CustomHTTPSModelSourceStore
   @ObservedObject var dataDeletion: LocalDataDeletionController
   @ObservedObject var diagnostics: DiagnosticEventStore
   @ObservedObject var metrics: AnonymousMetricsQueue
@@ -42,6 +43,8 @@ struct ContentView: View {
         onboarding: onboarding,
         capture: capture,
         preferences: preferences,
+        models: models,
+        customModelSource: customModelSource,
         recognitionRegistry: recognitionRegistry
       )
     } else {
@@ -74,6 +77,8 @@ struct ContentView: View {
       case .models:
         ModelCatalogView(
           preferences: preferences,
+          models: models,
+          customModelSource: customModelSource,
           cloudProviders: cloudProviders,
           profiles: profiles,
           profileCreator: profileCreator,

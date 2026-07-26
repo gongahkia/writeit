@@ -107,6 +107,11 @@ struct ModelMacOSVersion: Codable, Sendable, Hashable, Comparable {
   }
 }
 
+enum ModelAssetFormat: String, Codable, Sendable, Hashable {
+  case file
+  case zip
+}
+
 struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
   let id: String
   let version: String
@@ -117,6 +122,7 @@ struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
   let requiresAppleSilicon: Bool
   let assetSizeBytes: UInt64
   let minimumMacOSVersion: ModelMacOSVersion
+  let assetFormat: ModelAssetFormat
 
   init(
     id: String,
@@ -127,7 +133,8 @@ struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
     supportedLanguages: Set<RecognitionLanguage>,
     requiresAppleSilicon: Bool,
     assetSizeBytes: UInt64 = 0,
-    minimumMacOSVersion: ModelMacOSVersion = .macOS15
+    minimumMacOSVersion: ModelMacOSVersion = .macOS15,
+    assetFormat: ModelAssetFormat = .file
   ) {
     self.id = id
     self.version = version
@@ -138,6 +145,41 @@ struct ModelManifest: Codable, Sendable, Hashable, Identifiable {
     self.requiresAppleSilicon = requiresAppleSilicon
     self.assetSizeBytes = assetSizeBytes
     self.minimumMacOSVersion = minimumMacOSVersion
+    self.assetFormat = assetFormat
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case id, version, downloadURL, sha256, license, supportedLanguages, requiresAppleSilicon
+    case assetSizeBytes, minimumMacOSVersion
+    case assetFormat = "asset_format"
+  }
+
+  init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    version = try container.decode(String.self, forKey: .version)
+    downloadURL = try container.decode(URL.self, forKey: .downloadURL)
+    sha256 = try container.decode(String.self, forKey: .sha256)
+    license = try container.decode(String.self, forKey: .license)
+    supportedLanguages = try container.decode(Set<RecognitionLanguage>.self, forKey: .supportedLanguages)
+    requiresAppleSilicon = try container.decode(Bool.self, forKey: .requiresAppleSilicon)
+    assetSizeBytes = try container.decode(UInt64.self, forKey: .assetSizeBytes)
+    minimumMacOSVersion = try container.decode(ModelMacOSVersion.self, forKey: .minimumMacOSVersion)
+    assetFormat = try container.decodeIfPresent(ModelAssetFormat.self, forKey: .assetFormat) ?? .file
+  }
+
+  func encode(to encoder: any Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(id, forKey: .id)
+    try container.encode(version, forKey: .version)
+    try container.encode(downloadURL, forKey: .downloadURL)
+    try container.encode(sha256, forKey: .sha256)
+    try container.encode(license, forKey: .license)
+    try container.encode(supportedLanguages, forKey: .supportedLanguages)
+    try container.encode(requiresAppleSilicon, forKey: .requiresAppleSilicon)
+    try container.encode(assetSizeBytes, forKey: .assetSizeBytes)
+    try container.encode(minimumMacOSVersion, forKey: .minimumMacOSVersion)
+    try container.encode(assetFormat, forKey: .assetFormat)
   }
 }
 

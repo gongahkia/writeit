@@ -61,8 +61,7 @@ enum ManifestModelInstaller {
     guard !FileManager.default.fileExists(atPath: destination.path) else {
       throw ManifestModelInstallerError.alreadyInstalled
     }
-    let assetName = stagedAssetURL.lastPathComponent
-    guard isSafePathComponent(assetName) else { throw ManifestModelInstallerError.assetMissing }
+    let assetName: String
     let stagingDirectory = modelsDirectory.appendingPathComponent(
       ".staging-\(UUID().uuidString)", isDirectory: true)
     var moved = false
@@ -71,8 +70,17 @@ enum ManifestModelInstaller {
     }
     do {
       try FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
-      let stagedAsset = stagingDirectory.appendingPathComponent(assetName, isDirectory: true)
-      try FileManager.default.copyItem(at: stagedAssetURL, to: stagedAsset)
+      switch manifest.assetFormat {
+      case .file:
+        let name = stagedAssetURL.lastPathComponent
+        guard isSafePathComponent(name) else { throw ManifestModelInstallerError.assetMissing }
+        try FileManager.default.copyItem(at: stagedAssetURL, to: stagingDirectory.appendingPathComponent(name))
+        assetName = name
+      case .zip:
+        let bundleURL = stagingDirectory.appendingPathComponent("bundle", isDirectory: true)
+        try ModelArchiveExtractor.extract(stagedAssetURL, to: bundleURL)
+        assetName = "bundle"
+      }
       guard !isCancelled() else { throw ManifestModelInstallerError.cancelled }
       let record = InstalledModelRecord(
         schemaVersion: InstalledModelRecord.schemaVersion,
@@ -117,5 +125,29 @@ enum ManifestModelInstaller {
 
   private static func isSafePathComponent(_ value: String) -> Bool {
     !value.isEmpty && value != "." && value != ".." && !value.contains("/") && !value.contains("\\")
+  }
+}
+
+private enum ModelArchiveExtractor {
+  static func extract(_ archiveURL: URL, to destination: URL) throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+    process.arguments = ["-x", "-k", archiveURL.path, destination.path]
+    do {
+      try process.run()
+      process.waitUntilExit()
+    } catch {
+      throw ManifestModelInstallerError.installFailed
+    }
+    guard process.terminationStatus == 0,
+      let enumerator = FileManager.default.enumerator(
+        at: destination, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+        options: [.skipsHiddenFiles]),
+      enumerator.nextObject() != nil
+    else { throw ManifestModelInstallerError.installFailed }
+    for case let fileURL as URL in enumerator {
+      let values = try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey])
+      if values?.isSymbolicLink == true { throw ManifestModelInstallerError.installFailed }
+    }
   }
 }

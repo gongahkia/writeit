@@ -919,6 +919,78 @@ struct TrOCRQualificationTests {
   }
 }
 
+struct CustomHTTPSModelSourceTests {
+  private struct Requester: CustomHTTPSModelRequesting {
+    let response: CustomHTTPSModelHTTPResponse
+
+    func data(for request: URLRequest) async throws -> CustomHTTPSModelHTTPResponse {
+      response
+    }
+  }
+
+  private func manifest() -> VersionedModelManifest {
+    VersionedModelManifest(
+      schemaVersion: VersionedModelManifest.currentSchemaVersion,
+      models: [
+        ModelManifest(
+          id: "trocr-small-handwritten",
+          version: "1.0.0",
+          downloadURL: URL(string: "https://models.example.test/trocr.zip")!,
+          sha256: String(repeating: "a", count: 64),
+          license: "MIT",
+          supportedLanguages: [.english],
+          requiresAppleSilicon: true,
+          assetSizeBytes: 1,
+          assetFormat: .zip
+        )
+      ]
+    )
+  }
+
+  @Test("custom HTTPS sources accept only validated manifest and asset URLs")
+  func fetchesValidatedHTTPSManifest() async throws {
+    let data = try JSONEncoder().encode(manifest())
+    let fetcher = CustomHTTPSModelManifestFetcher(requester: Requester(response: .init(
+      data: data, statusCode: 200, finalURL: URL(string: "https://models.example.test/manifest.json")!
+    )))
+    let loaded = try await fetcher.fetch(at: URL(string: "https://models.example.test/manifest.json")!)
+    #expect(loaded == manifest())
+    await #expect(throws: CustomHTTPSModelSourceError.invalidURL) {
+      try await fetcher.fetch(at: URL(string: "http://models.example.test/manifest.json")!)
+    }
+  }
+
+  @Test("custom HTTPS sources reject invalid redirects and malformed manifests")
+  func rejectsInvalidSourceResponses() async throws {
+    let insecure = CustomHTTPSModelManifestFetcher(requester: Requester(response: .init(
+      data: try JSONEncoder().encode(manifest()), statusCode: 200,
+      finalURL: URL(string: "http://models.example.test/manifest.json")!
+    )))
+    await #expect(throws: CustomHTTPSModelSourceError.invalidURL) {
+      try await insecure.fetch(at: URL(string: "https://models.example.test/manifest.json")!)
+    }
+    let malformed = CustomHTTPSModelManifestFetcher(requester: Requester(response: .init(
+      data: Data("{}".utf8), statusCode: 200,
+      finalURL: URL(string: "https://models.example.test/manifest.json")!
+    )))
+    await #expect(throws: CustomHTTPSModelSourceError.invalidManifest) {
+      try await malformed.fetch(at: URL(string: "https://models.example.test/manifest.json")!)
+    }
+  }
+
+  @Test("legacy manifests decode as single-file model assets")
+  func decodesLegacyModelManifest() throws {
+    let value: [String: Any] = [
+      "id": "legacy", "version": "1", "downloadURL": "https://models.example.test/model.mlmodelc",
+      "sha256": String(repeating: "b", count: 64), "license": "MIT", "supportedLanguages": ["en-US"],
+      "requiresAppleSilicon": true, "assetSizeBytes": 1,
+      "minimumMacOSVersion": ["major": 15, "minor": 0, "patch": 0],
+    ]
+    let data = try JSONSerialization.data(withJSONObject: value)
+    #expect(try JSONDecoder().decode(ModelManifest.self, from: data).assetFormat == .file)
+  }
+}
+
 struct PrivacyStateRegressionTests {
   @Test("describes diagnostics and metrics opt-in states")
   func describesDiagnosticsAndMetricsStates() {

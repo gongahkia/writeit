@@ -4,6 +4,8 @@ struct OnboardingView: View {
   @ObservedObject var onboarding: OnboardingStore
   @ObservedObject var capture: CaptureCoordinator
   @ObservedObject var preferences: Preferences
+  @ObservedObject var models: ModelStore
+  @ObservedObject var customModelSource: CustomHTTPSModelSourceStore
   let recognitionRegistry: RecognitionBackendRegistry
   @State private var shortcutValidationMessage: String?
 
@@ -33,6 +35,9 @@ struct OnboardingView: View {
           }
           if onboarding.currentStep == .cloudConsent {
             cloudPrivacySetup
+          }
+          if onboarding.currentStep == .modelDownload {
+            modelDownloadSetup
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,7 +139,7 @@ struct OnboardingView: View {
   private var canContinue: Bool {
     onboarding.canAdvance && (
       onboarding.currentStep != .recognition || recognitionSelection.allowsAdvance
-    )
+    ) && (onboarding.currentStep != .modelDownload || customModelSource.manifestURL.isEmpty || customModelSource.manifest != nil)
   }
 
   @ViewBuilder
@@ -148,5 +153,41 @@ struct OnboardingView: View {
       action: onboarding.acknowledgeCloudPrivacy
     )
     .disabled(onboarding.hasAcknowledgedCloudPrivacy)
+  }
+
+  @ViewBuilder
+  private var modelDownloadSetup: some View {
+    TextField(
+      "HTTPS model manifest URL",
+      text: Binding(
+        get: { customModelSource.manifestURL },
+        set: { customModelSource.setManifestURL($0) }
+      )
+    )
+    .textContentType(.URL)
+    HStack {
+      Button("Check source") { Task { await customModelSource.refresh() } }
+        .disabled(customModelSource.manifestURL.isEmpty || customModelSource.isLoading)
+      if customModelSource.isLoading { ProgressView().controlSize(.small) }
+    }
+    if let message = customModelSource.message {
+      Text(message).font(.caption).foregroundStyle(.secondary)
+    }
+    ForEach(customModelSource.models) { manifest in
+      HStack {
+        VStack(alignment: .leading) {
+          Text("\(manifest.id) \(manifest.version)")
+          Text("\(manifest.assetSizeBytes.formatted(.byteCount(style: .file))) · \(manifest.license)")
+            .font(.caption).foregroundStyle(.secondary)
+        }
+        Spacer()
+        Button("Install") { Task { await customModelSource.download(manifest, into: models) } }
+          .disabled(ModelCompatibilityChecker.failure(
+            for: manifest, environment: ModelCompatibilityChecker.currentEnvironment(storageURL: ModelStore.defaultModelsDirectory)
+          ) != nil)
+      }
+    }
+    Text("Leave this blank to use Apple Vision. Custom models download only from the HTTPS URL you enter.")
+      .font(.caption).foregroundStyle(.secondary)
   }
 }

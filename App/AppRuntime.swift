@@ -5,6 +5,7 @@ final class AppRuntime {
   let preferences: Preferences
   let history: HistoryStore
   let models: ModelStore
+  let customModelSource: CustomHTTPSModelSourceStore
   let dataDeletion: LocalDataDeletionController
   let onboarding: OnboardingStore
   let diagnostics: DiagnosticEventStore
@@ -23,10 +24,12 @@ final class AppRuntime {
     onboarding = OnboardingStore(defaults: defaults)
     let historyStore = HistoryStore()
     let modelStore = ModelStore()
+    let customModelSourceStore = CustomHTTPSModelSourceStore(defaults: defaults)
     let diagnosticStore = DiagnosticEventStore(retainsLocalLogs: preferences.retainsLocalLogs)
     let metricsQueue = AnonymousMetricsQueue(hasConsent: preferences.allowsAnonymousMetrics)
     history = historyStore
     models = modelStore
+    customModelSource = customModelSourceStore
     dataDeletion = LocalDataDeletionController(
       eraser: LocalDataEraser(
         history: historyStore,

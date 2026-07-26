@@ -30,6 +30,7 @@ struct WriteItApp: App {
         onboarding: appDelegate.runtime.onboarding,
         history: appDelegate.runtime.history,
         models: appDelegate.runtime.models,
+        customModelSource: appDelegate.runtime.customModelSource,
         dataDeletion: appDelegate.runtime.dataDeletion,
         diagnostics: appDelegate.runtime.diagnostics,
         metrics: appDelegate.runtime.metrics,
