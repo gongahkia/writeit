@@ -125,6 +125,18 @@ struct AppProfileOverrides: Codable, Sendable, Equatable {
     )
   }
 
+  func settingOutputStrategy(_ outputStrategy: OutputStrategy?) -> Self {
+    Self(
+      recognitionLanguage: recognitionLanguage,
+      recognitionBackendID: recognitionBackendID,
+      outputStrategy: outputStrategy,
+      aiCleanupEnabled: aiCleanupEnabled,
+      aiCleanupConsent: aiCleanupConsent,
+      customWords: customWords,
+      cloudOCRConsent: cloudOCRConsent
+    )
+  }
+
   func settingCloudOCRConsent(_ cloudOCRConsent: CloudOCRConsent?) -> Self {
     Self(
       recognitionLanguage: recognitionLanguage,
@@ -232,6 +244,12 @@ final class AppProfileStore: ObservableObject {
   func setEnabled(_ isEnabled: Bool, for profileID: UUID) throws {
     try replaceProfiles(profiles.map {
       $0.id == profileID ? $0.settingEnabled(isEnabled) : $0
+    })
+  }
+
+  func setOutputStrategy(_ outputStrategy: OutputStrategy?, for profileID: UUID) throws {
+    try replaceProfiles(profiles.map {
+      $0.id == profileID ? $0.settingOverrides($0.overrides.settingOutputStrategy(outputStrategy)) : $0
     })
   }
 

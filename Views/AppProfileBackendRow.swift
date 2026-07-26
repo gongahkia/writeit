@@ -7,6 +7,7 @@ struct AppProfileBackendRow: View {
   let registry: RecognitionBackendRegistry
   let globalBackendID: String
   @State private var backendID: String
+  @State private var outputStrategy: OutputStrategy?
   @State private var feedback: String?
   @State private var showsRemovalConfirmation = false
 
@@ -23,6 +24,7 @@ struct AppProfileBackendRow: View {
     self.registry = registry
     self.globalBackendID = globalBackendID
     _backendID = State(initialValue: profile.overrides.recognitionBackendID ?? "")
+    _outputStrategy = State(initialValue: profile.overrides.outputStrategy)
   }
 
   var body: some View {
@@ -53,6 +55,16 @@ struct AppProfileBackendRow: View {
       .onChange(of: profile.overrides.recognitionBackendID) { _, newValue in
         backendID = newValue ?? ""
       }
+      Picker("Output", selection: $outputStrategy) {
+        Text("Use global default").tag(OutputStrategy?.none)
+        ForEach(OutputStrategy.allCases) { strategy in
+          Text(strategy.title).tag(OutputStrategy?.some(strategy))
+        }
+      }
+      .disabled(profile.isEnabled == false)
+      .accessibilityIdentifier("profile.outputStrategy")
+      .onChange(of: outputStrategy) { _, newValue in setOutputStrategy(newValue) }
+      .onChange(of: profile.overrides.outputStrategy) { _, newValue in outputStrategy = newValue }
       if requiresCloudConsent {
         Text(CloudOCRDisclosure.message).font(.caption).foregroundStyle(.secondary)
         Button(
@@ -130,6 +142,14 @@ struct AppProfileBackendRow: View {
   private func setBackend(_ backendID: String) {
     do {
       try profiles.setRecognitionBackendID(backendID.isEmpty ? nil : backendID, for: profile.id)
+    } catch {
+      feedback = (error as? LocalizedError)?.errorDescription ?? "Profile could not be updated."
+    }
+  }
+
+  private func setOutputStrategy(_ outputStrategy: OutputStrategy?) {
+    do {
+      try profiles.setOutputStrategy(outputStrategy, for: profile.id)
     } catch {
       feedback = (error as? LocalizedError)?.errorDescription ?? "Profile could not be updated."
     }

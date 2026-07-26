@@ -116,10 +116,12 @@ struct CaptureOverlayView: View {
         if showsDiagramReview {
           Button("Text review") { showsDiagramReview = false }.buttonStyle(.bordered)
         } else {
-          Button("Insert", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
+          Button("Insert", action: { coordinator.execute(.confirm) })
+            .buttonStyle(.borderedProminent).accessibilityIdentifier("capture.insert")
         }
       } else if case .delivered = session.phase {
         Button("Undo", action: coordinator.undoInsertion).buttonStyle(.bordered)
+          .accessibilityIdentifier("capture.undo")
       } else if case .failed = session.phase {
         Button("Retry", action: { coordinator.execute(.confirm) }).buttonStyle(.borderedProminent)
       } else if case .drawing = session.phase {

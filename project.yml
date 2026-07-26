@@ -1,0 +1,36 @@
+name: WriteIt
+options:
+  minimumXcodeGenVersion: 2.46.0
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    SWIFT_VERSION: "6.0"
+targets:
+  WriteIt:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Models
+      - path: Services
+      - path: Support
+      - path: Views
+      - path: PrivacyInfo.xcprivacy
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gongahkia.writeit
+        PRODUCT_NAME: WriteIt
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Packaging/Info.plist
+  WriteItUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Tests/WriteItUITests
+    dependencies:
+      - target: WriteIt
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gongahkia.writeit.uitests
+        TEST_TARGET_NAME: WriteIt
+        GENERATE_INFOPLIST_FILE: YES

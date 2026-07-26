@@ -11,7 +11,7 @@ let package = Package(
       path: ".",
       exclude: [
         "Tests", "script", ".github", "dist", "release", "Packaging", ".gitignore",
-        "Package.swift", "README.md", "BUILD.md", "LICENSE", "PrivacyInfo.xcprivacy",
+        "Package.swift", "README.md", "BUILD.md", "LICENSE", "PrivacyInfo.xcprivacy", "project.yml",
       ],
       sources: ["App", "Models", "Services", "Views", "Support"]
     ),

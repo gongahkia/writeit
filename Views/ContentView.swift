@@ -56,7 +56,7 @@ struct ContentView: View {
     NavigationSplitView {
       List(selection: $section) {
         ForEach(MainSection.allCases) { item in
-          Label(item.title, systemImage: item.icon).tag(item)
+          Label(item.title, systemImage: item.icon).tag(item).accessibilityIdentifier("main.\(item.id)")
         }
       }
       .listStyle(.sidebar)
@@ -121,11 +121,18 @@ private struct CaptureDashboard: View {
           Label("Start writing", systemImage: "pencil.tip")
         }
         .buttonStyle(.borderedProminent)
+        .accessibilityIdentifier("capture.start")
         .disabled(readiness.canStartCapture == false)
         Text(preferences.shortcut.displayName).font(.title3.monospaced()).foregroundStyle(
           .secondary)
       }
       .controlSize(.large)
+      if UITestConfiguration.isEnabled {
+        Button("UI Test: Review capture", action: capture.presentUITestReview)
+          .accessibilityIdentifier("capture.testReview")
+        Button("UI Test: Open models", action: onOpenModels)
+          .accessibilityIdentifier("capture.openModels")
+      }
 
       GroupBox("Readiness") {
         VStack(alignment: .leading, spacing: 10) {

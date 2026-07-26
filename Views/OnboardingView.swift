@@ -45,6 +45,7 @@ struct OnboardingView: View {
       }
       HStack {
         Button("Back", action: onboarding.goBack).disabled(onboarding.canGoBack == false)
+          .accessibilityIdentifier("onboarding.back")
         Spacer()
         Button(
           onboarding.currentStep == .modelDownload ? "Finish setup" : "Continue",
@@ -52,6 +53,7 @@ struct OnboardingView: View {
         )
         .buttonStyle(.borderedProminent)
         .disabled(canContinue == false)
+        .accessibilityIdentifier("onboarding.continue")
       }
     }
     .frame(minWidth: 520, minHeight: 320)
@@ -165,8 +167,10 @@ struct OnboardingView: View {
       )
     )
     .textContentType(.URL)
+    .accessibilityIdentifier("onboarding.modelURL")
     HStack {
       Button("Check source") { Task { await customModelSource.refresh() } }
+        .accessibilityIdentifier("onboarding.modelRefresh")
         .disabled(customModelSource.manifestURL.isEmpty || customModelSource.isLoading)
       if customModelSource.isLoading { ProgressView().controlSize(.small) }
     }

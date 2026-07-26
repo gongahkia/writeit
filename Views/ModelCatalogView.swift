@@ -22,6 +22,15 @@ struct ModelCatalogView: View {
           ForEach(ModelCatalogTab.allCases) { Text($0.title).tag($0) }
         }
         .pickerStyle(.segmented)
+        .accessibilityIdentifier("models.tabs")
+        if UITestConfiguration.isEnabled {
+          HStack {
+            Button("UI Test: Cloud", action: { selectedTab = .cloud })
+              .accessibilityIdentifier("models.tab.cloud")
+            Button("UI Test: Custom", action: { selectedTab = .custom })
+              .accessibilityIdentifier("models.tab.custom")
+          }
+        }
         tabContent
       }
       .padding(24)
@@ -99,9 +108,11 @@ private struct CustomModelSourcePanel: View {
           text: Binding(get: { source.manifestURL }, set: { source.setManifestURL($0) })
         )
         .textContentType(.URL)
+        .accessibilityIdentifier("models.customURL")
         HStack {
           Button("Refresh") { Task { await source.refresh() } }
             .disabled(source.manifestURL.isEmpty || source.isLoading)
+            .accessibilityIdentifier("models.refresh")
           if source.isLoading { ProgressView().controlSize(.small) }
         }
         if let message = source.message { Text(message).font(.caption).foregroundStyle(.secondary) }

@@ -20,11 +20,12 @@ final class AppRuntime {
   let capture: CaptureCoordinator
 
   init(defaults: UserDefaults = .standard) {
-    preferences = Preferences(defaults: defaults)
-    onboarding = OnboardingStore(defaults: defaults)
+    let runtimeDefaults = UITestConfiguration.defaults(fallback: defaults)
+    preferences = Preferences(defaults: runtimeDefaults)
+    onboarding = OnboardingStore(defaults: runtimeDefaults)
     let historyStore = HistoryStore()
     let modelStore = ModelStore()
-    let customModelSourceStore = CustomHTTPSModelSourceStore(defaults: defaults)
+    let customModelSourceStore = CustomHTTPSModelSourceStore(defaults: runtimeDefaults)
     let diagnosticStore = DiagnosticEventStore(retainsLocalLogs: preferences.retainsLocalLogs)
     let metricsQueue = AnonymousMetricsQueue(hasConsent: preferences.allowsAnonymousMetrics)
     history = historyStore
@@ -42,10 +43,10 @@ final class AppRuntime {
     let recognitionService = RecognitionService()
     let cloudProviderStore = CloudOCRProviderStore(defaults: defaults)
     let backendRegistry = RecognitionBackendRegistry(
-      localRecognizer: recognitionService,
+      localRecognizer: UITestConfiguration.isEnabled ? UITestRecognitionBackend() : recognitionService,
       cloudProviders: cloudProviderStore
     )
-    let profileStore = AppProfileStore(defaults: defaults)
+    let profileStore = AppProfileStore(defaults: runtimeDefaults)
     let foregroundApplicationResolver = ForegroundApplicationBundleIdentifierResolver()
     let profileOverrideResolver = AppProfileOverrideResolver(profiles: profileStore)
     profiles = profileStore
@@ -67,8 +68,8 @@ final class AppRuntime {
       preferences: preferences,
       history: history,
       session: session,
-      shortcutMonitor: GlobalShortcutMonitor(),
-      delivery: AccessibilityTextDelivery(),
+      shortcutMonitor: UITestConfiguration.isEnabled ? UITestShortcutMonitor() : GlobalShortcutMonitor(),
+      delivery: UITestConfiguration.isEnabled ? UITestAccessibilityDelivery() : AccessibilityTextDelivery(),
       recognitionRegistry: backendRegistry,
       regexReplacer: RegexReplacementService(),
       enhancer: AIEnhancer(),

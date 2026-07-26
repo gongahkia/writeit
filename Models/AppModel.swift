@@ -162,6 +162,21 @@ final class CaptureCoordinator: ObservableObject {
       : "Write, then press \(preferences.shortcut.displayName) to submit"
   }
 
+  func presentUITestReview() {
+    guard UITestConfiguration.isEnabled else { return }
+    beginCapture()
+    guard session.phase == .drawing else { return }
+    session.beginStroke(at: InkPoint(x: 20, y: 20, pressure: 0.5, timestamp: 0))
+    session.append(point: InkPoint(x: 180, y: 80, pressure: 0.5, timestamp: 0.1))
+    guard session.transition(to: .recognizing) else { return }
+    session.recognizedText = "UI test capture"
+    session.recordRecognitionMetadata(RecognitionCaptureMetadata(
+      source: "apple-vision", model: "apple-vision", language: .english, confidence: 1, duration: 0
+    ))
+    guard session.transition(to: .reviewing) else { return }
+    statusMessage = "Review before inserting"
+  }
+
   func cancelCapture() {
     cancelOwnedWork()
     recognitionStartedAt = nil
