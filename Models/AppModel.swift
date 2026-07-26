@@ -335,9 +335,15 @@ final class CaptureCoordinator: ObservableObject {
         let formattedResult = MathematicalNotationFormatter.format(result, as: mathematicalNotationFormat)
         self.recognitionStartedAt = nil
         self.session.recognizedText = formattedResult
-        if self.preferences.resultMode == .review {
+        let diagram = FlowchartDiagramAnalyzer.analyze(
+          strokes: strokes,
+          canvasSize: self.session.canvasSize,
+          recognizedText: formattedResult
+        )
+        self.session.setFlowchartDiagram(diagram)
+        if self.preferences.resultMode == .review || diagram != nil {
           guard self.session.transition(to: .reviewing) else { return }
-          self.statusMessage = "Review before inserting"
+          self.statusMessage = diagram == nil ? "Review before inserting" : "Flowchart detected; review an export or insert text"
         } else {
           let notice = notices.joined(separator: " ")
           self.finish(

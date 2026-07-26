@@ -780,6 +780,43 @@ struct InkExportTests {
   }
 }
 
+struct FlowchartDiagramTests {
+  @Test("detects a deterministic two-step flowchart and exports selected formats")
+  func detectsAndExportsFlowchart() throws {
+    func point(_ x: CGFloat, _ y: CGFloat) -> InkPoint {
+      InkPoint(x: x, y: y, pressure: 0.5, timestamp: 0)
+    }
+    let start = InkStroke(points: [point(20, 20), point(120, 20), point(120, 70), point(20, 70), point(20, 20)])
+    let end = InkStroke(points: [point(220, 20), point(320, 20), point(320, 70), point(220, 70), point(220, 20)])
+    let connector = InkStroke(points: [point(120, 45), point(220, 45), point(214, 39), point(220, 45)])
+    let diagram = try #require(FlowchartDiagramAnalyzer.analyze(
+      strokes: [start, end, connector],
+      canvasSize: CGSize(width: 360, height: 120),
+      recognizedText: "Start → Finish"
+    ))
+    #expect(diagram.isQualified)
+    #expect(diagram.nodes.map(\.label) == ["Start", "Finish"])
+    #expect(FlowchartDiagramExportCodec.ascii(diagram) == "[Start] --> [Finish]")
+    let excalidraw = String(decoding: try FlowchartDiagramExportCodec.encode(diagram, format: .excalidraw), as: UTF8.self)
+    let svg = String(decoding: try FlowchartDiagramExportCodec.encode(diagram, format: .svg), as: UTF8.self)
+    #expect(excalidraw.contains("\"type\" : \"excalidraw\""))
+    #expect(excalidraw.contains("\"type\" : \"arrow\""))
+    #expect(svg.contains("marker-end=\"url(#arrow)\""))
+    #expect(svg.contains(">Start</text>"))
+  }
+
+  @Test("rejects incomplete and non-flowchart ink")
+  func rejectsNonFlowchartInk() {
+    let line = InkStroke(points: [
+      InkPoint(x: 10, y: 10, pressure: 0.5, timestamp: 0),
+      InkPoint(x: 160, y: 60, pressure: 0.5, timestamp: 0.1),
+    ])
+    #expect(FlowchartDiagramAnalyzer.analyze(
+      strokes: [line], canvasSize: CGSize(width: 240, height: 100), recognizedText: "hello"
+    ) == nil)
+  }
+}
+
 struct PrivacyStateRegressionTests {
   @Test("describes diagnostics and metrics opt-in states")
   func describesDiagnosticsAndMetricsStates() {

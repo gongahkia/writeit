@@ -6,6 +6,7 @@ final class CaptureSession: ObservableObject {
   @Published private(set) var phase: CapturePhase = .idle
   @Published var strokes: [InkStroke] = []
   @Published var recognizedText = ""
+  @Published private(set) var flowchartDiagram: FlowchartDiagram?
   @Published var canvasSize = CGSize(width: 760, height: 250)
   @Published private(set) var deliveryOutcome: DeliveryOutcome?
   private(set) var foregroundBundleIdentifier: String?
@@ -25,6 +26,7 @@ final class CaptureSession: ObservableObject {
     self.foregroundBundleIdentifier = foregroundBundleIdentifier
     strokes = []
     recognizedText = ""
+    flowchartDiagram = nil
     deliveryOutcome = nil
     recognitionMetadata = nil
     captureActivatedAt = clock.now
@@ -43,6 +45,7 @@ final class CaptureSession: ObservableObject {
     guard transition(to: .idle) else { return }
     strokes = []
     recognizedText = ""
+    flowchartDiagram = nil
     deliveryOutcome = nil
     foregroundBundleIdentifier = nil
     recognitionMetadata = nil
@@ -93,6 +96,10 @@ final class CaptureSession: ObservableObject {
 
   func clearRecognitionMetadata() {
     recognitionMetadata = nil
+  }
+
+  func setFlowchartDiagram(_ diagram: FlowchartDiagram?) {
+    flowchartDiagram = diagram
   }
 
   func inputValidationMessage() -> String? {
