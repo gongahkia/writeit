@@ -19,6 +19,9 @@ enum ModelStoreError: LocalizedError, Equatable {
 @MainActor
 final class ModelStore: ObservableObject {
   static let appleVisionModelID = "apple-vision"
+  static let defaultModelsDirectory = FileManager.default.urls(
+    for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    .appendingPathComponent("WriteIt/Models", isDirectory: true)
   @Published private(set) var installationStates: [String: ModelInstallationState]
   @Published private(set) var activeModelID: String
   @Published private(set) var error: AppErrorPresentation?
@@ -30,8 +33,7 @@ final class ModelStore: ObservableObject {
   init(modelsDirectory: URL? = nil, downloadCheckpointURL: URL? = nil) {
     let base =
       modelsDirectory
-      ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("WriteIt/Models", isDirectory: true)
+      ?? Self.defaultModelsDirectory
     self.modelsDirectory = base
     self.downloadCheckpointStore = ModelDownloadCheckpointStore(
       fileURL: downloadCheckpointURL ?? base.appendingPathComponent("downloads.json"))

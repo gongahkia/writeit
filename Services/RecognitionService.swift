@@ -173,8 +173,10 @@ actor RecognitionService: TextRecognizing {
 }
 
 actor EnhancedOCRAdapter {
+  private let trocr = TrOCRCoreMLAdapter()
+
   func recognize(imageData: Data) async throws -> RecognitionResult? {
-    nil
+    try await trocr.recognize(imageData: imageData)
   }
 }
 

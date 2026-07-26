@@ -817,6 +817,45 @@ struct FlowchartDiagramTests {
   }
 }
 
+struct TrOCRTokenizerTests {
+  private func tokenizer() throws -> TrOCRTokenizer {
+    try TrOCRTokenizer(configuration: TrOCRTokenizerConfiguration(
+      vocabulary: ["<s>": 0, "</s>": 1, "<pad>": 2, "▁Hello": 3, "##s": 4, "▁world": 5],
+      beginningOfSentenceTokenID: 0,
+      endOfSentenceTokenID: 1,
+      paddingTokenID: 2
+    ))
+  }
+
+  @Test("tokenizer decodes sentence-piece and word-piece tokens")
+  func decodesTokens() throws {
+    #expect(try tokenizer().decode([0, 3, 4, 5, 1, 2]) == "Hellos world")
+  }
+
+  @Test("greedy decoder stops at EOS and selects highest logits")
+  func decodesGreedily() throws {
+    struct Predictor: TrOCRLogitsPredicting {
+      func logits(for tokenIDs: [Int]) throws -> [Float] {
+        tokenIDs.count == 1 ? [0, 0, 0, 1, 0, 0] : [0, 2, 0, 0, 0, 0]
+      }
+    }
+    let decoder = try TrOCRGreedyDecoder(tokenizer: tokenizer(), maximumTokenCount: 4)
+    #expect(try decoder.decode(using: Predictor()) == "Hello")
+  }
+
+  @Test("tokenizer rejects malformed vocabulary configuration")
+  func rejectsMalformedConfiguration() {
+    #expect(throws: TrOCRError.invalidBundle) {
+      try TrOCRTokenizer(configuration: TrOCRTokenizerConfiguration(
+        vocabulary: ["<s>": 0, "</s>": 0],
+        beginningOfSentenceTokenID: 0,
+        endOfSentenceTokenID: 1,
+        paddingTokenID: 2
+      ))
+    }
+  }
+}
+
 struct PrivacyStateRegressionTests {
   @Test("describes diagnostics and metrics opt-in states")
   func describesDiagnosticsAndMetricsStates() {
