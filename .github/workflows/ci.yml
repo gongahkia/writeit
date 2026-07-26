@@ -6,12 +6,73 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  unit:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - run: swift build
       - run: swift test
-      - run: bash -n script/build_and_run.sh script/package_release.sh
+
+  integration:
+    runs-on: macos-15
+    env:
+      WRITEIT_ARTIFACT_DIR: ${{ runner.temp }}/writeit-artifacts
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./script/verify_source_beta.sh
+      - run: ./script/source_beta_diagnostics_smoke.sh
+      - run: ./script/compatibility_smoke.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-smoke
+          path: ${{ runner.temp }}/writeit-artifacts/compatibility-smoke.json
+
+  ui:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate --spec project.yml
+      - run: xcodebuild -project WriteIt.xcodeproj -scheme WriteIt -destination 'platform=macOS,arch=arm64' test -only-testing:WriteItUITests
+
+  benchmark-smoke:
+    runs-on: macos-15
+    env:
+      WRITEIT_ARTIFACT_DIR: ${{ runner.temp }}/writeit-artifacts
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./script/benchmark_smoke.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-smoke
+          path: ${{ runner.temp }}/writeit-artifacts/benchmark-smoke.json
+
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n script/*.sh
       - run: ./script/package_release.sh --dry-run
       - run: git diff --check
+
+  release-readiness:
+    needs: [unit, integration, ui, benchmark-smoke, package]
+    runs-on: macos-15
+    env:
+      WRITEIT_ARTIFACT_DIR: ${{ runner.temp }}/writeit-artifacts
+      WRITEIT_BENCHMARK_ARTIFACT: ${{ runner.temp }}/writeit-artifacts/benchmark-smoke.json
+      WRITEIT_COMPATIBILITY_ARTIFACT: ${{ runner.temp }}/writeit-artifacts/compatibility-smoke.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: benchmark-smoke
+          path: ${{ runner.temp }}/writeit-artifacts
+      - uses: actions/download-artifact@v4
+        with:
+          name: compatibility-smoke
+          path: ${{ runner.temp }}/writeit-artifacts
+      - run: ./script/release_readiness.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-readiness
+          path: ${{ runner.temp }}/writeit-artifacts/release-readiness.json

@@ -15,7 +15,7 @@ xcrun --show-sdk-path --sdk macosx >/dev/null
 swift package --package-path "$ROOT_DIR" describe --type json >/dev/null
 swift build --package-path "$ROOT_DIR" --scratch-path "$SCRATCH_DIR/build" -Xswiftc -warnings-as-errors
 swift test --package-path "$ROOT_DIR" --scratch-path "$SCRATCH_DIR/test" --quiet
-bash -n "$ROOT_DIR/script/build_and_run.sh" "$ROOT_DIR/script/package_release.sh"
+bash -n "$ROOT_DIR"/script/*.sh
 "$ROOT_DIR/script/package_release.sh" --dry-run
 plutil -lint "$ROOT_DIR/Packaging/Info.plist" >/dev/null
 git -C "$ROOT_DIR" diff --check
