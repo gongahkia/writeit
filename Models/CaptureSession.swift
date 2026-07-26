@@ -7,6 +7,7 @@ final class CaptureSession: ObservableObject {
   @Published var strokes: [InkStroke] = []
   @Published var recognizedText = ""
   @Published private(set) var flowchartDiagram: FlowchartDiagram?
+  @Published private(set) var umlDiagram: UMLDiagram?
   @Published private(set) var aiDiagramTranslation: AIDiagramTranslation?
   @Published var canvasSize = CGSize(width: 760, height: 250)
   @Published private(set) var deliveryOutcome: DeliveryOutcome?
@@ -28,6 +29,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     flowchartDiagram = nil
+    umlDiagram = nil
     aiDiagramTranslation = nil
     deliveryOutcome = nil
     recognitionMetadata = nil
@@ -48,6 +50,7 @@ final class CaptureSession: ObservableObject {
     strokes = []
     recognizedText = ""
     flowchartDiagram = nil
+    umlDiagram = nil
     aiDiagramTranslation = nil
     deliveryOutcome = nil
     foregroundBundleIdentifier = nil
@@ -103,6 +106,10 @@ final class CaptureSession: ObservableObject {
 
   func setFlowchartDiagram(_ diagram: FlowchartDiagram?) {
     flowchartDiagram = diagram
+  }
+
+  func setUMLDiagram(_ diagram: UMLDiagram?) {
+    umlDiagram = diagram
   }
 
   func setAIDiagramTranslation(_ translation: AIDiagramTranslation?) {

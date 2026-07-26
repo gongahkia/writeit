@@ -8,6 +8,7 @@ struct CaptureOverlayView: View {
   @ObservedObject var preferences: Preferences
   @State private var exportMessage: String?
   @State private var diagramFormat: DiagramExportFormat = .ascii
+  @State private var umlDiagramFormat: UMLDiagramExportFormat = .plantUML
   @State private var showsDiagramReview = false
 
   var body: some View {
@@ -162,7 +163,9 @@ struct CaptureOverlayView: View {
 
   private var diagramReview: some View {
     Group {
-      if let translation = session.aiDiagramTranslation {
+      if let umlDiagram = session.umlDiagram {
+        umlDiagramReview(umlDiagram)
+      } else if let translation = session.aiDiagramTranslation {
         aiDiagramReview(translation)
       } else if session.flowchartDiagram != nil {
         flowchartDiagramReview
@@ -259,7 +262,73 @@ struct CaptureOverlayView: View {
   }
 
   private var hasDiagram: Bool {
-    session.flowchartDiagram != nil || session.aiDiagramTranslation != nil
+    session.umlDiagram != nil || session.flowchartDiagram != nil || session.aiDiagramTranslation != nil
+  }
+
+  private func umlDiagramReview(_ diagram: UMLDiagram) -> some View {
+    let formats = diagram.availableExportFormats
+    return VStack(alignment: .leading, spacing: 12) {
+      HStack {
+        Text("Detected UML \(diagram.title)").font(.title3.weight(.semibold)).foregroundStyle(.white)
+        Spacer()
+        Picker("Export format", selection: $umlDiagramFormat) {
+          ForEach(formats) { Text($0.title).tag($0) }
+        }
+        .labelsHidden()
+        .frame(width: 160)
+      }
+      ScrollView {
+        Text(umlDiagramPreview(diagram))
+          .font(.caption.monospaced())
+          .foregroundStyle(.white.opacity(0.86))
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .textSelection(.enabled)
+      }
+      HStack {
+        Button("Copy \(umlDiagramFormat.title)") { copyUMLDiagram(diagram) }.buttonStyle(.bordered)
+        Button("Save \(umlDiagramFormat.title)") { saveUMLDiagram(diagram) }.buttonStyle(.borderedProminent)
+        Spacer()
+        Text("Text delivery remains unchanged.").font(.caption).foregroundStyle(.white.opacity(0.56))
+      }
+    }
+    .onChange(of: diagram.title, initial: true) { _, _ in
+      if !formats.contains(umlDiagramFormat) { umlDiagramFormat = formats[0] }
+    }
+    .padding(18)
+  }
+
+  private func umlDiagramPreview(_ diagram: UMLDiagram) -> String {
+    guard let data = try? UMLDiagramExportCodec.encode(diagram, format: umlDiagramFormat) else {
+      return "Diagram preview unavailable."
+    }
+    return String(decoding: data, as: UTF8.self)
+  }
+
+  private func copyUMLDiagram(_ diagram: UMLDiagram) {
+    guard let data = try? UMLDiagramExportCodec.encode(diagram, format: umlDiagramFormat),
+      let value = String(data: data, encoding: .utf8)
+    else {
+      exportMessage = "Diagram export failed."
+      return
+    }
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(value, forType: .string)
+    exportMessage = "Copied \(umlDiagramFormat.title)."
+  }
+
+  private func saveUMLDiagram(_ diagram: UMLDiagram) {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [umlDiagramFormat.contentType]
+    panel.nameFieldStringValue = "WriteItUML.\(umlDiagramFormat.fileExtension)"
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      try InkExportFileStore.write(
+        UMLDiagramExportCodec.encode(diagram, format: umlDiagramFormat), to: url)
+      exportMessage = "UML diagram exported as \(umlDiagramFormat.title)."
+    } catch {
+      exportMessage = (error as? LocalizedError)?.errorDescription ?? "Diagram export failed."
+    }
   }
 
   private func exportInk(_ format: InkExportFormat) {
@@ -398,6 +467,17 @@ private extension AIDiagramOutputFormat {
     switch self {
     case .mermaid: UTType(filenameExtension: "mmd") ?? .plainText
     case .plantUML: UTType(filenameExtension: "puml") ?? .plainText
+    }
+  }
+}
+
+private extension UMLDiagramExportFormat {
+  var contentType: UTType {
+    switch self {
+    case .plantUML: UTType(filenameExtension: "puml") ?? .plainText
+    case .mermaid: UTType(filenameExtension: "mmd") ?? .plainText
+    case .svg: UTType(filenameExtension: "svg") ?? .xml
+    case .excalidraw: UTType(filenameExtension: "excalidraw") ?? .json
     }
   }
 }

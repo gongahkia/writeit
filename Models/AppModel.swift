@@ -362,13 +362,18 @@ final class CaptureCoordinator: ObservableObject {
         let formattedResult = MathematicalNotationFormatter.format(result, as: mathematicalNotationFormat)
         self.recognitionStartedAt = nil
         self.session.recognizedText = formattedResult
-        let diagram = FlowchartDiagramAnalyzer.analyze(
+        let umlDiagram = UMLDiagramAnalyzer.analyze(
           strokes: strokes,
           canvasSize: self.session.canvasSize,
           recognizedText: formattedResult
         )
+        let diagram = umlDiagram == nil ? FlowchartDiagramAnalyzer.analyze(
+          strokes: strokes,
+          canvasSize: self.session.canvasSize,
+          recognizedText: formattedResult
+        ) : nil
         let aiDiagramTranslation: AIDiagramTranslation?
-        if diagram == nil, aiDiagramFallbackEnabled, let aiDiagramImageData {
+        if umlDiagram == nil, diagram == nil, aiDiagramFallbackEnabled, let aiDiagramImageData {
           do {
             aiDiagramTranslation = try await diagramTranslator.translate(
               AIDiagramTranslationRequest(
@@ -391,13 +396,15 @@ final class CaptureCoordinator: ObservableObject {
         try Task.checkCancellation()
         guard self.ownsCaptureTask(taskID), self.session.phase == .recognizing else { return }
         self.session.setFlowchartDiagram(diagram)
+        self.session.setUMLDiagram(umlDiagram)
         self.session.setAIDiagramTranslation(aiDiagramTranslation)
-        if self.preferences.resultMode == .review || diagram != nil || aiDiagramTranslation != nil {
+        if self.preferences.resultMode == .review || umlDiagram != nil || diagram != nil || aiDiagramTranslation != nil {
           guard self.session.transition(to: .reviewing) else { return }
-          self.statusMessage = switch (diagram, aiDiagramTranslation) {
-          case (.some, _): "Flowchart detected; review an export or insert text"
-          case (_, .some): "AI diagram translated; review an export or insert text"
-          case (.none, .none): "Review before inserting"
+          self.statusMessage = switch (umlDiagram, diagram, aiDiagramTranslation) {
+          case (.some, _, _): "UML diagram detected; review an export or insert text"
+          case (_, .some, _): "Flowchart detected; review an export or insert text"
+          case (_, _, .some): "AI diagram translated; review an export or insert text"
+          case (.none, .none, .none): "Review before inserting"
           }
         } else {
           let notice = notices.joined(separator: " ")

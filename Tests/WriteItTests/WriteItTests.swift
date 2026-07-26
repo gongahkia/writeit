@@ -915,6 +915,77 @@ struct FlowchartDiagramTests {
   }
 }
 
+struct UMLClassDiagramTests {
+  @Test("classifies compartmented class boxes and exports every required format")
+  func detectsAndExportsClassDiagram() throws {
+    let fixture = try UMLInkFixture.load("uml-class-qualified")
+    let diagram = try #require(UMLClassDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ))
+    #expect(diagram.isQualified)
+    #expect(diagram.classes.map(\.name) == ["Customer", "Order"])
+    #expect(diagram.relationships == [
+      UMLClassRelationship(sourceID: "class-1", destinationID: "class-2", kind: .association),
+    ])
+    let detected = UMLDiagram.classDiagram(diagram)
+    let plantUML = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .plantUML), as: UTF8.self)
+    let mermaid = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .mermaid), as: UTF8.self)
+    let svg = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .svg), as: UTF8.self)
+    let excalidraw = String(decoding: try UMLDiagramExportCodec.encode(detected, format: .excalidraw), as: UTF8.self)
+
+    #expect(plantUML.contains("class \"Customer\" as C1"))
+    #expect(plantUML.contains("C1 -- C2"))
+    #expect(mermaid.contains("classDiagram"))
+    #expect(mermaid.contains("C1 -- C2"))
+    #expect(svg.contains("<rect"))
+    #expect(excalidraw.contains("\"type\" : \"excalidraw\""))
+  }
+
+  @Test("rejects incomplete class ink and escapes class labels")
+  func rejectsIncompleteInkAndEscapesLabels() throws {
+    let rejected = try UMLInkFixture.load("uml-class-rejected")
+    #expect(UMLClassDiagramAnalyzer.analyze(
+      strokes: rejected.inkStrokes,
+      canvasSize: rejected.canvasSize,
+      recognizedText: rejected.recognizedText
+    ) == nil)
+
+    let escaped = try UMLInkFixture.load("uml-class-escaped-labels")
+    let diagram = try #require(UMLClassDiagramAnalyzer.analyze(
+      strokes: escaped.inkStrokes,
+      canvasSize: escaped.canvasSize,
+      recognizedText: escaped.recognizedText
+    ))
+    let plantUML = UMLClassDiagramExportCodec.plantUML(diagram)
+    let svg = String(decoding: try UMLClassDiagramExportCodec.encode(diagram, format: .svg), as: UTF8.self)
+
+    #expect(plantUML.contains("Customer & \\\"VIP\\\""))
+    #expect(svg.contains("Customer &amp; &quot;VIP&quot;"))
+    #expect(svg.contains("Order &lt;New&gt;"))
+  }
+
+  @Test("classifies inheritance and composition markers")
+  func classifiesRelationshipMarkers() throws {
+    let fixture = try UMLInkFixture.load("uml-class-relationships")
+    let diagram = try #require(UMLClassDiagramAnalyzer.analyze(
+      strokes: fixture.inkStrokes,
+      canvasSize: fixture.canvasSize,
+      recognizedText: fixture.recognizedText
+    ))
+    let kinds = Set(diagram.relationships.map(\.kind))
+    let plantUML = UMLClassDiagramExportCodec.plantUML(diagram)
+    let mermaid = UMLClassDiagramExportCodec.mermaid(diagram)
+
+    #expect(kinds == [.inheritance, .composition])
+    #expect(plantUML.contains("C2 <|-- C1"))
+    #expect(plantUML.contains("C3 *-- C4"))
+    #expect(mermaid.contains("C2 <|-- C1"))
+    #expect(mermaid.contains("C3 *-- C4"))
+  }
+}
+
 struct TrOCRTokenizerTests {
   private func tokenizer() throws -> TrOCRTokenizer {
     try TrOCRTokenizer(configuration: TrOCRTokenizerConfiguration(
@@ -4619,6 +4690,38 @@ struct CaptureCoordinatorLifecycleTests {
     #expect(capture.session.phase == .reviewing)
   }
 
+  @Test("keeps qualified class diagrams local and unsupported class ink in text delivery") @MainActor
+  func handlesClassDiagramRecognitionWithoutChangingTextDelivery() async throws {
+    let qualified = try UMLInkFixture.load("uml-class-qualified")
+    let localDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    localDependencies.preferences.enableAIDiagramFallback()
+    let localCapture = localDependencies.makeCaptureCoordinator()
+    localCapture.beginCapture()
+    localCapture.session.canvasSize = qualified.canvasSize
+    localCapture.session.strokes = qualified.inkStrokes
+
+    localCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    #expect(localCapture.session.umlDiagram != nil)
+    #expect(localCapture.session.phase == .reviewing)
+    #expect(localDependencies.diagramTranslator.requests.isEmpty)
+    #expect(localDependencies.delivery.deliveredRequests.isEmpty)
+
+    let rejected = try UMLInkFixture.load("uml-class-rejected")
+    let textDependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
+    let textCapture = textDependencies.makeCaptureCoordinator()
+    textCapture.beginCapture()
+    textCapture.session.canvasSize = rejected.canvasSize
+    textCapture.session.strokes = rejected.inkStrokes
+
+    textCapture.submitCapture()
+    for _ in 0..<10 { await Task.yield() }
+
+    #expect(textCapture.session.umlDiagram == nil)
+    #expect(textDependencies.delivery.deliveredRequests.first?.text == "recognized")
+  }
+
   @Test("does not send a capture image when AI diagram fallback lacks consent") @MainActor
   func doesNotUseUnconsentedAIDiagramFallback() async throws {
     let dependencies = TestDependencies(trusted: true, recognition: SuccessfulRecognition())
@@ -4965,6 +5068,43 @@ private func handwritingImageData() throws -> Data {
     throw RecognitionError.invalidImage
   }
   return data
+}
+
+private struct UMLInkFixture: Decodable {
+  private struct Canvas: Decodable {
+    let width: CGFloat
+    let height: CGFloat
+  }
+  private struct Point: Decodable {
+    let x: CGFloat
+    let y: CGFloat
+  }
+
+  private let canvas: Canvas
+  let recognizedText: String
+  private let strokes: [[Point]]
+
+  var canvasSize: CGSize { CGSize(width: canvas.width, height: canvas.height) }
+  var inkStrokes: [InkStroke] {
+    strokes.enumerated().map { strokeIndex, stroke in
+      InkStroke(points: stroke.enumerated().map { pointIndex, point in
+        InkPoint(x: point.x, y: point.y, pressure: 0.5, timestamp: TimeInterval(strokeIndex + pointIndex))
+      })
+    }
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case canvas
+    case recognizedText = "recognized_text"
+    case strokes
+  }
+
+  static func load(_ name: String) throws -> Self {
+    guard let url = Bundle.module.url(forResource: name, withExtension: "json") else {
+      throw CloudAdapterFixture.FixtureError.unavailable
+    }
+    return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+  }
 }
 
 private enum CloudAdapterFixture {
