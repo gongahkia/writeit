@@ -41,31 +41,45 @@ enum UMLDiagramExportError: LocalizedError, Equatable {
 
 enum UMLDiagram: Equatable {
   case classDiagram(UMLClassDiagram)
+  case sequenceDiagram(UMLSequenceDiagram)
 
   var title: String {
     switch self {
     case .classDiagram: "class diagram"
+    case .sequenceDiagram: "sequence diagram"
     }
   }
   var isQualified: Bool {
     switch self {
     case .classDiagram(let diagram): diagram.isQualified
+    case .sequenceDiagram(let diagram): diagram.isQualified
     }
   }
   var availableExportFormats: [UMLDiagramExportFormat] {
     switch self {
     case .classDiagram: UMLDiagramExportFormat.allCases
+    case .sequenceDiagram: UMLDiagramExportFormat.allCases
     }
   }
 }
 
 enum UMLDiagramAnalyzer {
   static func analyze(strokes: [InkStroke], canvasSize: CGSize, recognizedText: String) -> UMLDiagram? {
-    UMLClassDiagramAnalyzer.analyze(
+    if let diagram = UMLClassDiagramAnalyzer.analyze(
       strokes: strokes,
       canvasSize: canvasSize,
       recognizedText: recognizedText
-    ).map(UMLDiagram.classDiagram)
+    ) {
+      return .classDiagram(diagram)
+    }
+    if let diagram = UMLSequenceDiagramAnalyzer.analyze(
+      strokes: strokes,
+      canvasSize: canvasSize,
+      recognizedText: recognizedText
+    ) {
+      return .sequenceDiagram(diagram)
+    }
+    return nil
   }
 }
 
@@ -78,6 +92,8 @@ enum UMLDiagramExportCodec {
     switch diagram {
     case .classDiagram(let classDiagram):
       return try UMLClassDiagramExportCodec.encode(classDiagram, format: format)
+    case .sequenceDiagram(let sequenceDiagram):
+      return try UMLSequenceDiagramExportCodec.encode(sequenceDiagram, format: format)
     }
   }
 }
