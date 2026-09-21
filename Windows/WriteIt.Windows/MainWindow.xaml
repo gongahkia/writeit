@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:WriteIt.Windows"
     Title="WriteIt">
-    <Grid Padding="24" RowSpacing="20">
+    <Grid x:Name="Root" Padding="24" RowSpacing="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -46,7 +46,10 @@
             <StackPanel Grid.Column="1" Spacing="12">
                 <TextBlock Text="Settings" Style="{StaticResource SubtitleTextBlockStyle}" />
                 <TextBlock Text="Global shortcut" />
-                <TextBlock x:Name="ShortcutText" FontFamily="Consolas" FontSize="16" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox x:Name="ShortcutText" FontFamily="Consolas" Width="180" />
+                    <Button Content="Apply" Click="ApplyShortcutButton_Click" />
+                </StackPanel>
                 <TextBlock Text="Recognition language" />
                 <ComboBox x:Name="LanguagePicker" DisplayMemberPath="DisplayName" SelectionChanged="LanguagePicker_SelectionChanged" />
                 <TextBlock Text="History" />
@@ -57,6 +60,7 @@
                 </ComboBox>
                 <ToggleSwitch x:Name="AutoDeleteToggle" Header="Auto-delete history" Toggled="AutoDeleteToggle_Toggled" />
                 <NumberBox x:Name="RetentionDaysBox" Header="Retention days" Minimum="1" Maximum="365" SpinButtonPlacementMode="Compact" ValueChanged="RetentionDaysBox_ValueChanged" />
+                <NumberBox x:Name="StrokeWidthBox" Header="Ink width" Minimum="1" Maximum="12" SpinButtonPlacementMode="Compact" ValueChanged="StrokeWidthBox_ValueChanged" />
                 <TextBlock Text="Text always remains on the clipboard after a paste request. Direct insertion into elevated or unsupported apps may be blocked." TextWrapping="Wrap" FontSize="12" Opacity="0.65" />
             </StackPanel>
         </Grid>

@@ -2,6 +2,8 @@
 
 WriteIt is a local-first, open-source macOS utility for turning handwriting into text. Press a global shortcut, write with a mouse or tablet stylus, then send the recognized result to the text field that was focused when capture began.
 
+The repository also contains an in-development [Windows 11 MVP](Windows/README.md). It is a separate native WinUI 3 implementation with local OCR, encrypted history, and best-effort paste delivery; it does not yet have feature parity with macOS.
+
 ## Source beta
 
 WriteIt is currently distributed as a source-first beta for Apple Silicon. It is not signed or notarized, and this repository does not provide downloadable OCR models or configured cloud OCR providers.

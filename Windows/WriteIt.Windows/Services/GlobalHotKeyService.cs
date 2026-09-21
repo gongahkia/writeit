@@ -9,9 +9,10 @@ public sealed class GlobalHotKeyService : IDisposable
     private const uint WmHotKey = 0x0312;
     private const uint ModNoRepeat = 0x4000;
     private const int HotKeyId = 1;
-    private static readonly string ClassName = $"WriteIt.HotKey.{Guid.NewGuid():N}";
+    private readonly string _className = $"WriteIt.HotKey.{Guid.NewGuid():N}";
     private readonly WindowProcedure _windowProcedure;
     private IntPtr _window;
+    private IntPtr _instance;
     private bool _registered;
 
     public GlobalHotKeyService()
@@ -48,21 +49,26 @@ public sealed class GlobalHotKeyService : IDisposable
             _ = DestroyWindow(_window);
             _window = IntPtr.Zero;
         }
+        if (_instance != IntPtr.Zero)
+        {
+            _ = UnregisterClass(_className, _instance);
+            _instance = IntPtr.Zero;
+        }
     }
 
     private void CreateMessageWindow()
     {
-        var instance = GetModuleHandle(null);
+        _instance = GetModuleHandle(null);
         var windowClass = new WindowClassEx
         {
             Size = (uint)Marshal.SizeOf<WindowClassEx>(),
-            Instance = instance,
-            ClassName = ClassName,
+            Instance = _instance,
+            ClassName = _className,
             WindowProcedure = _windowProcedure,
         };
         var atom = RegisterClassEx(ref windowClass);
         if (atom == 0) throw new Win32Exception(Marshal.GetLastWin32Error(), "WriteIt could not create a global shortcut listener.");
-        _window = CreateWindowEx(0, ClassName, "WriteIt HotKey", 0, 0, 0, 0, 0, new IntPtr(-3), IntPtr.Zero, instance, IntPtr.Zero);
+        _window = CreateWindowEx(0, _className, "WriteIt HotKey", 0, 0, 0, 0, 0, new IntPtr(-3), IntPtr.Zero, _instance, IntPtr.Zero);
         if (_window == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "WriteIt could not create a global shortcut listener.");
     }
 
@@ -111,6 +117,10 @@ public sealed class GlobalHotKeyService : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnregisterHotKey(IntPtr window, int id);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UnregisterClass(string className, IntPtr instance);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr GetModuleHandle(string? moduleName);

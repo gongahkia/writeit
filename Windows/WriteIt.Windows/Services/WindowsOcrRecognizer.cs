@@ -28,6 +28,7 @@ public sealed class WindowsOcrRecognizer
         {
             writer.WriteBytes(pngData);
             await writer.StoreAsync();
+            writer.DetachStream();
         }
 
         stream.Seek(0);

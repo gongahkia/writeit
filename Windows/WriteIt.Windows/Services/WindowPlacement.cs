@@ -30,6 +30,11 @@ public static class WindowPlacement
         _ = SetWindowPos(handle, HwndTopMost, 0, 0, 0, 0, SwpNoActivate | SwpShowWindow | 0x0001 | 0x0002);
     }
 
+    public static void Hide(Window window)
+    {
+        _ = ShowWindow(HandleFor(window), 0);
+    }
+
     private static Rect WorkingAreaFor(IntPtr sourceWindow)
     {
         var monitor = MonitorFromWindow(sourceWindow, sourceWindow == IntPtr.Zero ? 1u : 2u);
@@ -73,4 +78,8 @@ public static class WindowPlacement
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr window, int command);
 }

@@ -3,6 +3,10 @@ dist/
 release/*
 !release/.gitkeep
 .DS_Store
+.vs/
+Windows/**/bin/
+Windows/**/obj/
+Windows/WriteIt.Windows/Assets/*.png
 *.profraw
 .codex
 AGENTS.md

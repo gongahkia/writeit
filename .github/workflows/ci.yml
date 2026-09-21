@@ -54,6 +54,27 @@ jobs:
       - run: ./script/package_release.sh --dry-run
       - run: git diff --check
 
+  windows-mvp:
+    runs-on: windows-latest
+    env:
+      WINDOWS_PACKAGE_DIR: ${{ runner.temp }}\writeit-windows-package
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test .\Windows\WriteIt.Windows.Tests\WriteIt.Windows.Tests.csproj -c Release
+      - run: pwsh .\Windows\script\create-package-assets.ps1 -AssetDirectory .\Windows\WriteIt.Windows\Assets
+      - run: >-
+          msbuild .\Windows\WriteIt.Windows\WriteIt.Windows.csproj /restore
+          /p:Configuration=Release /p:Platform=x64 /p:GenerateAppxPackageOnBuild=true
+          /p:AppxPackageSigningEnabled=false /p:AppxPackageDir="${env:WINDOWS_PACKAGE_DIR}\\"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-mvp-msix
+          path: ${{ runner.temp }}\writeit-windows-package
+          if-no-files-found: error
+
   release-readiness:
     needs: [unit, integration, ui, benchmark-smoke, package]
     runs-on: macos-15

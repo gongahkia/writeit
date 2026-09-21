@@ -41,7 +41,7 @@ public sealed class WindowsClipboardDelivery
             KeyboardInput(VirtualKeyControl, KeyEventKeyUp),
         };
         var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>());
-        return sent == inputs.Length
+        return sent == (uint)inputs.Length
             ? DeliveryResult.PasteRequested
             : DeliveryResult.ClipboardFallback("Windows blocked the paste request");
     }

@@ -34,9 +34,15 @@ public static class RecognitionLanguages
         _ => language.ToString(),
     };
 
-    public static RecognitionLanguage? FromTag(string tag) => Tags.FirstOrDefault(
-        pair => StringComparer.OrdinalIgnoreCase.Equals(pair.Value, tag)).Key is var language
-        && Tags.ContainsKey(language) ? language : null;
+    public static RecognitionLanguage? FromTag(string tag)
+    {
+        foreach (var pair in Tags)
+        {
+            if (StringComparer.OrdinalIgnoreCase.Equals(pair.Value, tag)) return pair.Key;
+        }
+
+        return null;
+    }
 }
 
 public sealed record LanguageResolution(
