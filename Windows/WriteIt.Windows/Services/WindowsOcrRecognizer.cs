@@ -10,13 +10,13 @@ public sealed record RecognitionResult(string Text, LanguageResolution Resolutio
 
 public sealed class WindowsOcrRecognizer
 {
-    public ISet<RecognitionLanguage> AvailableLanguages => OcrEngine.AvailableRecognizerLanguages
+    public static ISet<RecognitionLanguage> AvailableLanguages => OcrEngine.AvailableRecognizerLanguages
         .Select(language => RecognitionLanguages.FromTag(language.LanguageTag))
         .Where(language => language is not null)
         .Select(language => language!.Value)
         .ToHashSet();
 
-    public async Task<RecognitionResult> RecognizeAsync(byte[] pngData, RecognitionLanguage requestedLanguage)
+    public static async Task<RecognitionResult> RecognizeAsync(byte[] pngData, RecognitionLanguage requestedLanguage)
     {
         var resolution = RecognitionLanguageResolver.Resolve(requestedLanguage, AvailableLanguages)
             ?? throw new InvalidOperationException("Windows OCR has no supported installed language. Install English or the selected language pack.");

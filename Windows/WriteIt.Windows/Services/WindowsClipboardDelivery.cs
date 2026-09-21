@@ -4,7 +4,7 @@ using WriteIt.Windows.Core;
 
 namespace WriteIt.Windows.Services;
 
-public sealed class WindowsClipboardDelivery
+public static class WindowsClipboardDelivery
 {
     private const uint InputKeyboard = 1;
     private const uint KeyEventKeyUp = 0x0002;
@@ -15,13 +15,13 @@ public sealed class WindowsClipboardDelivery
     private const uint SwpShowWindow = 0x0040;
     private static readonly IntPtr HwndTop = IntPtr.Zero;
 
-    public IntPtr CaptureTarget(IntPtr ownWindow)
+    public static IntPtr CaptureTarget(IntPtr ownWindow)
     {
         var target = GetForegroundWindow();
         return target == ownWindow ? IntPtr.Zero : target;
     }
 
-    public DeliveryResult Deliver(string text, IntPtr target)
+    public static DeliveryResult Deliver(string text, IntPtr target)
     {
         var package = new DataPackage();
         package.SetText(text);

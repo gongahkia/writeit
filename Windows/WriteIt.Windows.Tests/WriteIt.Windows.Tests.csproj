@@ -3,6 +3,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>WriteIt.Windows.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- BDD-style test names describe the behavior under test; production projects retain CA1707. -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WriteIt.Windows.Core;
@@ -7,13 +8,12 @@ using WriteIt.Windows.Services;
 
 namespace WriteIt.Windows;
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "The WinUI Window Closed event disposes the registered global hot key.")]
 public sealed partial class MainWindow : Window
 {
     private readonly string _applicationDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WriteIt");
     private readonly CaptureLifecycle _lifecycle = new();
-    private readonly WindowsOcrRecognizer _recognizer = new();
-    private readonly WindowsClipboardDelivery _delivery = new();
     private readonly CaptureOverlayWindow _overlay = new();
     private readonly ObservableCollection<HistoryRow> _historyRows = [];
     private JsonPreferencesStore? _preferencesStore;
@@ -66,7 +66,7 @@ public sealed partial class MainWindow : Window
         try
         {
             ShortcutText.Text = _preferences.Shortcut.DisplayName;
-            var languageOptions = _recognizer.AvailableLanguages
+            var languageOptions = WindowsOcrRecognizer.AvailableLanguages
                 .OrderBy(language => RecognitionLanguages.Tags[language])
                 .Select(language => new LanguageOption(language))
                 .ToArray();
@@ -86,7 +86,7 @@ public sealed partial class MainWindow : Window
             _overlay.SetStrokeWidth(_preferences.StrokeWidth);
             StartCaptureButton.IsEnabled = RecognitionLanguageResolver.Resolve(
                 _preferences.RecognitionLanguage,
-                _recognizer.AvailableLanguages) is not null;
+                WindowsOcrRecognizer.AvailableLanguages) is not null;
             RefreshHistoryRows();
         }
         finally
@@ -105,7 +105,7 @@ public sealed partial class MainWindow : Window
 
     private void StartCapture()
     {
-        if (RecognitionLanguageResolver.Resolve(_preferences.RecognitionLanguage, _recognizer.AvailableLanguages) is null)
+        if (RecognitionLanguageResolver.Resolve(_preferences.RecognitionLanguage, WindowsOcrRecognizer.AvailableLanguages) is null)
         {
             SetStatus("Recognition unavailable", "Install English or the selected Windows OCR language pack before capturing.", InfoBarSeverity.Warning);
             return;
@@ -113,7 +113,7 @@ public sealed partial class MainWindow : Window
 
         if (!_lifecycle.Begin()) return;
         var ownWindow = WindowPlacement.HandleFor(this);
-        _targetWindow = _delivery.CaptureTarget(ownWindow);
+        _targetWindow = WindowsClipboardDelivery.CaptureTarget(ownWindow);
         _overlay.Present(_targetWindow);
         SetStatus("Writing", _targetWindow == IntPtr.Zero ? "No previous app target was captured; the result will be copied." : "Write, then choose Recognize.", InfoBarSeverity.Informational);
     }
@@ -123,9 +123,9 @@ public sealed partial class MainWindow : Window
         if (!_lifecycle.BeginRecognition()) return;
         try
         {
-            var recognized = await _recognizer.RecognizeAsync(png, _preferences.RecognitionLanguage);
+            var recognized = await WindowsOcrRecognizer.RecognizeAsync(png, _preferences.RecognitionLanguage);
             if (!_lifecycle.BeginDelivery()) return;
-            var outcome = _delivery.Deliver(recognized.Text, _targetWindow);
+            var outcome = WindowsClipboardDelivery.Deliver(recognized.Text, _targetWindow);
             _lifecycle.CompleteDelivery(outcome.Message);
             await AddHistoryAsync(recognized, outcome, ink);
             var notice = recognized.Resolution.UsedFallback

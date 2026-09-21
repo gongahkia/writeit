@@ -1,9 +1,6 @@
-using Microsoft.UI.Core;
-using Microsoft.UI.Input.Inking;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI;
-using Windows.Foundation;
+using WriteIt.Windows.Controls;
 using WriteIt.Windows.Services;
 
 namespace WriteIt.Windows;
@@ -13,7 +10,6 @@ public sealed partial class CaptureOverlayWindow : Window
     public CaptureOverlayWindow()
     {
         InitializeComponent();
-        InkSurface.InkPresenter.InputDeviceTypes = CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Pen;
     }
 
     public event Func<byte[], byte[]?, Task>? Submitted;
@@ -29,18 +25,12 @@ public sealed partial class CaptureOverlayWindow : Window
 
     public void SetStrokeWidth(double width)
     {
-        InkSurface.InkPresenter.UpdateDefaultDrawingAttributes(new InkDrawingAttributes
-        {
-            Color = Colors.Black,
-            Size = new Size(width, width),
-            IgnorePressure = false,
-            FitToCurve = true,
-        });
+        InkSurface.StrokeWidth = width;
     }
 
     public void Reset()
     {
-        InkSurface.InkPresenter.StrokeContainer.Clear();
+        InkSurface.ClearInk();
         InkSurface.Visibility = Visibility.Visible;
         ResultPanel.Visibility = Visibility.Collapsed;
         TitleText.Text = "Write naturally";
@@ -69,7 +59,7 @@ public sealed partial class CaptureOverlayWindow : Window
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
-        InkSurface.InkPresenter.StrokeContainer.Clear();
+        InkSurface.ClearInk();
     }
 
     private async void SubmitButton_Click(object sender, RoutedEventArgs e)
