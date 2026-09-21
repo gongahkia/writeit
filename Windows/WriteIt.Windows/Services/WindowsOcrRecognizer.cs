@@ -6,8 +6,6 @@ using WriteIt.Windows.Core;
 
 namespace WriteIt.Windows.Services;
 
-public sealed record RecognitionResult(string Text, LanguageResolution Resolution);
-
 public sealed class WindowsOcrRecognizer
 {
     public static ISet<RecognitionLanguage> AvailableLanguages => AvailableRecognizerLanguages.Keys.ToHashSet();

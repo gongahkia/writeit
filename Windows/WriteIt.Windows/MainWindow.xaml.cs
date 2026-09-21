@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WriteIt.Windows.Core;
+using WriteIt.Windows.Controls;
 using WriteIt.Windows.Models;
 using WriteIt.Windows.Services;
 
@@ -66,7 +67,7 @@ public sealed partial class MainWindow : Window
         try
         {
             ShortcutText.Text = _preferences.Shortcut.DisplayName;
-            var languageOptions = WindowsOcrRecognizer.AvailableLanguages
+            var languageOptions = WindowsHandwritingRecognizer.AvailableLanguages
                 .OrderBy(language => RecognitionLanguages.Tags[language])
                 .Select(language => new LanguageOption(language))
                 .ToArray();
@@ -86,7 +87,7 @@ public sealed partial class MainWindow : Window
             _overlay.SetStrokeWidth(_preferences.StrokeWidth);
             StartCaptureButton.IsEnabled = RecognitionLanguageResolver.Resolve(
                 _preferences.RecognitionLanguage,
-                WindowsOcrRecognizer.AvailableLanguages) is not null;
+                WindowsHandwritingRecognizer.AvailableLanguages) is not null;
             RefreshHistoryRows();
         }
         finally
@@ -105,9 +106,9 @@ public sealed partial class MainWindow : Window
 
     private void StartCapture()
     {
-        if (RecognitionLanguageResolver.Resolve(_preferences.RecognitionLanguage, WindowsOcrRecognizer.AvailableLanguages) is null)
+        if (RecognitionLanguageResolver.Resolve(_preferences.RecognitionLanguage, WindowsHandwritingRecognizer.AvailableLanguages) is null)
         {
-            SetStatus("Recognition unavailable", "Install English or the selected Windows OCR language pack before capturing.", InfoBarSeverity.Warning);
+            SetStatus("Recognition unavailable", "Install English or the selected Windows handwriting language pack before capturing.", InfoBarSeverity.Warning);
             return;
         }
 
@@ -118,12 +119,12 @@ public sealed partial class MainWindow : Window
         SetStatus("Writing", _targetWindow == IntPtr.Zero ? "No previous app target was captured; the result will be copied." : "Write, then choose Recognize.", InfoBarSeverity.Informational);
     }
 
-    private async Task RecognizeAndDeliverAsync(byte[] png, byte[]? ink)
+    private async Task RecognizeAndDeliverAsync(IReadOnlyList<InkStrokeCapture> strokes, byte[]? ink)
     {
         if (!_lifecycle.BeginRecognition()) return;
         try
         {
-            var recognized = await WindowsOcrRecognizer.RecognizeAsync(png, _preferences.RecognitionLanguage);
+            var recognized = await WindowsHandwritingRecognizer.RecognizeAsync(strokes, _preferences.RecognitionLanguage);
             if (!_lifecycle.BeginDelivery()) return;
             var outcome = WindowsClipboardDelivery.Deliver(recognized.Text, _targetWindow);
             _lifecycle.CompleteDelivery(outcome.Message);

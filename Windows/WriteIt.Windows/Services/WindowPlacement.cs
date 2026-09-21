@@ -24,10 +24,11 @@ public static class WindowPlacement
         var style = GetWindowLongPtr(handle, GwLExStyle).ToInt64();
         _ = SetWindowLongPtr(handle, GwLExStyle, new IntPtr(style | WsExNoActivate | WsExToolWindow));
         var area = WorkingAreaFor(sourceWindow);
-        var width = Math.Max(560, area.Right - area.Left - 48);
+        var availableWidth = area.Right - area.Left;
+        var width = Math.Min(960, Math.Max(560, (availableWidth * 2) / 3));
         var height = Math.Min(390, Math.Max(280, area.Bottom - area.Top - 48));
         var appWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(handle));
-        appWindow.MoveAndResize(new RectInt32(area.Left + 24, area.Bottom - height - 30, width, height));
+        appWindow.MoveAndResize(new RectInt32(area.Left + ((availableWidth - width) / 2), area.Bottom - height - 30, width, height));
         _ = SetWindowPos(handle, HwndTopMost, 0, 0, 0, 0, SwpNoActivate | SwpShowWindow | 0x0001 | 0x0002);
     }
 

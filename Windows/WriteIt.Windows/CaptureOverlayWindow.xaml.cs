@@ -12,7 +12,7 @@ public sealed partial class CaptureOverlayWindow : Window
         InitializeComponent();
     }
 
-    public event Func<byte[], byte[]?, Task>? Submitted;
+    public event Func<IReadOnlyList<InkStrokeCapture>, byte[]?, Task>? Submitted;
 
     public event EventHandler? Cancelled;
 
@@ -27,6 +27,8 @@ public sealed partial class CaptureOverlayWindow : Window
     {
         InkSurface.StrokeWidth = width;
     }
+
+    public IReadOnlyList<InkStrokeCapture> Snapshot() => InkSurface.Snapshot();
 
     public void Reset()
     {
@@ -70,9 +72,8 @@ public sealed partial class CaptureOverlayWindow : Window
         TitleText.Text = "Recognizing locally…";
         try
         {
-            var png = await InkRasterizer.RenderPngAsync(InkSurface);
             var ink = await InkRasterizer.SaveInkAsync(InkSurface);
-            await Submitted.Invoke(png, ink);
+            await Submitted.Invoke(Snapshot(), ink);
         }
         catch (Exception exception)
         {
