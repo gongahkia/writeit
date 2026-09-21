@@ -34,14 +34,24 @@ public static class RecognitionLanguages
         _ => language.ToString(),
     };
 
-    public static RecognitionLanguage? FromTag(string tag)
+    public static RecognitionLanguage? FromTag(string? tag)
     {
+        if (String.IsNullOrWhiteSpace(tag)) return null;
+
         foreach (var pair in Tags)
         {
             if (StringComparer.OrdinalIgnoreCase.Equals(pair.Value, tag)) return pair.Key;
         }
 
-        return null;
+        // Windows exposes language tags for the actual installed regional pack
+        // (for example en-SG or pt-BR), rather than necessarily the regional
+        // default we store for this supported language. OCR can use either.
+        var primarySubtag = tag.Split('-', StringSplitOptions.RemoveEmptyEntries)[0];
+        var regionalMatch = Tags.FirstOrDefault(pair =>
+            StringComparer.OrdinalIgnoreCase.Equals(
+                pair.Value.Split('-', StringSplitOptions.RemoveEmptyEntries)[0],
+                primarySubtag));
+        return regionalMatch.Value is null ? null : regionalMatch.Key;
     }
 }
 

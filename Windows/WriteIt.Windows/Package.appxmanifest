@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap rescap">
-  <Identity Name="WriteIt.Windows" Publisher="CN=WriteIt Development" Version="0.1.0.1" ProcessorArchitecture="x64" />
+  <Identity Name="WriteIt.Windows" Publisher="CN=WriteIt Development" Version="0.1.0.2" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>WriteIt</DisplayName>
     <PublisherDisplayName>WriteIt</PublisherDisplayName>

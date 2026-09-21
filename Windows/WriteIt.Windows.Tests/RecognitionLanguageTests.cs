@@ -53,4 +53,13 @@ public sealed class RecognitionLanguageTests
         Assert.False(parsed);
         Assert.NotNull(error);
     }
+
+    [Theory]
+    [InlineData("en-SG", RecognitionLanguage.English)]
+    [InlineData("pt-BR", RecognitionLanguage.Portuguese)]
+    [InlineData("de-AT", RecognitionLanguage.German)]
+    public void It_accepts_regional_variants_of_supported_ocr_languages(string tag, RecognitionLanguage expected)
+    {
+        Assert.Equal(expected, RecognitionLanguages.FromTag(tag));
+    }
 }

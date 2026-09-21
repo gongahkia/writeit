@@ -10,17 +10,28 @@ public sealed record RecognitionResult(string Text, LanguageResolution Resolutio
 
 public sealed class WindowsOcrRecognizer
 {
-    public static ISet<RecognitionLanguage> AvailableLanguages => OcrEngine.AvailableRecognizerLanguages
-        .Select(language => RecognitionLanguages.FromTag(language.LanguageTag))
-        .Where(language => language is not null)
-        .Select(language => language!.Value)
-        .ToHashSet();
+    public static ISet<RecognitionLanguage> AvailableLanguages => AvailableRecognizerLanguages.Keys.ToHashSet();
+
+    private static IReadOnlyDictionary<RecognitionLanguage, Language> AvailableRecognizerLanguages => OcrEngine.AvailableRecognizerLanguages
+        .Select(language => new { RecognitionLanguage = RecognitionLanguages.FromTag(language.LanguageTag), Language = language })
+        .Where(candidate => candidate.RecognitionLanguage is not null)
+        .GroupBy(candidate => candidate.RecognitionLanguage!.Value)
+        .ToDictionary(
+            group => group.Key,
+            group => group
+                .OrderBy(candidate => StringComparer.OrdinalIgnoreCase.Equals(
+                    candidate.Language.LanguageTag,
+                    RecognitionLanguages.Tags[group.Key]) ? 0 : 1)
+                .ThenBy(candidate => candidate.Language.LanguageTag, StringComparer.OrdinalIgnoreCase)
+                .First()
+                .Language);
 
     public static async Task<RecognitionResult> RecognizeAsync(byte[] pngData, RecognitionLanguage requestedLanguage)
     {
-        var resolution = RecognitionLanguageResolver.Resolve(requestedLanguage, AvailableLanguages)
+        var availableRecognizers = AvailableRecognizerLanguages;
+        var resolution = RecognitionLanguageResolver.Resolve(requestedLanguage, availableRecognizers.Keys.ToHashSet())
             ?? throw new InvalidOperationException("Windows OCR has no supported installed language. Install English or the selected language pack.");
-        var engine = OcrEngine.TryCreateFromLanguage(new Language(RecognitionLanguages.Tags[resolution.Resolved]))
+        var engine = OcrEngine.TryCreateFromLanguage(availableRecognizers[resolution.Resolved])
             ?? throw new InvalidOperationException("Windows OCR could not initialize the selected language.");
 
         using var stream = new InMemoryRandomAccessStream();
