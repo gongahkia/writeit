@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "transitions": [
+    ["idle", "opening"],
+    ["opening", "drawing"],
+    ["opening", "dismissing"],
+    ["drawing", "recognizing"],
+    ["drawing", "dismissing"],
+    ["recognizing", "delivering"],
+    ["recognizing", "failed"],
+    ["recognizing", "dismissing"],
+    ["delivering", "delivered"],
+    ["delivering", "dismissing"],
+    ["delivered", "dismissing"],
+    ["failed", "dismissing"],
+    ["dismissing", "idle"]
+  ]
+}

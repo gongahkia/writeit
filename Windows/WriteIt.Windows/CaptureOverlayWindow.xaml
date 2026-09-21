@@ -1,0 +1,32 @@
+<Window
+    x:Class="WriteIt.Windows.CaptureOverlayWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="WriteIt capture">
+    <Grid Background="#F21C1C1C" Padding="18" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock x:Name="TitleText" Text="Write naturally" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <Button Content="Cancel" Click="CancelButton_Click" HorizontalAlignment="Right" />
+        </Grid>
+        <Grid Grid.Row="1">
+            <InkCanvas x:Name="InkSurface" Background="White" />
+            <StackPanel x:Name="ResultPanel" Visibility="Collapsed" Background="#FF1C1C1C" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Padding="24" Spacing="12">
+                <TextBlock x:Name="ResultTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <ScrollViewer MaxHeight="210">
+                    <TextBlock x:Name="ResultText" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                </ScrollViewer>
+                <TextBlock x:Name="ResultMessage" TextWrapping="Wrap" Opacity="0.7" />
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="ClearButton" Content="Clear" Click="ClearButton_Click" />
+            <Button x:Name="SubmitButton" Content="Recognize" Click="SubmitButton_Click" Style="{StaticResource AccentButtonStyle}" />
+            <Button x:Name="CloseButton" Content="Close" Visibility="Collapsed" Click="CloseButton_Click" />
+        </StackPanel>
+    </Grid>
+</Window>

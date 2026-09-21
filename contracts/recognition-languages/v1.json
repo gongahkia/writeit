@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "languages": ["en-US", "fr-FR", "de-DE", "es-ES", "it-IT", "pt-PT"],
+  "fallback_language": "en-US",
+  "fallback_rule": "Use English only when the requested language is unavailable and English is installed."
+}
